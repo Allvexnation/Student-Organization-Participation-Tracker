@@ -21,6 +21,7 @@ RUN echo "<VirtualHost *:80>" > /etc/apache2/sites-available/000-default.conf &&
     echo "    ErrorLog \${APACHE_LOG_DIR}/error.log" >> /etc/apache2/sites-available/000-default.conf && \
     echo "    CustomLog \${APACHE_LOG_DIR}/access.log combined" >> /etc/apache2/sites-available/000-default.conf && \
     echo "</VirtualHost>" >> /etc/apache2/sites-available/000-default.conf && \
+    a2dissite 000-default && a2ensite 000-default && \
     cat /etc/apache2/sites-available/000-default.conf
 
 RUN echo '#!/bin/bash' > /var/www/html/start.sh && \
