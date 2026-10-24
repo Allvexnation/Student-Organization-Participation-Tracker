@@ -3,7 +3,7 @@
 header('Content-Type: application/json');
 
 $allowedOrigins = [
-    'http://crtsopt.vercel.app',
+    'https://crtsopt.vercel.app',
 ];
 
 $origin = $_SERVER['HTTP_ORIGIN'] ?? '';
