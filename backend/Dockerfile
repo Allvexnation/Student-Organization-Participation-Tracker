@@ -11,11 +11,13 @@ COPY . /var/www/html/
 RUN chown -R www-data:www-data /var/www/html
 RUN chmod -R 755 /var/www/html
 
-RUN echo "DirectoryIndex index.php" > /etc/apache2/mods-available/dir.conf
-RUN echo "<Directory /var/www/html>" >> /etc/apache2/mods-available/dir.conf
+RUN echo "DirectoryIndex index.php index.html" > /etc/apache2/mods-available/dir.conf
+RUN echo "<Directory /var/www/html/>" >> /etc/apache2/mods-available/dir.conf
+RUN echo "    Options Indexes FollowSymLinks" >> /etc/apache2/mods-available/dir.conf
 RUN echo "    AllowOverride All" >> /etc/apache2/mods-available/dir.conf
 RUN echo "    Require all granted" >> /etc/apache2/mods-available/dir.conf
 RUN echo "</Directory>" >> /etc/apache2/mods-available/dir.conf
+RUN cat /etc/apache2/mods-available/dir.conf
 
 RUN echo '#!/bin/bash' > /var/www/html/start.sh && \
     echo 'echo "Running migrations..."' >> /var/www/html/start.sh && \
