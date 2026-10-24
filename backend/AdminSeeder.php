@@ -24,28 +24,12 @@ class AdminSeeder {
         $admins = [
             [
                 'profile_photo' => 'admin1.jpg',
-                'name' => 'John Admin',
-                'username' => 'johnadmin',
-                'email' => 'johnadmin@example.com',
-                'password' => 'admin123',
-                'role' => 'super_admin'
-            ],
-            [
-                'profile_photo' => 'admin2.jpg',
-                'name' => 'Jane Administrator',
-                'username' => 'janeadmin',
-                'email' => 'janeadmin@example.com',
+                'name' => 'Admin',
+                'username' => 'crtadmin',
+                'email' => 'crt@edu.com',
                 'password' => 'admin123',
                 'role' => 'admin'
             ],
-            [
-                'profile_photo' => 'admin3.jpg',
-                'name' => 'Bob Manager',
-                'username' => 'bobmanager',
-                'email' => 'bobmanager@example.com',
-                'password' => 'admin123',
-                'role' => 'moderator'
-            ]
         ];
 
         $query = "INSERT INTO admins (profile_photo, name, username, email, password, role) 
