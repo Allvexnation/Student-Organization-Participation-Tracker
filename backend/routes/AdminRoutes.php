@@ -1,0 +1,26 @@
+<?php
+
+require_once __DIR__ . '/../controller/AdminController.php';
+
+class AdminRoutes {
+    private $controller;
+
+    public function __construct() {
+        $this->controller = new AdminController();
+    }
+
+    public function handle($method, $uri) {
+        $uri = rtrim($uri, '/');
+        
+        if ($method === 'POST' && $uri === '/api/admin/login') {
+            $this->controller->login();
+        } elseif ($method === 'GET' && $uri === '/api/admin/profile') {
+            $this->controller->getProfile();
+        } elseif ($method === 'PUT' && $uri === '/api/admin/profile') {
+            $this->controller->updateProfile();
+        } else {
+            http_response_code(404);
+            echo json_encode(['message' => 'Route not found']);
+        }
+    }
+}
