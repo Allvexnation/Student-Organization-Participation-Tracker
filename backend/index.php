@@ -28,10 +28,5 @@ $uri = $_SERVER['REQUEST_URI'];
 
 $uri = strtok($uri, '?');
 
-$scriptName = dirname($_SERVER['SCRIPT_NAME']);
-if (strpos($uri, $scriptName) === 0) {
-    $uri = substr($uri, strlen($scriptName));
-}
-
 $adminRoutes = new AdminRoutes();
 $adminRoutes->handle($method, $uri);
