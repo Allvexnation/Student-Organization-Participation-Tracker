@@ -10,7 +10,7 @@ class Create_organizations_table extends Migration {
             'name VARCHAR(255) NOT NULL',
             'description TEXT',
             'adviser VARCHAR(255)',
-            'status VARCHAR(50) NOT NULL DEFAULT "Active"',
+            'status VARCHAR(50) NOT NULL DEFAULT \'Active\'',
             'updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP',
             'created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP'
         ];

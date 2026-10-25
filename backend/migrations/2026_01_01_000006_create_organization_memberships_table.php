@@ -10,7 +10,7 @@ class Create_organization_memberships_table extends Migration {
             'student_id INT NOT NULL',
             'date_joined DATE NOT NULL',
             'position VARCHAR(100) NOT NULL',
-            'membership_status VARCHAR(20) NOT NULL DEFAULT "Active"',
+            'membership_status VARCHAR(20) NOT NULL DEFAULT \'Active\'',
             'updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP',
             'created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP',
             'FOREIGN KEY (organization_id) REFERENCES organizations(id) ON DELETE CASCADE',
