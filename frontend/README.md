@@ -1,5 +1,7 @@
 # Student Organization Participation Tracker - Frontend
 
+**Version: 2.0**
+
 ## Overview
 
 This is the frontend application for the Student Organization Participation Tracker. It is built using plain JavaScript with ES6 modules, following a Single Page Application (SPA) architecture similar to modern web frameworks like React. Instead of using multiple HTML files, the application dynamically renders pages using JavaScript modules and hash-based routing.
@@ -29,25 +31,48 @@ frontend/
 │   └── favicon.ico          # Favicon
 ├── src/
 │   ├── api/                 # API communication layer
-│   │   ├── api.js          # Base API configuration
-│   │   ├── adminApi.js     # Admin-specific API calls
-│   │   └── adviserApi.js   # Adviser-specific API calls
+│   │   ├── admin/           # Admin API modules
+│   │   │   ├── AdminAuth/   # Admin authentication API
+│   │   │   ├── AdminLogin.js # Admin login API
+│   │   │   ├── AdminProfile.js # Admin profile API
+│   │   │   ├── EventRegistrations/ # Event registration API
+│   │   │   ├── Events/      # Events API
+│   │   │   ├── OrgMemberships/ # Organization memberships API
+│   │   │   ├── Organizations/ # Organizations API
+│   │   │   ├── Students/    # Students API
+│   │   │   ├── adviser/     # Adviser API
+│   │   │   └── roles/       # Roles API
+│   │   └── server/         # Server configuration
 │   ├── components/          # Reusable UI components
-│   │   ├── Navbar.js       # Navigation bar component
-│   │   ├── Footer.js       # Footer component
-│   │   └── ...
+│   │   ├── CrudMenu.js      # CRUD menu component
+│   │   ├── Dialog/          # Dialog components
+│   │   ├── Modal/           # Modal components
+│   │   ├── Navbar/          # Navigation bar components
+│   │   ├── SkeletonLoading.js # Loading skeleton component
+│   │   ├── Stripbar/        # Strip bar components
+│   │   ├── ToastMessage.js  # Toast notification component
+│   │   └── buttons/         # Button components
 │   ├── pages/               # Page components (routes)
-│   │   ├── HomePage.js     # Home page
-│   │   ├── admin/
-│   │   │   ├── AdminLogin.js       # Admin login page
-│   │   │   ├── AdminDashboard.js   # Admin dashboard
-│   │   │   └── AdminProfile.js     # Admin profile page
-│   │   └── ...
+│   │   ├── HomePage.js      # Home page
+│   │   └── admin/           # Admin pages
+│   │       ├── AdminLogin.js # Admin login page
+│   │       ├── AdminDashboard.js # Admin dashboard
+│   │       ├── AdminProfile.js # Admin profile page
+│   │       ├── Adviser/     # Adviser management pages
+│   │       ├── EventRegistrations/ # Event registration pages
+│   │       ├── Events/      # Event management pages
+│   │       ├── OrgMemeberships/ # Organization membership pages
+│   │       ├── Organizations/ # Organization management pages
+│   │       ├── Students/    # Student management pages
+│   │       └── roles/       # Role management pages
 │   ├── provider/            # State management/context
-│   │   └── ...
+│   │   ├── Animation/       # Animation providers
+│   │   ├── ModalAnimation.js # Modal animation provider
+│   │   └── theme/           # Theme providers
 │   ├── utils/               # Utility functions
-│   │   ├── jwt.js          # JWT token handling
-│   │   └── ...
+│   │   ├── jwt.js           # JWT token handling
+│   │   ├── modal.js         # Modal utilities
+│   │   └── steps.js         # Step utilities
 │   └── static/              # Static assets
 ├── index.html               # Single HTML entry point
 ├── index.css                # Global styles
@@ -105,6 +130,13 @@ The application uses hash-based routing, which allows navigation without page re
 | `#admin-login` | AdminLogin | Admin login page |
 | `#admin-dashboard` | AdminDashboard | Admin dashboard (protected) |
 | `#edit-admin-profile` | AdminProfile | Admin profile editing (protected) |
+| `#manage-adviser` | ManageAdviser | Adviser management (protected) |
+| `#manage-roles` | ManageRoles | Role management (protected) |
+| `#manage-students` | ManageStudents | Student management (protected) |
+| `#manage-organizations` | ManageOrganizations | Organization management (protected) |
+| `#manage-events` | ManageEvents | Event management (protected) |
+| `#manage-event-registrations` | ManageEventRegist | Event registration management (protected) |
+| `#manage-org-memberships` | ManageOrgMemberships | Organization membership management (protected) |
 
 ### Route Guards
 
@@ -186,9 +218,9 @@ window.location.hash = '';
 
 ### Creating a New Page
 
-1. **Create Page Module** in `src/pages/`:
+1. **Create Page Module** in `src/pages/` or `src/pages/admin/`:
    ```javascript
-   // src/pages/NewPage.js
+   // src/pages/admin/NewPage.js
    export function NewPage() {
        return `
            <div class="container">
@@ -206,7 +238,7 @@ window.location.hash = '';
 
 2. **Add Route** in `app.js`:
    ```javascript
-   import { NewPage, initNewPage } from './src/pages/NewPage.js';
+   import { NewPage, initNewPage } from './src/pages/admin/NewPage.js';
 
    // In constructor
    this.routes = {
@@ -222,6 +254,71 @@ window.location.hash = '';
 3. **Navigate to Page**:
    ```javascript
    window.location.hash = '#new-page';
+   ```
+
+### Creating a New API Module
+
+1. **Create API Module** in `src/api/admin/`:
+   ```javascript
+   // src/api/admin/NewResource/NewResourceApi.js
+   import { server } from '../server/server.js';
+
+   export const NewResourceApi = {
+       getAll: async () => {
+           const response = await fetch(`${server}/api/admin/new-resource`, {
+               method: 'GET',
+               headers: {
+                   'Content-Type': 'application/json',
+                   'Authorization': `Bearer ${localStorage.getItem('token')}`
+               }
+           });
+           return response.json();
+       },
+       
+       create: async (data) => {
+           const response = await fetch(`${server}/api/admin/new-resource`, {
+               method: 'POST',
+               headers: {
+                   'Content-Type': 'application/json',
+                   'Authorization': `Bearer ${localStorage.getItem('token')}`
+               },
+               body: JSON.stringify(data)
+           });
+           return response.json();
+       },
+       
+       update: async (id, data) => {
+           const response = await fetch(`${server}/api/admin/new-resource/${id}`, {
+               method: 'PUT',
+               headers: {
+                   'Content-Type': 'application/json',
+                   'Authorization': `Bearer ${localStorage.getItem('token')}`
+               },
+               body: JSON.stringify(data)
+           });
+           return response.json();
+       },
+       
+       delete: async (id) => {
+           const response = await fetch(`${server}/api/admin/new-resource/${id}`, {
+               method: 'DELETE',
+               headers: {
+                   'Content-Type': 'application/json',
+                   'Authorization': `Bearer ${localStorage.getItem('token')}`
+               }
+           });
+           return response.json();
+       }
+   };
+   ```
+
+2. **Use API in Page**:
+   ```javascript
+   import { NewResourceApi } from '../../api/admin/NewResource/NewResourceApi.js';
+
+   export function ManageNewResource() {
+       // Use NewResourceApi methods
+   }
    ```
 
 ### Creating a Reusable Component
@@ -260,54 +357,83 @@ window.location.hash = '';
 
 ### API Configuration
 
-API calls are centralized in `src/api/api.js`:
-```javascript
-const API_BASE_URL = 'https://your-backend.onrender.com/api';
+API calls are organized in `src/api/admin/` with separate modules for each resource:
 
-export async function request(endpoint, options = {}) {
-    const url = `${API_BASE_URL}${endpoint}`;
-    const token = localStorage.getItem('token');
+```javascript
+// Example: src/api/admin/Students/StudentsApi.js
+import { server } from '../server/server.js';
+
+export const StudentsApi = {
+    getAll: async () => {
+        const response = await fetch(`${server}/api/admin/students`, {
+            method: 'GET',
+            headers: {
+                'Content-Type': 'application/json',
+                'Authorization': `Bearer ${localStorage.getItem('token')}`
+            }
+        });
+        return response.json();
+    },
     
-    const headers = {
-        'Content-Type': 'application/json',
-        ...options.headers
-    };
+    create: async (data) => {
+        const response = await fetch(`${server}/api/admin/students`, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'Authorization': `Bearer ${localStorage.getItem('token')}`
+            },
+            body: JSON.stringify(data)
+        });
+        return response.json();
+    },
     
-    if (token) {
-        headers['Authorization'] = `Bearer ${token}`;
+    update: async (id, data) => {
+        const response = await fetch(`${server}/api/admin/students/${id}`, {
+            method: 'PUT',
+            headers: {
+                'Content-Type': 'application/json',
+                'Authorization': `Bearer ${localStorage.getItem('token')}`
+            },
+            body: JSON.stringify(data)
+        });
+        return response.json();
+    },
+    
+    delete: async (id) => {
+        const response = await fetch(`${server}/api/admin/students/${id}`, {
+            method: 'DELETE',
+            headers: {
+                'Content-Type': 'application/json',
+                'Authorization': `Bearer ${localStorage.getItem('token')}`
+            }
+        });
+        return response.json();
     }
-    
-    const response = await fetch(url, {
-        ...options,
-        headers
-    });
-    
-    return response.json();
-}
+};
 ```
 
 ### Making API Calls
 
 ```javascript
-import { request } from '../api/api.js';
+import { StudentsApi } from '../api/admin/Students/StudentsApi.js';
 
-// GET request
-const admins = await request('/admin');
+// GET all students
+const students = await StudentsApi.getAll();
 
-// POST request
-const newAdmin = await request('/admin', {
-    method: 'POST',
-    body: JSON.stringify({ name: 'John', email: 'john@example.com' })
+// POST create student
+const newStudent = await StudentsApi.create({
+    name: 'John Doe',
+    email: 'john@example.com',
+    student_id: 'STU001'
 });
 
-// PUT request
-const updatedAdmin = await request('/admin/1', {
-    method: 'PUT',
-    body: JSON.stringify({ name: 'Jane' })
+// PUT update student
+const updatedStudent = await StudentsApi.update(1, {
+    name: 'Jane Doe'
 });
 
-// DELETE request
-await request('/admin/1', { method: 'DELETE' });
+// DELETE student
+await StudentsApi.delete(1);
 ```
 
 ## State Management
@@ -349,6 +475,49 @@ export function logout() {
     localStorage.removeItem('token');
     window.location.hash = '#admin-login';
 }
+
+export function getAdminData() {
+    const adminData = localStorage.getItem('adminData');
+    return adminData ? JSON.parse(adminData) : null;
+}
+
+export function setAdminData(data) {
+    localStorage.setItem('adminData', JSON.stringify(data));
+}
+```
+
+### Modal Utilities
+
+Modal utilities in `src/utils/modal.js` provide helper functions for modal management:
+```javascript
+export function openModal(modalId) {
+    // Open modal logic
+}
+
+export function closeModal(modalId) {
+    // Close modal logic
+}
+
+export function toggleModal(modalId) {
+    // Toggle modal logic
+}
+```
+
+### Step Utilities
+
+Step utilities in `src/utils/steps.js` provide step-by-step form management:
+```javascript
+export function nextStep(currentStep, totalSteps) {
+    // Move to next step
+}
+
+export function prevStep(currentStep) {
+    // Move to previous step
+}
+
+export function validateStep(stepData) {
+    // Validate current step
+}
 ```
 
 ## Styling
@@ -380,6 +549,27 @@ Lucide Icons are used for UI icons:
 lucide.createIcons();
 ```
 
+### Components
+
+The application includes several reusable components:
+
+- **CrudMenu**: CRUD operation menu component
+- **Modal**: Modal dialog components with animations
+- **Dialog**: Dialog components for confirmations
+- **Navbar**: Navigation bar components (AdminNavbar, etc.)
+- **SkeletonLoading**: Loading skeleton for async operations
+- **Stripbar**: Strip bar components
+- **ToastMessage**: Toast notification component for feedback
+- **Buttons**: Reusable button components
+
+### Animations
+
+Animation providers in `src/provider/Animation/` and `src/provider/ModalAnimation.js` provide:
+- Modal open/close animations
+- Fade in/out effects
+- Slide animations
+- Custom animation configurations
+
 ## Deployment
 
 ### Vercel Deployment
@@ -405,9 +595,14 @@ lucide.createIcons();
 
 ### Environment Variables
 
-Set environment variables in Vercel dashboard:
+Set environment variables in Vercel dashboard or in `src/api/server/server.js`:
+```javascript
+export const server = 'https://your-backend.onrender.com';
 ```
-VITE_API_URL=https://your-backend.onrender.com/api
+
+For local development, update the server URL to point to your local backend:
+```javascript
+export const server = 'http://localhost:8000';
 ```
 
 ## Browser Compatibility
@@ -442,9 +637,15 @@ VITE_API_URL=https://your-backend.onrender.com/api
    - Verify hash changes in browser URL
 
 5. **API Connection Issues**
-   - Check API_BASE_URL in `src/api/api.js`
+   - Check server URL in `src/api/server/server.js`
    - Verify backend is running
    - Check browser Network tab for failed requests
+   - Ensure CORS is configured on backend
+
+6. **JWT Token Issues**
+   - Check token is stored in localStorage
+   - Verify token is not expired
+   - Check Authorization header format: `Bearer {token}`
 
 ## Development Guidelines
 

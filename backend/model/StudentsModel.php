@@ -1,0 +1,239 @@
+<?php
+
+require_once __DIR__ . '/../config/db.php';
+
+class StudentsModel {
+    private $conn;
+    private $table_name = "students";
+
+    public function __construct() {
+        $database = new Database();
+        $this->conn = $database->getConnection();
+        if (!$this->conn) {
+            error_log("Failed to establish database connection in StudentsModel");
+        }
+    }
+
+    public function create($data) {
+        $query = "INSERT INTO " . $this->table_name . " 
+                  (profile_photo, student_number, first_name, last_name, program, year_level, username, email, password) 
+                  VALUES (:profile_photo, :student_number, :first_name, :last_name, :program, :year_level, :username, :email, :password)";
+
+        try {
+            $stmt = $this->conn->prepare($query);
+            
+            $hashedPassword = password_hash($data['password'], PASSWORD_DEFAULT);
+            
+            $null = null;
+            if (isset($data['profile_photo']) && !empty($data['profile_photo'])) {
+                if (strpos($data['profile_photo'], 'data:image') === 0) {
+                    $parts = explode(',', $data['profile_photo']);
+                    if (isset($parts[1])) {
+                        $photoData = base64_decode($parts[1]);
+                        $stmt->bindParam(':profile_photo', $photoData, PDO::PARAM_LOB);
+                    } else {
+                        $stmt->bindParam(':profile_photo', $null, PDO::PARAM_NULL);
+                    }
+                } else {
+                    $photoData = base64_decode($data['profile_photo']);
+                    $stmt->bindParam(':profile_photo', $photoData, PDO::PARAM_LOB);
+                }
+            } else {
+                $stmt->bindParam(':profile_photo', $null, PDO::PARAM_NULL);
+            }
+            $stmt->bindParam(':student_number', $data['student_number']);
+            $stmt->bindParam(':first_name', $data['first_name']);
+            $stmt->bindParam(':last_name', $data['last_name']);
+            $stmt->bindParam(':program', $data['program']);
+            $stmt->bindParam(':year_level', $data['year_level']);
+            $stmt->bindParam(':username', $data['username']);
+            $stmt->bindParam(':email', $data['email']);
+            $stmt->bindParam(':password', $hashedPassword);
+            
+            if($stmt->execute()) {
+                return $this->conn->lastInsertId();
+            }
+            return false;
+        } catch(PDOException $e) {
+            echo "Error creating student: " . $e->getMessage();
+            return false;
+        }
+    }
+
+    public function readAll() {
+        if (!$this->conn) {
+            error_log("Database connection is null");
+            return false;
+        }
+
+        $query = "SELECT id, profile_photo, student_number, first_name, last_name, program, year_level, username, email, updated_at, created_at
+                  FROM " . $this->table_name . "
+                  ORDER BY created_at DESC";
+
+        try {
+            $stmt = $this->conn->prepare($query);
+            $stmt->execute();
+            $results = $stmt->fetchAll(PDO::FETCH_ASSOC);
+
+            foreach ($results as &$student) {
+                if (isset($student['profile_photo']) && !empty($student['profile_photo'])) {
+                    $student['profile_photo'] = 'data:image/jpeg;base64,' . base64_encode($student['profile_photo']);
+                }
+            }
+
+            return $results;
+        } catch(PDOException $e) {
+            error_log("Error reading students: " . $e->getMessage());
+            return false;
+        }
+    }
+
+    public function readOne($id) {
+        $query = "SELECT id, profile_photo, student_number, first_name, last_name, program, year_level, username, email, updated_at, created_at 
+                  FROM " . $this->table_name . " 
+                  WHERE id = :id 
+                  LIMIT 0,1";
+
+        try {
+            $stmt = $this->conn->prepare($query);
+            $stmt->bindParam(':id', $id);
+            $stmt->execute();
+            $result = $stmt->fetch(PDO::FETCH_ASSOC);
+            
+            if ($result && isset($result['profile_photo']) && !empty($result['profile_photo'])) {
+                $result['profile_photo'] = 'data:image/jpeg;base64,' . base64_encode($result['profile_photo']);
+            }
+            
+            return $result;
+        } catch(PDOException $e) {
+            echo "Error reading student: " . $e->getMessage();
+            return false;
+        }
+    }
+
+    public function readByStudentNumber($student_number) {
+        $query = "SELECT * FROM " . $this->table_name . " 
+                  WHERE student_number = :student_number 
+                  LIMIT 0,1";
+
+        try {
+            $stmt = $this->conn->prepare($query);
+            $stmt->bindParam(':student_number', $student_number);
+            $stmt->execute();
+            return $stmt->fetch(PDO::FETCH_ASSOC);
+        } catch(PDOException $e) {
+            echo "Error reading student by student number: " . $e->getMessage();
+            return false;
+        }
+    }
+
+    public function readByUsername($username) {
+        $query = "SELECT * FROM " . $this->table_name . " 
+                  WHERE username = :username 
+                  LIMIT 0,1";
+
+        try {
+            $stmt = $this->conn->prepare($query);
+            $stmt->bindParam(':username', $username);
+            $stmt->execute();
+            return $stmt->fetch(PDO::FETCH_ASSOC);
+        } catch(PDOException $e) {
+            echo "Error reading student by username: " . $e->getMessage();
+            return false;
+        }
+    }
+
+    public function readByEmail($email) {
+        $query = "SELECT * FROM " . $this->table_name . " 
+                  WHERE email = :email 
+                  LIMIT 0,1";
+
+        try {
+            $stmt = $this->conn->prepare($query);
+            $stmt->bindParam(':email', $email);
+            $stmt->execute();
+            return $stmt->fetch(PDO::FETCH_ASSOC);
+        } catch(PDOException $e) {
+            echo "Error reading student by email: " . $e->getMessage();
+            return false;
+        }
+    }
+
+    public function update($id, $data) {
+        $query = "UPDATE " . $this->table_name . " 
+                  SET profile_photo = :profile_photo, 
+                      student_number = :student_number, 
+                      first_name = :first_name, 
+                      last_name = :last_name, 
+                      program = :program, 
+                      year_level = :year_level,
+                      username = :username,
+                      email = :email";
+        
+        if(isset($data['password']) && !empty($data['password'])) {
+            $query .= ", password = :password";
+        }
+        
+        $query .= " WHERE id = :id";
+
+        try {
+            $stmt = $this->conn->prepare($query);
+            
+            $null = null;
+            if (isset($data['profile_photo']) && !empty($data['profile_photo'])) {
+                if (strpos($data['profile_photo'], 'data:image') === 0) {
+                    $parts = explode(',', $data['profile_photo']);
+                    if (isset($parts[1])) {
+                        $photoData = base64_decode($parts[1]);
+                        $stmt->bindParam(':profile_photo', $photoData, PDO::PARAM_LOB);
+                    } else {
+                        $stmt->bindParam(':profile_photo', $null, PDO::PARAM_NULL);
+                    }
+                } else {
+                    $photoData = base64_decode($data['profile_photo']);
+                    $stmt->bindParam(':profile_photo', $photoData, PDO::PARAM_LOB);
+                }
+            } else {
+                $stmt->bindParam(':profile_photo', $null, PDO::PARAM_NULL);
+            }
+            $stmt->bindParam(':student_number', $data['student_number']);
+            $stmt->bindParam(':first_name', $data['first_name']);
+            $stmt->bindParam(':last_name', $data['last_name']);
+            $stmt->bindParam(':program', $data['program']);
+            $stmt->bindParam(':year_level', $data['year_level']);
+            $stmt->bindParam(':username', $data['username']);
+            $stmt->bindParam(':email', $data['email']);
+            $stmt->bindParam(':id', $id);
+            
+            if(isset($data['password']) && !empty($data['password'])) {
+                $hashedPassword = password_hash($data['password'], PASSWORD_DEFAULT);
+                $stmt->bindParam(':password', $hashedPassword);
+            }
+            
+            if($stmt->execute()) {
+                return true;
+            }
+            return false;
+        } catch(PDOException $e) {
+            echo "Error updating student: " . $e->getMessage();
+            return false;
+        }
+    }
+
+    public function delete($id) {
+        $query = "DELETE FROM " . $this->table_name . " WHERE id = :id";
+
+        try {
+            $stmt = $this->conn->prepare($query);
+            $stmt->bindParam(':id', $id);
+            
+            if($stmt->execute()) {
+                return true;
+            }
+            return false;
+        } catch(PDOException $e) {
+            echo "Error deleting student: " . $e->getMessage();
+            return false;
+        }
+    }
+}

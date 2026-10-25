@@ -48,7 +48,59 @@ abstract class Migration {
         }
     }
 
-    protected function addColumn($columns, $definition) {
-        $columns[] = $definition;
+    protected function addColumn($tableName, $columnDefinition) {
+        $sql = "ALTER TABLE {$tableName} ADD COLUMN {$columnDefinition}";
+        
+        try {
+            $this->conn->exec($sql);
+            return true;
+        } catch(PDOException $e) {
+            echo "Error adding column to table {$tableName}: " . $e->getMessage() . "\n";
+            echo "SQL: {$sql}\n";
+            return false;
+        }
+    }
+
+    protected function dropColumn($tableName, $columnName) {
+        $sql = "ALTER TABLE {$tableName} DROP COLUMN {$columnName}";
+        
+        try {
+            $this->conn->exec($sql);
+            return true;
+        } catch(PDOException $e) {
+            echo "Error dropping column from table {$tableName}: " . $e->getMessage() . "\n";
+            echo "SQL: {$sql}\n";
+            return false;
+        }
+    }
+
+    protected function addForeignKey($tableName, $column, $referencedTable, $referencedColumn, $onDelete = 'CASCADE') {
+        $constraintName = "fk_{$tableName}_{$column}";
+        $sql = "ALTER TABLE {$tableName} ADD CONSTRAINT {$constraintName} 
+                FOREIGN KEY ({$column}) REFERENCES {$referencedTable}({$referencedColumn}) 
+                ON DELETE {$onDelete}";
+        
+        try {
+            $this->conn->exec($sql);
+            return true;
+        } catch(PDOException $e) {
+            echo "Error adding foreign key to table {$tableName}: " . $e->getMessage() . "\n";
+            echo "SQL: {$sql}\n";
+            return false;
+        }
+    }
+
+    protected function dropForeignKey($tableName, $column) {
+        $constraintName = "fk_{$tableName}_{$column}";
+        $sql = "ALTER TABLE {$tableName} DROP FOREIGN KEY {$constraintName}";
+        
+        try {
+            $this->conn->exec($sql);
+            return true;
+        } catch(PDOException $e) {
+            echo "Error dropping foreign key from table {$tableName}: " . $e->getMessage() . "\n";
+            echo "SQL: {$sql}\n";
+            return false;
+        }
     }
 }

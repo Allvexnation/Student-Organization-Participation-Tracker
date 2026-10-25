@@ -1,8 +1,10 @@
 # Student Organization Participation Tracker - Backend API
 
+**Version: 2.0**
+
 ## Overview
 
-This is the backend API for the Student Organization Participation Tracker. It is built using plain PHP with Object-Oriented Programming (OOP) principles, following a Model-View-Controller (MVC) architecture. The API provides RESTful endpoints for managing student organization data, including administrators, advisers, and participation tracking.
+This is the backend API for the Student Organization Participation Tracker. It is built using plain PHP with Object-Oriented Programming (OOP) principles, following a Model-View-Controller (MVC) architecture. The API provides RESTful endpoints for managing student organization data, including administrators, advisers, students, organizations, events, roles, and participation tracking.
 
 ## Tech Stack
 
@@ -13,6 +15,7 @@ This is the backend API for the Student Organization Participation Tracker. It i
 - **Application Hosting**: Render
 - **Architecture**: Object-Oriented Programming (OOP)
 - **API Style**: RESTful API
+- **Authentication**: JWT (JSON Web Tokens)
 
 ## Project Architecture
 
@@ -23,24 +26,65 @@ The backend follows a clean OOP architecture with separation of concerns:
 ```
 backend/
 ├── config/
-│   └── db.php              # Database configuration and connection
+│   ├── db.php              # Database configuration and connection
+│   ├── env.php             # Environment configuration loader
+│   └── jwt.php             # JWT token generation and validation
 ├── controller/
 │   ├── AdminController.php # Admin-related API endpoints
-│   └── AdviserController.php # Adviser-related API endpoints
+│   ├── AdviserController.php # Adviser-related API endpoints
+│   ├── StudentsController.php # Student-related API endpoints
+│   ├── OrganizationsController.php # Organization-related API endpoints
+│   ├── EventsController.php # Event-related API endpoints
+│   ├── EventRegistrationsController.php # Event registration endpoints
+│   ├── OrganizationMembershipsController.php # Org membership endpoints
+│   ├── RoleController.php # Role management endpoints
+│   └── OrgMembershipsController.php # Legacy org membership endpoints
 ├── model/
 │   ├── AdminModel.php      # Admin data model and business logic
-│   └── AdviserModel.php    # Adviser data model and business logic
+│   ├── AdviserModel.php    # Adviser data model and business logic
+│   ├── StudentsModel.php   # Student data model and business logic
+│   ├── OrganizationsModel.php # Organization data model
+│   ├── EventsModel.php     # Event data model
+│   ├── EventRegistrationsModel.php # Event registration model
+│   ├── OrganizationMembershipsModel.php # Org membership model
+│   ├── RoleModel.php       # Role data model
+│   └── OrgMembershipsModel.php # Legacy org membership model
 ├── migrations/
 │   ├── Migration.php       # Base migration class
 │   ├── Migrator.php        # Migration runner
-│   └── 2026_01_01_000001_create_admins_table.php # Database migrations
+│   ├── 2026_01_01_000001_create_admins_table.php
+│   ├── 2026_01_01_000002_create_advisers_table.php
+│   ├── 2026_01_01_000003_create_roles_table.php
+│   ├── 2026_01_01_000004_create_students_table.php
+│   ├── 2026_01_01_000005_create_organizations_table.php
+│   ├── 2026_01_01_000006_create_organization_memberships_table.php
+│   ├── 2026_01_01_000007_create_events_table.php
+│   ├── 2026_01_01_000008_create_event_registrations_table.php
+│   ├── 2026_01_01_000011_add_role_id_to_organization_memberships_table.php
+│   ├── 2026_01_01_000012_add_role_id_to_students_table.php
+│   └── 2026_01_01_000012_drop_position_from_organization_memberships_table.php
+├── routes/
+│   ├── AdminRoutes.php     # Admin routing configuration
+│   ├── AdviserRoutes.php   # Adviser routing configuration
+│   ├── StudentsRoutes.php  # Student routing configuration
+│   ├── OrganizationsRoutes.php # Organization routing configuration
+│   ├── EventsRoutes.php    # Event routing configuration
+│   ├── EventRegistrationsRoutes.php # Event registration routing
+│   ├── OrganizationMembershipsRoutes.php # Org membership routing
+│   └── RoleRoutes.php      # Role routing configuration
+├── view/
+│   └── web.php             # Web view for API root
+├── utils/                  # Utility functions (empty)
 ├── .htaccess               # Apache URL rewriting configuration
 ├── index.php               # API entry point and routing
 ├── migrate.php             # Migration execution script
 ├── AdminSeeder.php         # Database seeder for admins
 ├── Dockerfile              # Docker configuration for deployment
 ├── render.yaml             # Render deployment configuration
-└── .dockerignore           # Docker ignore rules
+├── .dockerignore           # Docker ignore rules
+├── .env.example            # Example environment variables
+├── .env                    # Environment variables (not committed)
+└── favicon.ico             # API favicon
 ```
 
 ### Architecture Components
@@ -49,25 +93,33 @@ backend/
 - Handle data access and business logic
 - Interact directly with the database
 - Encapsulate data validation and manipulation
-- Examples: `AdminModel`, `AdviserModel`
+- Examples: `AdminModel`, `AdviserModel`, `StudentsModel`, `OrganizationsModel`, `EventsModel`, `EventRegistrationsModel`, `OrganizationMembershipsModel`, `RoleModel`
 
 #### 2. **Controllers** (`controller/`)
 - Handle HTTP requests and responses
 - Coordinate between models and API responses
 - Implement routing logic
 - Return JSON responses
-- Examples: `AdminController`, `AdviserController`
+- Examples: `AdminController`, `AdviserController`, `StudentsController`, `OrganizationsController`, `EventsController`, `EventRegistrationsController`, `OrganizationMembershipsController`, `RoleController`
 
-#### 3. **Configuration** (`config/`)
-- Database connection settings
-- Environment-specific configurations
+#### 3. **Routes** (`routes/`)
+- Define API endpoint patterns and HTTP methods
+- Map URLs to controller methods
+- Handle request routing logic
+- Examples: `AdminRoutes`, `AdviserRoutes`, `StudentsRoutes`, `OrganizationsRoutes`, `EventsRoutes`, `EventRegistrationsRoutes`, `OrganizationMembershipsRoutes`, `RoleRoutes`
+
+#### 4. **Configuration** (`config/`)
+- Database connection settings (`db.php`)
+- Environment configuration loader (`env.php`)
+- JWT token generation and validation (`jwt.php`)
 - Connection pooling and management
 
-#### 4. **Migrations** (`migrations/`)
+#### 5. **Migrations** (`migrations/`)
 - Database schema version control
 - Automated database structure updates
 - Base `Migration` class for creating new migrations
 - `Migrator` for running migrations
+- Individual migration files for each table change
 
 ## API Endpoints
 
@@ -75,9 +127,10 @@ backend/
 
 | Method | Endpoint | Description |
 |--------|----------|-------------|
+| POST | `/api/admin/login` | Admin login and JWT token generation |
+| POST | `/api/admin/register` | Register new admin |
 | GET | `/api/admin` | Get all admins |
 | GET | `/api/admin/{id}` | Get admin by ID |
-| POST | `/api/admin` | Create new admin |
 | PUT | `/api/admin/{id}` | Update admin |
 | DELETE | `/api/admin/{id}` | Delete admin |
 
@@ -85,11 +138,71 @@ backend/
 
 | Method | Endpoint | Description |
 |--------|----------|-------------|
-| GET | `/api/adviser` | Get all advisers |
-| GET | `/api/adviser/{id}` | Get adviser by ID |
-| POST | `/api/adviser` | Create new adviser |
-| PUT | `/api/adviser/{id}` | Update adviser |
-| DELETE | `/api/adviser/{id}` | Delete adviser |
+| GET | `/api/admin/advisers` | Get all advisers |
+| GET | `/api/admin/advisers/{id}` | Get adviser by ID |
+| POST | `/api/admin/advisers` | Create new adviser |
+| PUT | `/api/admin/advisers/{id}` | Update adviser |
+| DELETE | `/api/admin/advisers/{id}` | Delete adviser |
+
+### Student Endpoints
+
+| Method | Endpoint | Description |
+|--------|----------|-------------|
+| GET | `/api/admin/students` | Get all students |
+| GET | `/api/admin/students/{id}` | Get student by ID |
+| POST | `/api/admin/students` | Create new student |
+| PUT | `/api/admin/students/{id}` | Update student |
+| DELETE | `/api/admin/students/{id}` | Delete student |
+
+### Organization Endpoints
+
+| Method | Endpoint | Description |
+|--------|----------|-------------|
+| GET | `/api/admin/organizations` | Get all organizations |
+| GET | `/api/admin/organizations/{id}` | Get organization by ID |
+| POST | `/api/admin/organizations` | Create new organization |
+| PUT | `/api/admin/organizations/{id}` | Update organization |
+| DELETE | `/api/admin/organizations/{id}` | Delete organization |
+
+### Event Endpoints
+
+| Method | Endpoint | Description |
+|--------|----------|-------------|
+| GET | `/api/admin/events` | Get all events |
+| GET | `/api/admin/events/{id}` | Get event by ID |
+| POST | `/api/admin/events` | Create new event |
+| PUT | `/api/admin/events/{id}` | Update event |
+| DELETE | `/api/admin/events/{id}` | Delete event |
+
+### Event Registration Endpoints
+
+| Method | Endpoint | Description |
+|--------|----------|-------------|
+| GET | `/api/admin/event-registrations` | Get all event registrations |
+| GET | `/api/admin/event-registrations/{id}` | Get event registration by ID |
+| POST | `/api/admin/event-registrations` | Create new event registration |
+| PUT | `/api/admin/event-registrations/{id}` | Update event registration |
+| DELETE | `/api/admin/event-registrations/{id}` | Delete event registration |
+
+### Organization Membership Endpoints
+
+| Method | Endpoint | Description |
+|--------|----------|-------------|
+| GET | `/api/admin/organization-memberships` | Get all organization memberships |
+| GET | `/api/admin/organization-memberships/{id}` | Get organization membership by ID |
+| POST | `/api/admin/organization-memberships` | Create new organization membership |
+| PUT | `/api/admin/organization-memberships/{id}` | Update organization membership |
+| DELETE | `/api/admin/organization-memberships/{id}` | Delete organization membership |
+
+### Role Endpoints
+
+| Method | Endpoint | Description |
+|--------|----------|-------------|
+| GET | `/api/admin/roles` | Get all roles |
+| GET | `/api/admin/roles/{id}` | Get role by ID |
+| POST | `/api/admin/roles` | Create new role |
+| PUT | `/api/admin/roles/{id}` | Update role |
+| DELETE | `/api/admin/roles/{id}` | Delete role |
 
 ## Database Setup
 
@@ -164,18 +277,40 @@ php AdminSeeder.php
 
 ## Configuration
 
+### Environment Variables
+
+Create a `.env` file in the backend root directory based on `.env.example`:
+
+```env
+DB_HOST=localhost
+DB_NAME=student_org_tracker
+DB_USER=root
+DB_PASS=
+JWT_SECRET=your-secret-key-here
+JWT_ALGORITHM=HS256
+```
+
 ### Database Configuration (`config/db.php`)
 
-Update the database configuration with your credentials:
+The database configuration uses environment variables loaded via `config/env.php`:
 
 ```php
 <?php
+require_once __DIR__ . '/env.php';
+
 class Database {
-    private $host = "localhost";  // Aiven host for production
-    private $db_name = "student_org_tracker";
-    private $username = "root";  // Aiven username for production
-    private $password = "";      // Aiven password for production
+    private $host;
+    private $db_name;
+    private $username;
+    private $password;
     private $conn;
+
+    public function __construct() {
+        $this->host = getenv('DB_HOST') ?: 'localhost';
+        $this->db_name = getenv('DB_NAME') ?: 'student_org_tracker';
+        $this->username = getenv('DB_USER') ?: 'root';
+        $this->password = getenv('DB_PASS') ?: '';
+    }
 
     public function getConnection() {
         $this->conn = null;
@@ -196,11 +331,43 @@ class Database {
 ?>
 ```
 
-For Aiven MySQL, update with:
-- Host: Aiven MySQL endpoint
-- Username: Aiven service username
-- Password: Aiven service password
+For Aiven MySQL, update `.env` with:
+- DB_HOST: Aiven MySQL endpoint
+- DB_USER: Aiven service username
+- DB_PASS: Aiven service password
 - SSL configuration (if required)
+
+### JWT Configuration (`config/jwt.php`)
+
+JWT configuration for authentication:
+
+```php
+<?php
+require_once __DIR__ . '/env.php';
+
+class JWT {
+    private $secret;
+    private $algorithm;
+
+    public function __construct() {
+        $this->secret = getenv('JWT_SECRET') ?: 'default-secret-key';
+        $this->algorithm = getenv('JWT_ALGORITHM') ?: 'HS256';
+    }
+
+    public function generate($payload) {
+        // JWT generation logic
+        $header = json_encode(['typ' => 'JWT', 'alg' => $this->algorithm]);
+        $payload = json_encode($payload);
+        // ... encoding logic
+    }
+
+    public function verify($token) {
+        // JWT verification logic
+        // ... verification logic
+    }
+}
+?>
+```
 
 ## Deployment
 
@@ -209,7 +376,7 @@ For Aiven MySQL, update with:
 1. **Prerequisites**
    - PHP 8.0 or higher installed
    - MySQL server running locally
-   - Apache or Nginx web server
+   - Apache or Nginx web server (optional, PHP built-in server works for development)
 
 2. **Setup**
    ```bash
@@ -217,9 +384,9 @@ For Aiven MySQL, update with:
    git clone [repository-url]
    cd backend
 
-   # Configure database
-   cp config/db.php.example config/db.php
-   # Edit config/db.php with your credentials
+   # Create environment file
+   cp .env.example .env
+   # Edit .env with your credentials
 
    # Run migrations
    php migrate.php
@@ -232,6 +399,10 @@ For Aiven MySQL, update with:
    ```bash
    php -S localhost:8000
    ```
+
+4. **Test API**
+   - Open browser to `http://localhost:8000` to see API root
+   - Test endpoints at `http://localhost:8000/api/admin`
 
 ### Deployment to Render
 
@@ -246,8 +417,9 @@ For Aiven MySQL, update with:
    DB_HOST=[aiven-mysql-host]
    DB_NAME=student_org_tracker
    DB_USER=[aiven-username]
-   DB_PASSWORD=[aiven-password]
-   DB_PORT=3306
+   DB_PASS=[aiven-password]
+   JWT_SECRET=[your-jwt-secret-key]
+   JWT_ALGORITHM=HS256
    ```
 
 3. **Deploy via Render**
@@ -298,18 +470,34 @@ docker run -p 8080:80 -e DB_HOST=[host] -e DB_NAME=[name] -e DB_USER=[user] -e D
 ### Using cURL
 
 ```bash
-# Get all admins
-curl -X GET https://your-app.onrender.com/api/admin
-
-# Create new admin
-curl -X POST https://your-app.onrender.com/api/admin \
+# Admin Login
+curl -X POST https://your-app.onrender.com/api/admin/login \
   -H "Content-Type: application/json" \
-  -d '{"name":"John Doe","email":"john@example.com","password":"secure123"}'
+  -d '{"email":"admin@example.com","password":"password123"}'
 
-# Update admin
-curl -X PUT https://your-app.onrender.com/api/admin/1 \
+# Get all admins (requires JWT token)
+curl -X GET https://your-app.onrender.com/api/admin \
+  -H "Authorization: Bearer YOUR_JWT_TOKEN"
+
+# Get all students
+curl -X GET https://your-app.onrender.com/api/admin/students \
+  -H "Authorization: Bearer YOUR_JWT_TOKEN"
+
+# Create new student
+curl -X POST https://your-app.onrender.com/api/admin/students \
   -H "Content-Type: application/json" \
-  -d '{"name":"Jane Doe"}'
+  -H "Authorization: Bearer YOUR_JWT_TOKEN" \
+  -d '{"name":"John Doe","email":"john@example.com","student_id":"STU001"}'
+
+# Get all organizations
+curl -X GET https://your-app.onrender.com/api/admin/organizations \
+  -H "Authorization: Bearer YOUR_JWT_TOKEN"
+
+# Create new event
+curl -X POST https://your-app.onrender.com/api/admin/events \
+  -H "Content-Type: application/json" \
+  -H "Authorization: Bearer YOUR_JWT_TOKEN" \
+  -d '{"title":"Annual Meeting","date":"2026-01-15","location":"Main Hall"}'
 ```
 
 ### Response Format
@@ -356,10 +544,12 @@ Error responses:
 ### Adding New Features
 
 1. Create/update migration in `migrations/`
-2. Create/update model in `model/`
-3. Create/update controller in `controller/`
-4. Add routes in `index.php`
-5. Test endpoints thoroughly
+2. Run migrations: `php migrate.php`
+3. Create/update model in `model/`
+4. Create/update controller in `controller/`
+5. Create/update routes in `routes/`
+6. Add route handler in `index.php`
+7. Test endpoints thoroughly
 
 ## Troubleshooting
 
@@ -388,11 +578,14 @@ Error responses:
 ## Security Considerations
 
 - Use prepared statements to prevent SQL injection
-- Implement authentication and authorization
+- Implement JWT authentication for protected endpoints
 - Validate all input data
 - Use HTTPS in production
 - Keep dependencies updated
-- Never commit sensitive credentials
+- Never commit sensitive credentials (use .env files)
+- Set strong JWT_SECRET in production
+- Implement CORS properly for frontend-backend communication
+- Sanitize user inputs to prevent XSS attacks
 
 ## License
 

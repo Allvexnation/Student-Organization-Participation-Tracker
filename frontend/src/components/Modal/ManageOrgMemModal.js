@@ -1,0 +1,348 @@
+import { openModal, closeModal, setModalButtonLoading } from '../../utils/modal.js';
+import { openConfirmDialog } from '../Dialog/ConfirmDialog.js';
+import { animateModalOpen, animateModalClose, clearModalAnimations, animateFormElements, clearFormAnimations, animateViewModalElements } from '../../provider/ModalAnimation.js';
+import * as OrgMembershipsAPI from '../../api/admin/OrgMemberships/ManageOrgMemberships.js';
+import * as StudentsAPI from '../../api/admin/Students/ManageStudents.js';
+import * as OrganizationsAPI from '../../api/admin/Organizations/ManageOrganizations.js';
+import * as RolesAPI from '../../api/admin/roles/ManageRoles.js';
+import { showToast } from '../ToastMessage.js';
+
+export function openManageOrgMemModal({ mode = 'add', membership = null, onSubmit }) {
+    const isEdit = mode === 'edit';
+    const title = isEdit ? 'Edit Membership' : 'New Membership';
+    const buttonText = isEdit ? 'Save Changes' : 'Add Membership';
+
+    const formContent = `
+        <form id="orgMemForm" class="space-y-5">
+            ${isEdit ? `<input type="hidden" id="orgMemId" value="${membership.id}">` : ''}
+
+            <fieldset>
+                <legend class="text-xs font-semibold text-gray-500 uppercase tracking-wider mb-3">Membership Details</legend>
+                <div class="space-y-3">
+                    <div>
+                        <label for="studentId" class="block text-sm font-medium text-gray-700 mb-1">Student <span class="text-red-500">*</span></label>
+                        <select id="studentId" name="studentId" required
+                            class="w-full px-3 py-2 text-sm border border-gray-200 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-transparent bg-white transition">
+                            <option value="">Select Student</option>
+                        </select>
+                    </div>
+                    <div>
+                        <label for="organizationId" class="block text-sm font-medium text-gray-700 mb-1">Organization <span class="text-red-500">*</span></label>
+                        <select id="organizationId" name="organizationId" required
+                            class="w-full px-3 py-2 text-sm border border-gray-200 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-transparent bg-white transition">
+                            <option value="">Select Organization</option>
+                        </select>
+                    </div>
+                    <div>
+                        <label for="dateJoined" class="block text-sm font-medium text-gray-700 mb-1">Date Joined <span class="text-red-500">*</span></label>
+                        <input type="date" id="dateJoined" name="dateJoined" value="${isEdit ? membership.date_joined : ''}" required
+                            class="w-full px-3 py-2 text-sm border border-gray-200 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-transparent transition">
+                    </div>
+                </div>
+            </fieldset>
+
+            <hr class="border-gray-100">
+
+            <fieldset>
+                <legend class="text-xs font-semibold text-gray-500 uppercase tracking-wider mb-3">Position & Status</legend>
+                <div class="space-y-3">
+                    <div>
+                        <label for="roleId" class="block text-sm font-medium text-gray-700 mb-1">Position/Role <span class="text-red-500">*</span></label>
+                        <select id="roleId" name="roleId" required
+                            class="w-full px-3 py-2 text-sm border border-gray-200 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-transparent bg-white transition">
+                            <option value="">Select Position</option>
+                        </select>
+                    </div>
+                    <div>
+                        <label for="membershipStatus" class="block text-sm font-medium text-gray-700 mb-1">Membership Status <span class="text-red-500">*</span></label>
+                        <select id="membershipStatus" name="membershipStatus" required
+                            class="w-full px-3 py-2 text-sm border border-gray-200 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-transparent bg-white transition">
+                            <option value="">Select Status</option>
+                            <option value="Active" ${isEdit && membership.membership_status === 'Active' ? 'selected' : ''}>Active</option>
+                            <option value="Inactive" ${isEdit && membership.membership_status === 'Inactive' ? 'selected' : ''}>Inactive</option>
+                            <option value="Resigned" ${isEdit && membership.membership_status === 'Resigned' ? 'selected' : ''}>Resigned</option>
+                        </select>
+                    </div>
+                </div>
+            </fieldset>
+
+            <div id="formError" class="hidden text-sm text-red-600 bg-red-50 border border-red-200 rounded-md px-3 py-2"></div>
+
+            <div class="flex justify-end pt-3 border-t border-gray-100 flex-row gap-2">
+                <button 
+                    type="button" 
+                    onclick="closeManageOrgMemModal()" 
+                    class="px-4 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-md hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-gray-200 transition">
+                    Cancel
+                </button>
+                <button 
+                    type="submit" 
+                    id="submitBtn" 
+                    class="px-5 py-2 text-sm font-medium text-white bg-blue-900 hover:bg-blue-800 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-1 transition">
+                    ${buttonText}
+                </button>
+            </div>
+        </form>
+    `;
+
+    openModal(title, formContent, 'mid-large');
+
+    const modalOverlay = document.getElementById('modal-overlay');
+    const modalContent = document.getElementById('modal-content');
+    if (modalOverlay && modalContent) {
+        animateModalOpen(modalOverlay, modalContent, 'scale');
+    }
+
+    setTimeout(() => {
+        const form = document.getElementById('orgMemForm');
+        if (form) {
+            animateFormElements(form);
+        }
+    }, 100);
+
+    async function loadStudents() {
+        try {
+            const students = await StudentsAPI.getAllStudents();
+            const studentSelect = document.getElementById('studentId');
+            if (studentSelect) {
+                studentSelect.innerHTML = '<option value="">Select Student</option>';
+                students.forEach(student => {
+                    const option = document.createElement('option');
+                    option.value = student.id;
+                    option.textContent = `${student.first_name} ${student.last_name}`;
+                    if (isEdit && membership.student_id == student.id) {
+                        option.selected = true;
+                    }
+                    studentSelect.appendChild(option);
+                });
+            }
+        } catch (error) {
+            console.error('Error loading students:', error);
+            showToast('Failed to load students', 'error');
+        }
+    }
+
+    async function loadOrganizations() {
+        try {
+            const organizations = await OrganizationsAPI.getAllOrganizations();
+            const orgSelect = document.getElementById('organizationId');
+            if (orgSelect) {
+                orgSelect.innerHTML = '<option value="">Select Organization</option>';
+                organizations.forEach(org => {
+                    const option = document.createElement('option');
+                    option.value = org.id;
+                    option.textContent = org.name;
+                    if (isEdit && membership.organization_id == org.id) {
+                        option.selected = true;
+                    }
+                    orgSelect.appendChild(option);
+                });
+            }
+        } catch (error) {
+            console.error('Error loading organizations:', error);
+            showToast('Failed to load organizations', 'error');
+        }
+    }
+
+    async function loadRoles() {
+        try {
+            const roles = await RolesAPI.getAllRoles();
+            const roleSelect = document.getElementById('roleId');
+            if (roleSelect) {
+                roleSelect.innerHTML = '<option value="">Select Position</option>';
+                roles.forEach(role => {
+                    const option = document.createElement('option');
+                    option.value = role.id;
+                    option.textContent = role.role_name;
+                    if (isEdit && membership.role_id == role.id) {
+                        option.selected = true;
+                    }
+                    roleSelect.appendChild(option);
+                });
+            }
+        } catch (error) {
+            console.error('Error loading roles:', error);
+            showToast('Failed to load roles', 'error');
+        }
+    }
+
+    loadStudents();
+    loadOrganizations();
+    loadRoles();
+
+    const form = document.getElementById('orgMemForm');
+    if (form) {
+        form.addEventListener('submit', async (e) => {
+            e.preventDefault();
+            await processOrgMemSubmit(isEdit ? membership.id : null, buttonText, onSubmit);
+        });
+    }
+}
+
+function showFormError(message) {
+    const el = document.getElementById('formError');
+    if (el) {
+        el.textContent = message;
+        el.classList.remove('hidden');
+    }
+}
+
+function hideFormError() {
+    const el = document.getElementById('formError');
+    if (el) el.classList.add('hidden');
+}
+
+async function processOrgMemSubmit(id, buttonText, onSubmit) {
+    hideFormError();
+
+    const formData = {
+        student_id: document.getElementById('studentId').value,
+        organization_id: document.getElementById('organizationId').value,
+        date_joined: document.getElementById('dateJoined').value,
+        role_id: document.getElementById('roleId').value,
+        membership_status: document.getElementById('membershipStatus').value
+    };
+
+    const isEdit = id !== null;
+
+    if (isEdit) {
+        openConfirmDialog({
+            title: 'Confirm Update',
+            message: 'Are you sure you want to update this membership?',
+            confirmText: 'Update',
+            cancelText: 'Cancel',
+            type: 'blue',
+            onConfirm: async () => {
+                setModalButtonLoading('submitBtn', true, buttonText);
+                try {
+                    await onSubmit(id, formData);
+                    closeManageOrgMemModal();
+                    showToast('Membership updated successfully', 'success');
+                } catch (error) {
+                    console.error('Error saving membership:', error);
+                    showFormError('Failed to save membership. Please try again.');
+                    setModalButtonLoading('submitBtn', false, buttonText);
+                    showToast('Failed to update membership', 'error');
+                }
+            }
+        });
+    } else {
+        setModalButtonLoading('submitBtn', true, buttonText);
+        try {
+            await onSubmit(id, formData);
+            closeManageOrgMemModal();
+            showToast('Membership added successfully', 'success');
+        } catch (error) {
+            console.error('Error saving membership:', error);
+            showFormError('Failed to save membership. Please try again.');
+            setModalButtonLoading('submitBtn', false, buttonText);
+            showToast('Failed to add membership', 'error');
+        }
+    }
+}
+
+async function closeManageOrgMemModal() {
+    const modalOverlay = document.getElementById('modal-overlay');
+    const modalContent = document.getElementById('modal-content');
+    
+    if (modalOverlay && modalContent) {
+        await animateModalClose(modalOverlay, modalContent, 'scale');
+        clearModalAnimations(modalOverlay, modalContent);
+        modalOverlay.remove();
+        document.removeEventListener('keydown', (e) => {
+            if (e.key === 'Escape') closeManageOrgMemModal();
+        });
+    } else {
+        closeModal();
+    }
+}
+
+window.closeManageOrgMemModal = closeManageOrgMemModal;
+
+export async function openViewOrgMemModal(id) {
+    try {
+        const membership = await OrgMembershipsAPI.getOrgMembership(id);
+        const dateJoined = membership.date_joined ? new Date(membership.date_joined).toLocaleDateString('en-PH', {
+            weekday: 'long',
+            year: 'numeric',
+            month: 'long',
+            day: 'numeric',
+        }) : 'N/A';
+
+        const content = `
+            <div class="space-y-5">
+                <div class="flex flex-col sm:flex-row sm:items-center gap-4 bg-gray-50 rounded-lg p-4 border border-gray-100">
+                    <div class="flex-shrink-0 w-24 h-24 sm:w-32 sm:h-32 rounded-lg bg-blue-900 text-blue-100 flex items-center justify-center text-sm font-bold shadow-sm mx-auto sm:mx-0">
+                        <i data-lucide="users" class="w-12 h-12"></i>
+                    </div>
+                    <div class="text-center sm:text-left">
+                        <h3 class="text-lg font-semibold text-gray-900">${membership.student_name || 'Unknown Student'}</h3>
+                        <p class="text-sm text-gray-500 mt-0.5">${membership.organization_name || 'Unknown Organization'}</p>
+                        <span class="inline-flex items-center px-2.5 py-0.5 mt-0.5 rounded-full text-xs font-medium ${membership.membership_status === 'Active' ? 'bg-green-50 text-green-900' : membership.membership_status === 'Inactive' ? 'bg-gray-50 text-gray-900' : 'bg-red-50 text-red-900'} border border-gray-200">
+                            ${membership.membership_status}
+                        </span>
+                    </div>
+                </div>
+
+                <div class="border-b border-gray-200 pb-4">
+                    <h4 class="text-xs font-semibold text-gray-500 uppercase tracking-wider mb-3">Membership Details</h4>
+                    <dl class="grid grid-cols-1 sm:grid-cols-2 gap-x-6 gap-y-3">
+                        <div>
+                            <dt class="text-xs text-gray-400 font-medium">Student</dt>
+                            <dd class="text-sm font-semibold text-gray-900 mt-0.5">${membership.student_name || 'Unknown'}</dd>
+                        </div>
+                        <div>
+                            <dt class="text-xs text-gray-400 font-medium">Organization</dt>
+                            <dd class="text-sm font-semibold text-gray-900 mt-0.5">${membership.organization_name || 'Unknown'}</dd>
+                        </div>
+                        <div>
+                            <dt class="text-xs text-gray-400 font-medium">Date Joined</dt>
+                            <dd class="text-sm font-semibold text-gray-900 mt-0.5">${dateJoined}</dd>
+                        </div>
+                        <div>
+                            <dt class="text-xs text-gray-400 font-medium">Position</dt>
+                            <dd class="text-sm font-semibold text-gray-900 mt-0.5">${membership.role_name || 'N/A'}</dd>
+                        </div>
+                    </dl>
+                </div>
+
+                <div class="border-b border-gray-200 pb-4">
+                    <h4 class="text-xs font-semibold text-gray-500 uppercase tracking-wider mb-3">Status Information</h4>
+                    <dl class="grid grid-cols-1 sm:grid-cols-2 gap-x-6 gap-y-3">
+                        <div>
+                            <dt class="text-xs text-gray-400 font-medium">Membership Status</dt>
+                            <dd class="text-sm font-semibold text-gray-900 mt-0.5">${membership.membership_status}</dd>
+                        </div>
+                    </dl>
+                </div>
+
+                <div class="flex justify-end pt-3 border-t border-gray-100 flex-col sm:flex-row gap-2">
+                    <button 
+                        type="button" 
+                        onclick="closeModal()" 
+                        class="px-4 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-md hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-gray-200 transition">
+                        Close
+                    </button>
+                </div>
+            </div>
+        `;
+
+        openModal('Membership Details', content, 'mid-large');
+
+        const modalOverlay = document.getElementById('modal-overlay');
+        const modalContent = document.getElementById('modal-content');
+        if (modalOverlay && modalContent) {
+            animateModalOpen(modalOverlay, modalContent, 'scale');
+        }
+
+        setTimeout(() => {
+            const modalContentEl = document.getElementById('modal-content');
+            if (modalContentEl) {
+                animateViewModalElements(modalContentEl);
+            }
+        }, 100);
+    } catch (error) {
+        console.error('Error loading membership:', error);
+        showToast('Failed to load membership', 'error');
+    }
+}

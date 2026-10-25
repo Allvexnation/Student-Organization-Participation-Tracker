@@ -28,6 +28,41 @@ export function AdminStripBar(userRole = 'Admin') {
                         <i data-lucide="user-cog" class="w-4 h-4 ${isSettingsActive ? 'text-blue-900' : 'text-gray-400'}"></i>
                         <span>Profile</span>
                     </a>
+
+                    <a href="#manage-adviser" class="px-3.5 py-3 text-sm font-medium transition-colors whitespace-nowrap flex items-center gap-2 rounded-t-md ${currentHash === '#manage-adviser' ? activeTabClass : inactiveTabClass}">
+                        <i data-lucide="users" class="w-4 h-4 ${currentHash === '#manage-adviser' ? 'text-blue-900' : 'text-gray-400'}"></i>
+                        <span>Manage Adviser</span>
+                    </a>
+
+                    <a href="#manage-roles" class="px-3.5 py-3 text-sm font-medium transition-colors whitespace-nowrap flex items-center gap-2 rounded-t-md ${currentHash === '#manage-roles' ? activeTabClass : inactiveTabClass}">
+                        <i data-lucide="shield" class="w-4 h-4 ${currentHash === '#manage-roles' ? 'text-blue-900' : 'text-gray-400'}"></i>
+                        <span>Manage Roles</span>
+                    </a>
+
+                    <a href="#manage-students" class="px-3.5 py-3 text-sm font-medium transition-colors whitespace-nowrap flex items-center gap-2 rounded-t-md ${currentHash === '#manage-students' ? activeTabClass : inactiveTabClass}">
+                        <i data-lucide="graduation-cap" class="w-4 h-4 ${currentHash === '#manage-students' ? 'text-blue-900' : 'text-gray-400'}"></i>
+                        <span>Manage Students</span>
+                    </a>
+
+                    <a href="#manage-organizations" class="px-3.5 py-3 text-sm font-medium transition-colors whitespace-nowrap flex items-center gap-2 rounded-t-md ${currentHash === '#manage-organizations' ? activeTabClass : inactiveTabClass}">
+                        <i data-lucide="building" class="w-4 h-4 ${currentHash === '#manage-organizations' ? 'text-blue-900' : 'text-gray-400'}"></i>
+                        <span>Organizations</span>
+                    </a>
+
+                    <a href="#manage-events" class="px-3.5 py-3 text-sm font-medium transition-colors whitespace-nowrap flex items-center gap-2 rounded-t-md ${currentHash === '#manage-events' ? activeTabClass : inactiveTabClass}">
+                        <i data-lucide="calendar" class="w-4 h-4 ${currentHash === '#manage-events' ? 'text-blue-900' : 'text-gray-400'}"></i>
+                        <span>Events</span>
+                    </a>
+
+                    <a href="#manage-event-registrations" class="px-3.5 py-3 text-sm font-medium transition-colors whitespace-nowrap flex items-center gap-2 rounded-t-md ${currentHash === '#manage-event-registrations' ? activeTabClass : inactiveTabClass}">
+                        <i data-lucide="user-check" class="w-4 h-4 ${currentHash === '#manage-event-registrations' ? 'text-blue-900' : 'text-gray-400'}"></i>
+                        <span>Event Registrations</span>
+                    </a>
+
+                    <a href="#manage-org-memberships" class="px-3.5 py-3 text-sm font-medium transition-colors whitespace-nowrap flex items-center gap-2 rounded-t-md ${currentHash === '#manage-org-memberships' ? activeTabClass : inactiveTabClass}">
+                        <i data-lucide="users" class="w-4 h-4 ${currentHash === '#manage-org-memberships' ? 'text-blue-900' : 'text-gray-400'}"></i>
+                        <span>Org Memberships</span>
+                    </a>
                 </div>
             </div>
 

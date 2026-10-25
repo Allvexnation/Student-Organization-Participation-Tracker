@@ -1,6 +1,7 @@
 <?php
 
 require_once __DIR__ . '/../model/AdminModel.php';
+require_once __DIR__ . '/../config/jwt.php';
 
 class AdminController {
     private $adminModel;
@@ -32,7 +33,12 @@ class AdminController {
                 $admin['profile_photo'] = 'data:image/jpeg;base64,' . base64_encode($admin['profile_photo']);
             }
             
-            $token = base64_encode($admin['id'] . ':' . time());
+            $tokenPayload = [
+                'user_id' => $admin['id'],
+                'email' => $admin['email'],
+                'role' => 'admin'
+            ];
+            $token = JWT::encode($tokenPayload);
             
             http_response_code(200);
             echo json_encode([
@@ -52,14 +58,13 @@ class AdminController {
         $headers = getallheaders();
         $token = isset($headers['Authorization']) ? str_replace('Bearer ', '', $headers['Authorization']) : null;
         
-        if (!$token) {
+        if (!$token || !JWT::validate($token)) {
             http_response_code(401);
             echo json_encode(['message' => 'Unauthorized']);
             return;
         }
 
-        $tokenData = explode(':', base64_decode($token));
-        $adminId = $tokenData[0];
+        $adminId = JWT::getUserId($token);
 
         $admin = $this->adminModel->readOne($adminId);
 
@@ -84,14 +89,13 @@ class AdminController {
         $headers = getallheaders();
         $token = isset($headers['Authorization']) ? str_replace('Bearer ', '', $headers['Authorization']) : null;
         
-        if (!$token) {
+        if (!$token || !JWT::validate($token)) {
             http_response_code(401);
             echo json_encode(['message' => 'Unauthorized']);
             return;
         }
 
-        $tokenData = explode(':', base64_decode($token));
-        $adminId = $tokenData[0];
+        $adminId = JWT::getUserId($token);
 
         $data = json_decode(file_get_contents('php://input'), true);
         

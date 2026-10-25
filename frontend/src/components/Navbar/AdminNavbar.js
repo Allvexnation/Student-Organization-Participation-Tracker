@@ -1,5 +1,5 @@
 import { AdminStripBar } from '../Stripbar/AdminStripbar.js';
-import { getAdminData, logout } from '../../api/admin/AdminLogin.js';
+import { getAdminData, logout, verifyAdminExists } from '../../api/admin/AdminLogin.js';
 import { openConfirmDialog } from '../Dialog/ConfirmDialog.js';
 import { showToast, updateToast } from '../ToastMessage.js';
 
@@ -48,107 +48,114 @@ export function AdminNavbar() {
 }
 
 export function initAdminNavbar() {
-    const adminData = getAdminData() || {};
-
-    const navUsername = document.getElementById('navUsername');
-    const navProfilePhotoMobile = document.getElementById('navProfilePhotoMobile');
-    const navProfilePlaceholderMobile = document.getElementById('navProfilePlaceholderMobile');
-    
-    if (navUsername) navUsername.textContent = `Welcome, ${adminData.name || 'Admin'}`;
-
-    if (adminData.profile_photo && navProfilePhotoMobile && navProfilePlaceholderMobile) {
-        navProfilePhotoMobile.src = adminData.profile_photo;
-        navProfilePhotoMobile.classList.remove('hidden');
-        navProfilePlaceholderMobile.classList.add('hidden');
-    }
-
-    const logoutBtn = document.getElementById('logoutBtn');
-    const logoutBtnMobile = document.getElementById('logoutBtnMobile');
-
-    if (logoutBtn) {
-        logoutBtn.addEventListener('click', () => {
-            openConfirmDialog({
-                title: 'Confirm Logout',
-                message: 'Are you sure you want to logout?',
-                onConfirm: () => {
-                    showToast('Logging out...', 'loading');
-                    logout();
-                    updateToast('Logged out successfully!', 'success');
-                    setTimeout(() => {
-                        window.location.hash = '#admin-login';
-                    }, 1500);
-                },
-                confirmText: 'Logout',
-                cancelText: 'Cancel'
-            });
-        });
-    }
-
-    if (logoutBtnMobile) {
-        logoutBtnMobile.addEventListener('click', () => {
-            openConfirmDialog({
-                title: 'Confirm Logout',
-                message: 'Are you sure you want to logout?',
-                onConfirm: () => {
-                    showToast('Logging out...', 'loading');
-                    logout();
-                    updateToast('Logged out successfully!', 'success');
-                    setTimeout(() => {
-                        window.location.hash = '#admin-login';
-                    }, 1500);
-                },
-                confirmText: 'Logout',
-                cancelText: 'Cancel'
-            });
-        });
-    }
-
-    const hamburgerMenu = document.getElementById('admin-hamburger-menu');
-    const hamburgerIcon = document.getElementById('admin-hamburger-icon');
-    const closeIcon = document.getElementById('admin-close-icon');
-    const tabStrip = document.getElementById('admin-tab-strip');
-
-    if (hamburgerMenu && tabStrip) {
-        const stripBarState = localStorage.getItem('adminStripBarState');
-        
-        if (stripBarState === 'expanded') {
-            tabStrip.style.maxHeight = tabStrip.scrollHeight + 'px';
-            hamburgerIcon.classList.add('hidden');
-            closeIcon.classList.remove('hidden');
-        } else {
-            tabStrip.style.maxHeight = '0px';
-            hamburgerIcon.classList.remove('hidden');
-            closeIcon.classList.add('hidden');
+    verifyAdminExists().then(exists => {
+        if (!exists) {
+            window.location.hash = '#admin-login';
+            return;
         }
 
-        hamburgerMenu.addEventListener('click', () => {
-            const isExpanded = tabStrip.style.maxHeight !== '0px' && tabStrip.style.maxHeight !== '';
+        const adminData = getAdminData() || {};
+
+        const navUsername = document.getElementById('navUsername');
+        const navProfilePhotoMobile = document.getElementById('navProfilePhotoMobile');
+        const navProfilePlaceholderMobile = document.getElementById('navProfilePlaceholderMobile');
+        
+        if (navUsername) navUsername.textContent = `Welcome, ${adminData.name || 'Admin'}`;
+
+        if (adminData.profile_photo && navProfilePhotoMobile && navProfilePlaceholderMobile) {
+            navProfilePhotoMobile.src = adminData.profile_photo;
+            navProfilePhotoMobile.classList.remove('hidden');
+            navProfilePlaceholderMobile.classList.add('hidden');
+        }
+
+        const logoutBtn = document.getElementById('logoutBtn');
+        const logoutBtnMobile = document.getElementById('logoutBtnMobile');
+
+        if (logoutBtn) {
+            logoutBtn.addEventListener('click', () => {
+                openConfirmDialog({
+                    title: 'Confirm Logout',
+                    message: 'Are you sure you want to logout?',
+                    onConfirm: () => {
+                        showToast('Logging out...', 'loading');
+                        logout();
+                        updateToast('Logged out successfully!', 'success');
+                        setTimeout(() => {
+                            window.location.hash = '#admin-login';
+                        }, 1500);
+                    },
+                    confirmText: 'Logout',
+                    cancelText: 'Cancel'
+                });
+            });
+        }
+
+        if (logoutBtnMobile) {
+            logoutBtnMobile.addEventListener('click', () => {
+                openConfirmDialog({
+                    title: 'Confirm Logout',
+                    message: 'Are you sure you want to logout?',
+                    onConfirm: () => {
+                        showToast('Logging out...', 'loading');
+                        logout();
+                        updateToast('Logged out successfully!', 'success');
+                        setTimeout(() => {
+                            window.location.hash = '#admin-login';
+                        }, 1500);
+                    },
+                    confirmText: 'Logout',
+                    cancelText: 'Cancel'
+                });
+            });
+        }
+
+        const hamburgerMenu = document.getElementById('admin-hamburger-menu');
+        const hamburgerIcon = document.getElementById('admin-hamburger-icon');
+        const closeIcon = document.getElementById('admin-close-icon');
+        const tabStrip = document.getElementById('admin-tab-strip');
+
+        if (hamburgerMenu && tabStrip) {
+            const stripBarState = localStorage.getItem('adminStripBarState');
             
-            if (isExpanded) {
-                tabStrip.style.maxHeight = '0px';
-                hamburgerIcon.classList.remove('hidden');
-                closeIcon.classList.add('hidden');
-                localStorage.setItem('adminStripBarState', 'collapsed');
-            } else {
+            if (stripBarState === 'expanded') {
                 tabStrip.style.maxHeight = tabStrip.scrollHeight + 'px';
                 hamburgerIcon.classList.add('hidden');
                 closeIcon.classList.remove('hidden');
-                localStorage.setItem('adminStripBarState', 'expanded');
+            } else {
+                tabStrip.style.maxHeight = '0px';
+                hamburgerIcon.classList.remove('hidden');
+                closeIcon.classList.add('hidden');
             }
-        });
-    }
 
-    const scrollLeft = document.getElementById('admin-scroll-left');
-    const scrollRight = document.getElementById('admin-scroll-right');
-    const tabsContainer = document.getElementById('admin-tabs-container');
+            hamburgerMenu.addEventListener('click', () => {
+                const isExpanded = tabStrip.style.maxHeight !== '0px' && tabStrip.style.maxHeight !== '';
+                
+                if (isExpanded) {
+                    tabStrip.style.maxHeight = '0px';
+                    hamburgerIcon.classList.remove('hidden');
+                    closeIcon.classList.add('hidden');
+                    localStorage.setItem('adminStripBarState', 'collapsed');
+                } else {
+                    tabStrip.style.maxHeight = tabStrip.scrollHeight + 'px';
+                    hamburgerIcon.classList.add('hidden');
+                    closeIcon.classList.remove('hidden');
+                    localStorage.setItem('adminStripBarState', 'expanded');
+                }
+            });
+        }
 
-    if (scrollLeft && scrollRight && tabsContainer) {
-        scrollLeft.addEventListener('click', () => {
-            tabsContainer.scrollBy({ left: -200, behavior: 'smooth' });
-        });
+        const scrollLeft = document.getElementById('admin-scroll-left');
+        const scrollRight = document.getElementById('admin-scroll-right');
+        const tabsContainer = document.getElementById('admin-tabs-container');
 
-        scrollRight.addEventListener('click', () => {
-            tabsContainer.scrollBy({ left: 200, behavior: 'smooth' });
-        });
-    }
+        if (scrollLeft && scrollRight && tabsContainer) {
+            scrollLeft.addEventListener('click', () => {
+                tabsContainer.scrollBy({ left: -200, behavior: 'smooth' });
+            });
+
+            scrollRight.addEventListener('click', () => {
+                tabsContainer.scrollBy({ left: 200, behavior: 'smooth' });
+            });
+        }
+    });
 }

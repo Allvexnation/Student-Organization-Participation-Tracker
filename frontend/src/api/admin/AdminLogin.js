@@ -46,3 +46,49 @@ export function getAdminData() {
     const adminData = localStorage.getItem('adminData');
     return adminData ? JSON.parse(adminData) : null;
 }
+
+export async function verifyAdminExists() {
+    try {
+        const token = localStorage.getItem('adminToken');
+        if (!token) {
+            return false;
+        }
+
+        const response = await fetch(API_ROUTES.ADMIN.PROFILE, {
+            method: 'GET',
+            headers: {
+                'Content-Type': 'application/json',
+                'Authorization': `Bearer ${token}`
+            }
+        });
+
+        if (response.status === 404) {
+            logout();
+            return false;
+        }
+
+        if (!response.ok) {
+            return false;
+        }
+
+        const data = await response.json();
+        
+        if (data.admin) {
+            const currentAdminData = getAdminData();
+            const dbAdminData = data.admin;
+            
+            const hasChanges = JSON.stringify(currentAdminData) !== JSON.stringify(dbAdminData);
+            
+            if (hasChanges) {
+                localStorage.setItem('adminData', JSON.stringify(dbAdminData));
+            }
+            
+            return true;
+        }
+
+        return false;
+    } catch (error) {
+        console.error('Admin verification error:', error);
+        return false;
+    }
+}
