@@ -81,6 +81,11 @@ export async function initManageRoles() {
     function renderRoles(data) {
         const tbody = document.getElementById('roleTableBody');
         
+        if (!tbody) {
+            console.error('roleTableBody element not found');
+            return;
+        }
+        
         if (!data || data.length === 0) {
             tbody.innerHTML = `
                 <tr>
@@ -192,5 +197,12 @@ export async function initManageRoles() {
         });
     };
 
-    loadRoles();
+    const waitForElement = () => {
+        if (document.getElementById('roleTableBody')) {
+            loadRoles();
+        } else {
+            setTimeout(waitForElement, 50);
+        }
+    };
+    waitForElement();
 }

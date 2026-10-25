@@ -9,10 +9,11 @@ class Create_organizations_table extends Migration {
             'org_code VARCHAR(50) NOT NULL UNIQUE',
             'name VARCHAR(255) NOT NULL',
             'description TEXT',
-            'adviser VARCHAR(255)',
+            'adviser_id INT DEFAULT NULL',
             'status VARCHAR(50) NOT NULL DEFAULT \'Active\'',
             'updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP',
-            'created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP'
+            'created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP',
+            'FOREIGN KEY (adviser_id) REFERENCES advisers(id) ON DELETE SET NULL'
         ];
         
         $this->createTable('organizations', $columns);

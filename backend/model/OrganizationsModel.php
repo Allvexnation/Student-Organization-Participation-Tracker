@@ -16,8 +16,8 @@ class OrganizationsModel {
 
     public function create($data) {
         $query = "INSERT INTO " . $this->table_name . " 
-                  (org_code, name, description, adviser, status) 
-                  VALUES (:org_code, :name, :description, :adviser, :status)";
+                  (org_code, name, description, adviser_id, status) 
+                  VALUES (:org_code, :name, :description, :adviser_id, :status)";
 
         try {
             $stmt = $this->conn->prepare($query);
@@ -25,7 +25,8 @@ class OrganizationsModel {
             $stmt->bindParam(':org_code', $data['org_code']);
             $stmt->bindParam(':name', $data['name']);
             $stmt->bindParam(':description', $data['description']);
-            $stmt->bindParam(':adviser', $data['adviser']);
+            $adviser_id = isset($data['adviser_id']) && $data['adviser_id'] !== '' ? $data['adviser_id'] : null;
+            $stmt->bindParam(':adviser_id', $adviser_id);
             $stmt->bindParam(':status', $data['status']);
             
             if($stmt->execute()) {
@@ -44,9 +45,10 @@ class OrganizationsModel {
             return false;
         }
 
-        $query = "SELECT id, org_code, name, description, adviser, status, updated_at, created_at
-                  FROM " . $this->table_name . "
-                  ORDER BY created_at DESC";
+        $query = "SELECT o.id, o.org_code, o.name, o.description, o.adviser_id, a.name as adviser, o.status, o.updated_at, o.created_at
+                  FROM " . $this->table_name . " o
+                  LEFT JOIN advisers a ON o.adviser_id = a.id
+                  ORDER BY o.created_at DESC";
 
         try {
             $stmt = $this->conn->prepare($query);
@@ -61,9 +63,10 @@ class OrganizationsModel {
     }
 
     public function readOne($id) {
-        $query = "SELECT id, org_code, name, description, adviser, status, updated_at, created_at 
-                  FROM " . $this->table_name . " 
-                  WHERE id = :id 
+        $query = "SELECT o.id, o.org_code, o.name, o.description, o.adviser_id, a.name as adviser, o.status, o.updated_at, o.created_at 
+                  FROM " . $this->table_name . " o
+                  LEFT JOIN advisers a ON o.adviser_id = a.id
+                  WHERE o.id = :id 
                   LIMIT 0,1";
 
         try {
@@ -100,7 +103,7 @@ class OrganizationsModel {
                   SET org_code = :org_code, 
                       name = :name, 
                       description = :description, 
-                      adviser = :adviser,
+                      adviser_id = :adviser_id,
                       status = :status
                   WHERE id = :id";
 
@@ -110,7 +113,8 @@ class OrganizationsModel {
             $stmt->bindParam(':org_code', $data['org_code']);
             $stmt->bindParam(':name', $data['name']);
             $stmt->bindParam(':description', $data['description']);
-            $stmt->bindParam(':adviser', $data['adviser']);
+            $adviser_id = isset($data['adviser_id']) && $data['adviser_id'] !== '' ? $data['adviser_id'] : null;
+            $stmt->bindParam(':adviser_id', $adviser_id);
             $stmt->bindParam(':status', $data['status']);
             $stmt->bindParam(':id', $id);
             
