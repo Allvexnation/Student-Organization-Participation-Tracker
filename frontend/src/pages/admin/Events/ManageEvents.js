@@ -83,7 +83,6 @@ export async function initManageEvents() {
 
     let events = [];
 
-    // Load events
     async function loadEvents() {
         try {
             events = await EventsAPI.getAllEvents();
@@ -102,7 +101,6 @@ export async function initManageEvents() {
         }
     }
 
-    // Render events table
     function renderEvents(data) {
         const tbody = document.getElementById('eventTableBody');
         
@@ -153,7 +151,6 @@ export async function initManageEvents() {
         animateTableRows('#eventTableBody tr');
     }
 
-    // Open add modal
     document.getElementById('addEventBtn').addEventListener('click', () => {
         openManageEventsModal({
             mode: 'add',
@@ -168,7 +165,6 @@ export async function initManageEvents() {
         });
     });
 
-    // Edit event (global function)
     window.editEvent = async (id) => {
         try {
             const event = await EventsAPI.getEvent(id);
@@ -186,12 +182,10 @@ export async function initManageEvents() {
         }
     };
 
-    // View event (global function)
     window.viewEvent = async (id) => {
         await openViewEventsModal(id);
     };
 
-    // Delete event (global function)
     window.deleteEvent = (id, deleteLabel) => {
         openConfirmDialog({
             title: 'Confirm Delete',
@@ -212,7 +206,6 @@ export async function initManageEvents() {
         });
     };
 
-    // Search functionality
     document.getElementById('eventSearch').addEventListener('input', (e) => {
         const searchTerm = e.target.value.toLowerCase();
         const filtered = events.filter(event => 
@@ -224,6 +217,5 @@ export async function initManageEvents() {
         renderEvents(filtered);
     });
 
-    // Initial load
     loadEvents();
 }
