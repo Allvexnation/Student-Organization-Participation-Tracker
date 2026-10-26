@@ -82,11 +82,27 @@ export async function initManageOrganizations() {
     animateSearchInput('#orgSearch');
 
     let organizations = [];
+    let hasLoaded = false;
 
-    async function loadOrganizations() {
+    async function loadOrganizations(forceRefresh = false) {
+        const cachedData = localStorage.getItem('cachedOrganizations');
+        if (cachedData && !forceRefresh) {
+            try {
+                organizations = JSON.parse(cachedData);
+                renderOrganizations(organizations);
+                hasLoaded = true;
+                return;
+            } catch (e) {
+                console.error('Error parsing cached organizations:', e);
+            }
+        }
+
         try {
             organizations = await OrganizationsAPI.getAllOrganizations();
+            localStorage.setItem('cachedOrganizations', JSON.stringify(organizations));
+            localStorage.setItem('cachedOrganizationsTimestamp', Date.now().toString());
             renderOrganizations(organizations);
+            hasLoaded = true;
         } catch (error) {
             console.error('Error loading organizations:', error);
             const tbody = document.getElementById('orgTableBody');
@@ -155,7 +171,7 @@ export async function initManageOrganizations() {
                 } else {
                     await OrganizationsAPI.createOrganization(data);
                 }
-                loadOrganizations();
+                loadOrganizations(true);
             }
         });
     });
@@ -168,7 +184,7 @@ export async function initManageOrganizations() {
                 organization: organization,
                 onSubmit: async (id, data) => {
                     await OrganizationsAPI.updateOrganization(id, data);
-                    loadOrganizations();
+                    loadOrganizations(true);
                 }
             });
         } catch (error) {
@@ -191,7 +207,7 @@ export async function initManageOrganizations() {
             onConfirm: async () => {
                 try {
                     await OrganizationsAPI.deleteOrganization(id);
-                    loadOrganizations();
+                    loadOrganizations(true);
                     showToast('Organization deleted successfully', 'success');
                 } catch (error) {
                     console.error('Error deleting organization:', error);

@@ -1,3 +1,5 @@
+import { navigate } from './navigation.js';
+
 const TOKEN_KEY = 'adminToken';
 
 export function getToken() {
@@ -48,7 +50,7 @@ export function isAuthenticated() {
 
 export function requireAuth() {
     if (!isAuthenticated()) {
-        window.location.hash = '#admin-login';
+        navigate('/admin-login');
     }
 }
 

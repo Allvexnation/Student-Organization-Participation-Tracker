@@ -82,11 +82,27 @@ export async function initManageOrgMemberships() {
     animateSearchInput('#orgMemSearch');
 
     let orgMemberships = [];
+    let hasLoaded = false;
 
-    async function loadOrgMemberships() {
+    async function loadOrgMemberships(forceRefresh = false) {
+        const cachedData = localStorage.getItem('cachedOrgMemberships');
+        if (cachedData && !forceRefresh) {
+            try {
+                orgMemberships = JSON.parse(cachedData);
+                renderOrgMemberships(orgMemberships);
+                hasLoaded = true;
+                return;
+            } catch (e) {
+                console.error('Error parsing cached org memberships:', e);
+            }
+        }
+
         try {
             orgMemberships = await OrgMembershipsAPI.getAllOrgMemberships();
+            localStorage.setItem('cachedOrgMemberships', JSON.stringify(orgMemberships));
+            localStorage.setItem('cachedOrgMembershipsTimestamp', Date.now().toString());
             renderOrgMemberships(orgMemberships);
+            hasLoaded = true;
         } catch (error) {
             console.error('Error loading organization memberships:', error);
             const tbody = document.getElementById('orgMemTableBody');
@@ -155,7 +171,7 @@ export async function initManageOrgMemberships() {
                 } else {
                     await OrgMembershipsAPI.createOrgMembership(data);
                 }
-                loadOrgMemberships();
+                loadOrgMemberships(true);
             }
         });
     });
@@ -168,7 +184,7 @@ export async function initManageOrgMemberships() {
                 membership: membership,
                 onSubmit: async (id, data) => {
                     await OrgMembershipsAPI.updateOrgMembership(id, data);
-                    loadOrgMemberships();
+                    loadOrgMemberships(true);
                 }
             });
         } catch (error) {
@@ -191,7 +207,7 @@ export async function initManageOrgMemberships() {
             onConfirm: async () => {
                 try {
                     await OrgMembershipsAPI.deleteOrgMembership(id);
-                    loadOrgMemberships();
+                    loadOrgMemberships(true);
                     showToast('Membership deleted successfully', 'success');
                 } catch (error) {
                     console.error('Error deleting membership:', error);

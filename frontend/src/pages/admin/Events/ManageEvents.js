@@ -82,11 +82,27 @@ export async function initManageEvents() {
     animateSearchInput('#eventSearch');
 
     let events = [];
+    let hasLoaded = false;
 
-    async function loadEvents() {
+    async function loadEvents(forceRefresh = false) {
+        const cachedData = localStorage.getItem('cachedEvents');
+        if (cachedData && !forceRefresh) {
+            try {
+                events = JSON.parse(cachedData);
+                renderEvents(events);
+                hasLoaded = true;
+                return;
+            } catch (e) {
+                console.error('Error parsing cached events:', e);
+            }
+        }
+
         try {
             events = await EventsAPI.getAllEvents();
+            localStorage.setItem('cachedEvents', JSON.stringify(events));
+            localStorage.setItem('cachedEventsTimestamp', Date.now().toString());
             renderEvents(events);
+            hasLoaded = true;
         } catch (error) {
             console.error('Error loading events:', error);
             const tbody = document.getElementById('eventTableBody');
@@ -160,7 +176,7 @@ export async function initManageEvents() {
                 } else {
                     await EventsAPI.createEvent(data);
                 }
-                loadEvents();
+                loadEvents(true);
             }
         });
     });
@@ -173,7 +189,7 @@ export async function initManageEvents() {
                 event: event,
                 onSubmit: async (id, data) => {
                     await EventsAPI.updateEvent(id, data);
-                    loadEvents();
+                    loadEvents(true);
                 }
             });
         } catch (error) {
@@ -196,7 +212,7 @@ export async function initManageEvents() {
             onConfirm: async () => {
                 try {
                     await EventsAPI.deleteEvent(id);
-                    loadEvents();
+                    loadEvents(true);
                     showToast('Event deleted successfully', 'success');
                 } catch (error) {
                     console.error('Error deleting event:', error);

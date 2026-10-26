@@ -48,7 +48,7 @@ export function HomePage() {
                 </div>
                 
                 <div class="flex justify-center">
-                    <a href="#login" class="bg-blue-800 hover:bg-blue-900 text-white font-semibold py-3 px-10 rounded transition-colors duration-200 shadow-lg">
+                    <a href="/admin-login" class="bg-blue-800 hover:bg-blue-900 text-white font-semibold py-3 px-10 rounded transition-colors duration-200 shadow-lg">
                         Login to Portal
                     </a>
                 </div>

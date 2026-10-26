@@ -58,12 +58,27 @@ export async function initManageRoles() {
     initManageRolesAnimations();
 
     let roles = [];
+    let hasLoaded = false;
 
-    // Load roles
-    async function loadRoles() {
+    async function loadRoles(forceRefresh = false) {
+        const cachedData = localStorage.getItem('cachedRoles');
+        if (cachedData && !forceRefresh) {
+            try {
+                roles = JSON.parse(cachedData);
+                renderRoles(roles);
+                hasLoaded = true;
+                return;
+            } catch (e) {
+                console.error('Error parsing cached roles:', e);
+            }
+        }
+
         try {
             roles = await RolesAPI.getAllRoles();
+            localStorage.setItem('cachedRoles', JSON.stringify(roles));
+            localStorage.setItem('cachedRolesTimestamp', Date.now().toString());
             renderRoles(roles);
+            hasLoaded = true;
         } catch (error) {
             console.error('Error loading roles:', error);
             const tbody = document.getElementById('roleTableBody');
@@ -151,7 +166,7 @@ export async function initManageRoles() {
                 } else {
                     await RolesAPI.createRole(data);
                 }
-                loadRoles();
+                loadRoles(true);
             }
         });
     });
@@ -164,7 +179,7 @@ export async function initManageRoles() {
                 role: role,
                 onSubmit: async (id, data) => {
                     await RolesAPI.updateRole(id, data);
-                    loadRoles();
+                    loadRoles(true);
                 }
             });
         } catch (error) {
@@ -187,7 +202,7 @@ export async function initManageRoles() {
             onConfirm: async () => {
                 try {
                     await RolesAPI.deleteRole(id);
-                    loadRoles();
+                    loadRoles(true);
                     showToast('Role deleted successfully', 'success');
                 } catch (error) {
                     console.error('Error deleting role:', error);

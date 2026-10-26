@@ -78,12 +78,27 @@ export async function initManageEventRegist() {
     animateSearchInput('#eventRegistSearch');
 
     let eventRegistrations = [];
+    let hasLoaded = false;
 
-    // Load event registrations
-    async function loadEventRegistrations() {
+    async function loadEventRegistrations(forceRefresh = false) {
+        const cachedData = localStorage.getItem('cachedEventRegistrations');
+        if (cachedData && !forceRefresh) {
+            try {
+                eventRegistrations = JSON.parse(cachedData);
+                renderEventRegistrations(eventRegistrations);
+                hasLoaded = true;
+                return;
+            } catch (e) {
+                console.error('Error parsing cached event registrations:', e);
+            }
+        }
+
         try {
             eventRegistrations = await EventRegistAPI.getAllEventRegistrations();
+            localStorage.setItem('cachedEventRegistrations', JSON.stringify(eventRegistrations));
+            localStorage.setItem('cachedEventRegistrationsTimestamp', Date.now().toString());
             renderEventRegistrations(eventRegistrations);
+            hasLoaded = true;
         } catch (error) {
             console.error('Error loading event registrations:', error);
             const tbody = document.getElementById('eventRegistTableBody');
@@ -98,7 +113,6 @@ export async function initManageEventRegist() {
         }
     }
 
-    // Render event registrations table
     function renderEventRegistrations(data) {
         const tbody = document.getElementById('eventRegistTableBody');
         
@@ -139,7 +153,6 @@ export async function initManageEventRegist() {
         animateTableRows('#eventRegistTableBody tr');
     }
 
-    // Open add modal
     document.getElementById('addEventRegistBtn').addEventListener('click', () => {
         openManageEventRegistModal({
             mode: 'add',
@@ -149,12 +162,11 @@ export async function initManageEventRegist() {
                 } else {
                     await EventRegistAPI.createEventRegistration(data);
                 }
-                loadEventRegistrations();
+                loadEventRegistrations(true);
             }
         });
     });
 
-    // Edit event registration (global function)
     window.editEventRegist = async (id) => {
         try {
             const registration = await EventRegistAPI.getEventRegistration(id);
@@ -163,7 +175,7 @@ export async function initManageEventRegist() {
                 registration: registration,
                 onSubmit: async (id, data) => {
                     await EventRegistAPI.updateEventRegistration(id, data);
-                    loadEventRegistrations();
+                    loadEventRegistrations(true);
                 }
             });
         } catch (error) {
@@ -172,12 +184,10 @@ export async function initManageEventRegist() {
         }
     };
 
-    // View event registration (global function)
     window.viewEventRegist = async (id) => {
         await openViewEventRegistModal(id);
     };
 
-    // Delete event registration (global function)
     window.deleteEventRegist = (id, deleteLabel) => {
         openConfirmDialog({
             title: 'Confirm Delete',
@@ -188,7 +198,7 @@ export async function initManageEventRegist() {
             onConfirm: async () => {
                 try {
                     await EventRegistAPI.deleteEventRegistration(id);
-                    loadEventRegistrations();
+                    loadEventRegistrations(true);
                     showToast('Event registration deleted successfully', 'success');
                 } catch (error) {
                     console.error('Error deleting event registration:', error);
@@ -198,7 +208,6 @@ export async function initManageEventRegist() {
         });
     };
 
-    // Search functionality
     document.getElementById('eventRegistSearch').addEventListener('input', (e) => {
         const searchTerm = e.target.value.toLowerCase();
         const filtered = eventRegistrations.filter(reg => 
@@ -209,6 +218,5 @@ export async function initManageEventRegist() {
         renderEventRegistrations(filtered);
     });
 
-    // Initial load
     loadEventRegistrations();
 }

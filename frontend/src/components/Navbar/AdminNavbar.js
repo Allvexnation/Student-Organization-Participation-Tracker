@@ -2,6 +2,7 @@ import { AdminStripBar } from '../Stripbar/AdminStripbar.js';
 import { getAdminData, logout, verifyAdminExists } from '../../api/admin/AdminLogin.js';
 import { openConfirmDialog } from '../Dialog/ConfirmDialog.js';
 import { showToast, updateToast } from '../ToastMessage.js';
+import { navigate } from '../../utils/navigation.js';
 
 export function AdminNavbar() {
     return `
@@ -48,13 +49,20 @@ export function AdminNavbar() {
 }
 
 export function initAdminNavbar() {
-    verifyAdminExists().then(exists => {
+    const adminData = getAdminData() || {};
+    const isVerified = localStorage.getItem('adminVerified');
+    
+    const verifyPromise = isVerified ? Promise.resolve(true) : verifyAdminExists();
+    
+    verifyPromise.then(exists => {
         if (!exists) {
-            window.location.hash = '#admin-login';
+            navigate('/admin-login');
             return;
         }
 
-        const adminData = getAdminData() || {};
+        if (!isVerified) {
+            localStorage.setItem('adminVerified', 'true');
+        }
 
         const navUsername = document.getElementById('navUsername');
         const navProfilePhotoMobile = document.getElementById('navProfilePhotoMobile');
@@ -81,7 +89,7 @@ export function initAdminNavbar() {
                         logout();
                         updateToast('Logged out successfully!', 'success');
                         setTimeout(() => {
-                            window.location.hash = '#admin-login';
+                            navigate('/admin-login');
                         }, 1500);
                     },
                     confirmText: 'Logout',
@@ -100,7 +108,7 @@ export function initAdminNavbar() {
                         logout();
                         updateToast('Logged out successfully!', 'success');
                         setTimeout(() => {
-                            window.location.hash = '#admin-login';
+                            navigate('/admin-login');
                         }, 1500);
                     },
                     confirmText: 'Logout',

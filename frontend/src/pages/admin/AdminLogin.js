@@ -2,6 +2,7 @@ import { adminLogin } from '../../api/admin/AdminAuth/AdminAuth.js';
 import { initStepForm } from '../../utils/steps.js';
 import { setToken } from '../../../src/utils/jwt.js';
 import { showToast, updateToast } from '../../components/ToastMessage.js';
+import { navigate } from '../../utils/navigation.js';
 
 export function AdminLogin() {
     return `
@@ -101,7 +102,7 @@ export function initAdminLogin() {
             localStorage.setItem('adminData', JSON.stringify(result.admin));
             updateToast('Login successful! Redirecting...', 'success');
             setTimeout(() => {
-                window.location.hash = '#admin-dashboard';
+                navigate('/admin-dashboard');
             }, 2000);
         } else {
             updateToast(result.message, 'error');

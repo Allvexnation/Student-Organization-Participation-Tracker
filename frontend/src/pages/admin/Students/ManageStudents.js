@@ -90,11 +90,27 @@ export async function initManageStudents() {
     animateSearchInput('#studentSearch');
 
     let students = [];
+    let hasLoaded = false;
 
-    async function loadStudents() {
+    async function loadStudents(forceRefresh = false) {
+        const cachedData = localStorage.getItem('cachedStudents');
+        if (cachedData && !forceRefresh) {
+            try {
+                students = JSON.parse(cachedData);
+                renderStudents(students);
+                hasLoaded = true;
+                return;
+            } catch (e) {
+                console.error('Error parsing cached students:', e);
+            }
+        }
+
         try {
             students = await StudentsAPI.getAllStudents();
+            localStorage.setItem('cachedStudents', JSON.stringify(students));
+            localStorage.setItem('cachedStudentsTimestamp', Date.now().toString());
             renderStudents(students);
+            hasLoaded = true;
         } catch (error) {
             console.error('Error loading students:', error);
             const tbody = document.getElementById('studentTableBody');
@@ -172,7 +188,7 @@ export async function initManageStudents() {
                 } else {
                     await StudentsAPI.createStudent(data);
                 }
-                loadStudents();
+                loadStudents(true);
             }
         });
     });
@@ -185,7 +201,7 @@ export async function initManageStudents() {
                 student: student,
                 onSubmit: async (id, data) => {
                     await StudentsAPI.updateStudent(id, data);
-                    loadStudents();
+                    loadStudents(true);
                 }
             });
         } catch (error) {
@@ -208,7 +224,7 @@ export async function initManageStudents() {
             onConfirm: async () => {
                 try {
                     await StudentsAPI.deleteStudent(id);
-                    loadStudents();
+                    loadStudents(true);
                     showToast('Student deleted successfully', 'success');
                 } catch (error) {
                     console.error('Error deleting student:', error);

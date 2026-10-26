@@ -20,52 +20,57 @@ export class App {
     constructor(root) {
         this.root = root;
         this.routes = {
-            '': HomePage,
-            '#admin-login': AdminLogin,
-            '#admin-dashboard': AdminDashboard,
-            '#edit-admin-profile': AdminProfile,
-            '#manage-adviser': ManageAdviser,
-            '#manage-roles': ManageRoles,
-            '#manage-students': ManageStudents,
-            '#manage-organizations': ManageOrganizations,
-            '#manage-events': ManageEvents,
-            '#manage-event-registrations': ManageEventRegist,
-            '#manage-org-memberships': ManageOrgMemberships
+            '/': HomePage,
+            '/admin-login': AdminLogin,
+            '/admin-dashboard': AdminDashboard,
+            '/edit-admin-profile': AdminProfile,
+            '/manage-adviser': ManageAdviser,
+            '/manage-roles': ManageRoles,
+            '/manage-students': ManageStudents,
+            '/manage-organizations': ManageOrganizations,
+            '/manage-events': ManageEvents,
+            '/manage-event-registrations': ManageEventRegist,
+            '/manage-org-memberships': ManageOrgMemberships
         };
         this.initFunctions = {
-            '': initHomePage,
-            '#admin-login': initAdminLogin,
-            '#admin-dashboard': initAdminDashboard,
-            '#edit-admin-profile': initAdminProfile,
-            '#manage-adviser': initManageAdviser,
-            '#manage-roles': initManageRoles,
-            '#manage-students': initManageStudents,
-            '#manage-organizations': initManageOrganizations,
-            '#manage-events': initManageEvents,
-            '#manage-event-registrations': initManageEventRegist,
-            '#manage-org-memberships': initManageOrgMemberships
+            '/': initHomePage,
+            '/admin-login': initAdminLogin,
+            '/admin-dashboard': initAdminDashboard,
+            '/edit-admin-profile': initAdminProfile,
+            '/manage-adviser': initManageAdviser,
+            '/manage-roles': initManageRoles,
+            '/manage-students': initManageStudents,
+            '/manage-organizations': initManageOrganizations,
+            '/manage-events': initManageEvents,
+            '/manage-event-registrations': initManageEventRegist,
+            '/manage-org-memberships': initManageOrgMemberships
         };
-        
-        window.addEventListener('hashchange', () => this.render());
+
+        window.addEventListener('popstate', () => this.render());
     }
 
     getCurrentRoute() {
-        return window.location.hash || '';
+        return window.location.pathname;
+    }
+
+    navigate(path) {
+        window.history.pushState({}, '', path);
+        this.render();
     }
 
     render() {
         let route = this.getCurrentRoute();
 
-        if (route === '#admin-login' && isAuthenticated()) {
-            route = '#admin-dashboard';
-            window.location.hash = '#admin-dashboard';
+        if (route === '/admin-login' && isAuthenticated()) {
+            route = '/admin-dashboard';
+            this.navigate('/admin-dashboard');
         }
 
-        const pageComponent = this.routes[route] || this.routes[''];
+        const pageComponent = this.routes[route] || this.routes['/'];
 
         this.root.innerHTML = pageComponent();
 
-        const initFunction = this.initFunctions[route] || this.initFunctions[''];
+        const initFunction = this.initFunctions[route] || this.initFunctions['/'];
         if (initFunction) {
             initFunction();
         }

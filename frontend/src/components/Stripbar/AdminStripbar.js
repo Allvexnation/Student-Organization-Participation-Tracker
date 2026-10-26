@@ -1,10 +1,10 @@
 export function AdminStripBar(userRole = 'Admin') {
-    const currentHash = window.location.hash || '#admin-dashboard';
+    const currentPath = window.location.pathname || '/admin-dashboard';
     const stripBarState = localStorage.getItem('adminStripBarState') || 'collapsed';
     const initialMaxHeight = stripBarState === 'expanded' ? '500px' : '0';
     const userIsAdmin = userRole === 'Admin';
 
-    const isSettingsActive = currentHash === '#edit-admin-profile' || currentHash === '#settings';
+    const isSettingsActive = currentPath === '/edit-admin-profile' || currentPath === '/settings';
 
     const activeTabClass = 'bg-blue-50 text-blue-900 font-semibold border-b-2 border-blue-900';
     const inactiveTabClass = 'text-gray-600 hover:text-gray-900 hover:bg-gray-50 border-b-2 border-transparent';
@@ -19,48 +19,48 @@ export function AdminStripBar(userRole = 'Admin') {
 
             <div id="admin-tabs-container" class="flex-1 overflow-x-auto whitespace-nowrap scrollbar-hide py-0.5" style="-ms-overflow-style: none; scrollbar-width: none;">
                 <div class="inline-flex items-center gap-1">
-                    <a href="#admin-dashboard" class="px-3.5 py-3 text-sm font-medium transition-colors whitespace-nowrap flex items-center gap-2 rounded-t-md ${currentHash === '#admin-dashboard' ? activeTabClass : inactiveTabClass}">
-                        <i data-lucide="layout-dashboard" class="w-4 h-4 ${currentHash === '#admin-dashboard' ? 'text-blue-900' : 'text-gray-400'}"></i>
+                    <a href="/admin-dashboard" class="px-3.5 py-3 text-sm font-medium transition-colors whitespace-nowrap flex items-center gap-2 rounded-t-md ${currentPath === '/admin-dashboard' ? activeTabClass : inactiveTabClass}">
+                        <i data-lucide="layout-dashboard" class="w-4 h-4 ${currentPath === '/admin-dashboard' ? 'text-blue-900' : 'text-gray-400'}"></i>
                         <span>Dashboard</span>
                     </a>
 
-                    <a href="#edit-admin-profile" class="px-3.5 py-3 text-sm font-medium transition-colors whitespace-nowrap flex items-center gap-2 rounded-t-md ${isSettingsActive ? activeTabClass : inactiveTabClass}">
+                    <a href="/edit-admin-profile" class="px-3.5 py-3 text-sm font-medium transition-colors whitespace-nowrap flex items-center gap-2 rounded-t-md ${isSettingsActive ? activeTabClass : inactiveTabClass}">
                         <i data-lucide="user-cog" class="w-4 h-4 ${isSettingsActive ? 'text-blue-900' : 'text-gray-400'}"></i>
                         <span>Profile</span>
                     </a>
 
-                    <a href="#manage-adviser" class="px-3.5 py-3 text-sm font-medium transition-colors whitespace-nowrap flex items-center gap-2 rounded-t-md ${currentHash === '#manage-adviser' ? activeTabClass : inactiveTabClass}">
-                        <i data-lucide="users" class="w-4 h-4 ${currentHash === '#manage-adviser' ? 'text-blue-900' : 'text-gray-400'}"></i>
+                    <a href="/manage-adviser" class="px-3.5 py-3 text-sm font-medium transition-colors whitespace-nowrap flex items-center gap-2 rounded-t-md ${currentPath === '/manage-adviser' ? activeTabClass : inactiveTabClass}">
+                        <i data-lucide="users" class="w-4 h-4 ${currentPath === '/manage-adviser' ? 'text-blue-900' : 'text-gray-400'}"></i>
                         <span>Manage Adviser</span>
                     </a>
 
-                    <a href="#manage-roles" class="px-3.5 py-3 text-sm font-medium transition-colors whitespace-nowrap flex items-center gap-2 rounded-t-md ${currentHash === '#manage-roles' ? activeTabClass : inactiveTabClass}">
-                        <i data-lucide="shield" class="w-4 h-4 ${currentHash === '#manage-roles' ? 'text-blue-900' : 'text-gray-400'}"></i>
+                    <a href="/manage-roles" class="px-3.5 py-3 text-sm font-medium transition-colors whitespace-nowrap flex items-center gap-2 rounded-t-md ${currentPath === '/manage-roles' ? activeTabClass : inactiveTabClass}">
+                        <i data-lucide="shield" class="w-4 h-4 ${currentPath === '/manage-roles' ? 'text-blue-900' : 'text-gray-400'}"></i>
                         <span>Manage Roles</span>
                     </a>
 
-                    <a href="#manage-students" class="px-3.5 py-3 text-sm font-medium transition-colors whitespace-nowrap flex items-center gap-2 rounded-t-md ${currentHash === '#manage-students' ? activeTabClass : inactiveTabClass}">
-                        <i data-lucide="graduation-cap" class="w-4 h-4 ${currentHash === '#manage-students' ? 'text-blue-900' : 'text-gray-400'}"></i>
+                    <a href="/manage-students" class="px-3.5 py-3 text-sm font-medium transition-colors whitespace-nowrap flex items-center gap-2 rounded-t-md ${currentPath === '/manage-students' ? activeTabClass : inactiveTabClass}">
+                        <i data-lucide="graduation-cap" class="w-4 h-4 ${currentPath === '/manage-students' ? 'text-blue-900' : 'text-gray-400'}"></i>
                         <span>Manage Students</span>
                     </a>
 
-                    <a href="#manage-organizations" class="px-3.5 py-3 text-sm font-medium transition-colors whitespace-nowrap flex items-center gap-2 rounded-t-md ${currentHash === '#manage-organizations' ? activeTabClass : inactiveTabClass}">
-                        <i data-lucide="building" class="w-4 h-4 ${currentHash === '#manage-organizations' ? 'text-blue-900' : 'text-gray-400'}"></i>
+                    <a href="/manage-organizations" class="px-3.5 py-3 text-sm font-medium transition-colors whitespace-nowrap flex items-center gap-2 rounded-t-md ${currentPath === '/manage-organizations' ? activeTabClass : inactiveTabClass}">
+                        <i data-lucide="building" class="w-4 h-4 ${currentPath === '/manage-organizations' ? 'text-blue-900' : 'text-gray-400'}"></i>
                         <span>Organizations</span>
                     </a>
 
-                    <a href="#manage-events" class="px-3.5 py-3 text-sm font-medium transition-colors whitespace-nowrap flex items-center gap-2 rounded-t-md ${currentHash === '#manage-events' ? activeTabClass : inactiveTabClass}">
-                        <i data-lucide="calendar" class="w-4 h-4 ${currentHash === '#manage-events' ? 'text-blue-900' : 'text-gray-400'}"></i>
+                    <a href="/manage-events" class="px-3.5 py-3 text-sm font-medium transition-colors whitespace-nowrap flex items-center gap-2 rounded-t-md ${currentPath === '/manage-events' ? activeTabClass : inactiveTabClass}">
+                        <i data-lucide="calendar" class="w-4 h-4 ${currentPath === '/manage-events' ? 'text-blue-900' : 'text-gray-400'}"></i>
                         <span>Events</span>
                     </a>
 
-                    <a href="#manage-event-registrations" class="px-3.5 py-3 text-sm font-medium transition-colors whitespace-nowrap flex items-center gap-2 rounded-t-md ${currentHash === '#manage-event-registrations' ? activeTabClass : inactiveTabClass}">
-                        <i data-lucide="user-check" class="w-4 h-4 ${currentHash === '#manage-event-registrations' ? 'text-blue-900' : 'text-gray-400'}"></i>
+                    <a href="/manage-event-registrations" class="px-3.5 py-3 text-sm font-medium transition-colors whitespace-nowrap flex items-center gap-2 rounded-t-md ${currentPath === '/manage-event-registrations' ? activeTabClass : inactiveTabClass}">
+                        <i data-lucide="user-check" class="w-4 h-4 ${currentPath === '/manage-event-registrations' ? 'text-blue-900' : 'text-gray-400'}"></i>
                         <span>Event Registrations</span>
                     </a>
 
-                    <a href="#manage-org-memberships" class="px-3.5 py-3 text-sm font-medium transition-colors whitespace-nowrap flex items-center gap-2 rounded-t-md ${currentHash === '#manage-org-memberships' ? activeTabClass : inactiveTabClass}">
-                        <i data-lucide="users" class="w-4 h-4 ${currentHash === '#manage-org-memberships' ? 'text-blue-900' : 'text-gray-400'}"></i>
+                    <a href="/manage-org-memberships" class="px-3.5 py-3 text-sm font-medium transition-colors whitespace-nowrap flex items-center gap-2 rounded-t-md ${currentPath === '/manage-org-memberships' ? activeTabClass : inactiveTabClass}">
+                        <i data-lucide="users" class="w-4 h-4 ${currentPath === '/manage-org-memberships' ? 'text-blue-900' : 'text-gray-400'}"></i>
                         <span>Org Memberships</span>
                     </a>
                 </div>
@@ -81,13 +81,13 @@ function scrollToActiveTab() {
     const container = document.getElementById('admin-tabs-container');
     if (!container) return;
 
-    const currentHash = window.location.hash || '#admin-dashboard';
+    const currentPath = window.location.pathname || '/admin-dashboard';
     
     let activeTab = null;
     const tabs = container.querySelectorAll('a, button');
     
     tabs.forEach(tab => {
-        if (tab.tagName === 'A' && tab.getAttribute('href') === currentHash) {
+        if (tab.tagName === 'A' && tab.getAttribute('href') === currentPath) {
             activeTab = tab;
         }
     });
@@ -122,7 +122,7 @@ export function initStripBarDropdowns() {
             initStripBarDropdowns();
         }, 100);
     };
-    window.addEventListener('hashchange', hashChangeHandler);
+    window.addEventListener('popstate', hashChangeHandler);
 }
 
 document.addEventListener('DOMContentLoaded', function() {

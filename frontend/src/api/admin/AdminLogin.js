@@ -36,6 +36,22 @@ export async function adminLogin(usernameOrEmail, password) {
 export function logout() {
     removeToken();
     localStorage.removeItem('adminData');
+    localStorage.removeItem('adminVerified');
+    
+    localStorage.removeItem('cachedAdvisers');
+    localStorage.removeItem('cachedAdvisersTimestamp');
+    localStorage.removeItem('cachedStudents');
+    localStorage.removeItem('cachedStudentsTimestamp');
+    localStorage.removeItem('cachedOrganizations');
+    localStorage.removeItem('cachedOrganizationsTimestamp');
+    localStorage.removeItem('cachedEvents');
+    localStorage.removeItem('cachedEventsTimestamp');
+    localStorage.removeItem('cachedRoles');
+    localStorage.removeItem('cachedRolesTimestamp');
+    localStorage.removeItem('cachedEventRegistrations');
+    localStorage.removeItem('cachedEventRegistrationsTimestamp');
+    localStorage.removeItem('cachedOrgMemberships');
+    localStorage.removeItem('cachedOrgMembershipsTimestamp');
 }
 
 export function isAuthenticated() {

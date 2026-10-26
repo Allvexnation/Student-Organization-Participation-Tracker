@@ -90,12 +90,27 @@ export async function initManageAdviser() {
     animateSearchInput('#adviserSearch');
 
     let advisers = [];
+    let hasLoaded = false;
 
-    // Load advisers
-    async function loadAdvisers() {
+    async function loadAdvisers(forceRefresh = false) {
+        const cachedData = localStorage.getItem('cachedAdvisers');
+        if (cachedData && !forceRefresh) {
+            try {
+                advisers = JSON.parse(cachedData);
+                renderAdvisers(advisers);
+                hasLoaded = true;
+                return;
+            } catch (e) {
+                console.error('Error parsing cached advisers:', e);
+            }
+        }
+
         try {
             advisers = await AdviserAPI.getAllAdvisers();
+            localStorage.setItem('cachedAdvisers', JSON.stringify(advisers));
+            localStorage.setItem('cachedAdvisersTimestamp', Date.now().toString());
             renderAdvisers(advisers);
+            hasLoaded = true;
         } catch (error) {
             console.error('Error loading advisers:', error);
             const tbody = document.getElementById('adviserTableBody');
@@ -110,7 +125,6 @@ export async function initManageAdviser() {
         }
     }
 
-    // Render advisers table
     function renderAdvisers(data) {
         const tbody = document.getElementById('adviserTableBody');
         
@@ -169,7 +183,6 @@ export async function initManageAdviser() {
         animateTableRows('#adviserTableBody tr');
     }
 
-    // Open add modal
     document.getElementById('addAdviserBtn').addEventListener('click', () => {
         openManageAdviserModal({
             mode: 'add',
@@ -179,12 +192,11 @@ export async function initManageAdviser() {
                 } else {
                     await AdviserAPI.createAdviser(data);
                 }
-                loadAdvisers();
+                loadAdvisers(true);
             }
         });
     });
 
-    // Edit adviser (global function)
     window.editAdviser = async (id) => {
         try {
             const adviser = await AdviserAPI.getAdviser(id);
@@ -193,7 +205,7 @@ export async function initManageAdviser() {
                 adviser: adviser,
                 onSubmit: async (id, data) => {
                     await AdviserAPI.updateAdviser(id, data);
-                    loadAdvisers();
+                    loadAdvisers(true);
                 }
             });
         } catch (error) {
@@ -202,12 +214,10 @@ export async function initManageAdviser() {
         }
     };
 
-    // View adviser (global function)
     window.viewAdviser = async (id) => {
         await openViewAdviserModal(id);
     };
 
-    // Delete adviser (global function)
     window.deleteAdviser = (id, deleteLabel) => {
         openConfirmDialog({
             title: 'Confirm Delete',
@@ -218,7 +228,7 @@ export async function initManageAdviser() {
             onConfirm: async () => {
                 try {
                     await AdviserAPI.deleteAdviser(id);
-                    loadAdvisers();
+                    loadAdvisers(true);
                     showToast('Adviser deleted successfully', 'success');
                 } catch (error) {
                     console.error('Error deleting adviser:', error);
@@ -228,7 +238,6 @@ export async function initManageAdviser() {
         });
     };
 
-    // Search functionality
     document.getElementById('adviserSearch').addEventListener('input', (e) => {
         const searchTerm = e.target.value.toLowerCase();
         const filtered = advisers.filter(adviser => 
@@ -239,6 +248,5 @@ export async function initManageAdviser() {
         renderAdvisers(filtered);
     });
 
-    // Initial load
     loadAdvisers();
 }
