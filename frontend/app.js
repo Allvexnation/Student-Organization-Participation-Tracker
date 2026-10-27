@@ -13,7 +13,7 @@ import { isAuthenticated } from './src/utils/jwt.js';
 
 const link = document.createElement('link');
 link.rel = 'stylesheet';
-link.href = 'index.css';
+link.href = '/index.css';
 document.head.appendChild(link);
 
 export class App {
@@ -21,32 +21,34 @@ export class App {
         this.root = root;
         this.routes = {
             '/': HomePage,
-            '/admin-login': AdminLogin,
-            '/admin-dashboard': AdminDashboard,
-            '/edit-admin-profile': AdminProfile,
-            '/manage-adviser': ManageAdviser,
-            '/manage-roles': ManageRoles,
-            '/manage-students': ManageStudents,
-            '/manage-organizations': ManageOrganizations,
-            '/manage-events': ManageEvents,
-            '/manage-event-registrations': ManageEventRegist,
-            '/manage-org-memberships': ManageOrgMemberships
+            '/auth/admin/login': AdminLogin,
+            '/admin/dashboard': AdminDashboard,
+            '/admin/profile': AdminProfile,
+            '/admin/adviser': ManageAdviser,
+            '/admin/roles': ManageRoles,
+            '/admin/students': ManageStudents,
+            '/admin/organizations': ManageOrganizations,
+            '/admin/events': ManageEvents,
+            '/admin/event-registrations': ManageEventRegist,
+            '/admin/org-memberships': ManageOrgMemberships
         };
         this.initFunctions = {
             '/': initHomePage,
-            '/admin-login': initAdminLogin,
-            '/admin-dashboard': initAdminDashboard,
-            '/edit-admin-profile': initAdminProfile,
-            '/manage-adviser': initManageAdviser,
-            '/manage-roles': initManageRoles,
-            '/manage-students': initManageStudents,
-            '/manage-organizations': initManageOrganizations,
-            '/manage-events': initManageEvents,
-            '/manage-event-registrations': initManageEventRegist,
-            '/manage-org-memberships': initManageOrgMemberships
+            '/auth/admin/login': initAdminLogin,
+            '/admin/dashboard': initAdminDashboard,
+            '/admin/profile': initAdminProfile,
+            '/admin/adviser': initManageAdviser,
+            '/admin/roles': initManageRoles,
+            '/admin/students': initManageStudents,
+            '/admin/organizations': initManageOrganizations,
+            '/admin/events': initManageEvents,
+            '/admin/event-registrations': initManageEventRegist,
+            '/admin/org-memberships': initManageOrgMemberships
         };
 
         window.addEventListener('popstate', () => this.render());
+
+        window.appNavigate = (path) => this.navigate(path);
     }
 
     getCurrentRoute() {
@@ -61,9 +63,9 @@ export class App {
     render() {
         let route = this.getCurrentRoute();
 
-        if (route === '/admin-login' && isAuthenticated()) {
-            route = '/admin-dashboard';
-            this.navigate('/admin-dashboard');
+        if (route === '/auth/admin/login' && isAuthenticated()) {
+            route = '/admin/dashboard';
+            this.navigate('/admin/dashboard');
         }
 
         const pageComponent = this.routes[route] || this.routes['/'];

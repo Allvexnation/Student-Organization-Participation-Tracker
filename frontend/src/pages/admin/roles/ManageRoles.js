@@ -18,6 +18,11 @@ export function ManageRoles() {
                     <p class="text-sm text-gray-500 mt-1">Manage user roles and permissions for the system.</p>
                 </div>
                 <div class="flex items-center gap-2.5">
+                    <input 
+                        type="text" 
+                        id="roleSearch" 
+                        placeholder="Search roles..." 
+                        class="px-3 py-2 text-sm border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent w-48 sm:w-64">
                     <button 
                         type="button" 
                         id="addRoleBtn" 
@@ -42,7 +47,7 @@ export function ManageRoles() {
                             </tr>
                         </thead>
                         <tbody id="roleTableBody" class="divide-y divide-gray-100">
-                            ${skeletonTableRows(window.innerWidth < 640 ? 3 : 4, window.innerWidth < 640 ? 3 : 6)}
+                            ${skeletonTableRows(window.innerWidth < 640 ? 3 : 4, window.innerWidth < 640 ? 3 : 6, true)}
                         </tbody>
                     </table>
                 </div>
@@ -171,21 +176,15 @@ export async function initManageRoles() {
         });
     });
 
-    window.editRole = async (id) => {
-        try {
-            const role = await RolesAPI.getRole(id);
-            openManageRolesModal({
-                mode: 'edit',
-                role: role,
-                onSubmit: async (id, data) => {
-                    await RolesAPI.updateRole(id, data);
-                    loadRoles(true);
-                }
-            });
-        } catch (error) {
-            console.error('Error loading role:', error);
-            showToast('Failed to load role', 'error');
-        }
+    window.editRole = (id) => {
+        openManageRolesModal({
+            mode: 'edit',
+            roleId: id,
+            onSubmit: async (id, data) => {
+                await RolesAPI.updateRole(id, data);
+                loadRoles(true);
+            }
+        });
     };
 
     window.viewRole = async (id) => {
@@ -211,6 +210,14 @@ export async function initManageRoles() {
             }
         });
     };
+
+    document.getElementById('roleSearch').addEventListener('input', (e) => {
+        const searchTerm = e.target.value.toLowerCase();
+        const filtered = roles.filter(role => 
+            role.role_name.toLowerCase().includes(searchTerm)
+        );
+        renderRoles(filtered);
+    });
 
     const waitForElement = () => {
         if (document.getElementById('roleTableBody')) {

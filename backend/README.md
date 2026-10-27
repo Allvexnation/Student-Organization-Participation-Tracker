@@ -1,6 +1,6 @@
 # Student Organization Participation Tracker - Backend API
 
-**Version: 2.0**
+**Version: 2.1**
 
 ## Overview
 
@@ -62,7 +62,8 @@ backend/
 │   ├── 2026_01_01_000008_create_event_registrations_table.php
 │   ├── 2026_01_01_000011_add_role_id_to_organization_memberships_table.php
 │   ├── 2026_01_01_000012_add_role_id_to_students_table.php
-│   └── 2026_01_01_000012_drop_position_from_organization_memberships_table.php
+│   ├── 2026_01_01_000012_drop_position_from_organization_memberships_table.php
+│   └── 2026_01_01_000013_alter_organizations_table_adviser_id.php
 ├── routes/
 │   ├── AdminRoutes.php     # Admin routing configuration
 │   ├── AdviserRoutes.php   # Adviser routing configuration
@@ -374,9 +375,30 @@ class JWT {
 ### Local Development
 
 1. **Prerequisites**
-   - PHP 8.0 or higher installed
+   - PHP 8.0 or higher installed (XAMPP recommended for Windows)
    - MySQL server running locally
+   - Node.js (required for running the project)
    - Apache or Nginx web server (optional, PHP built-in server works for development)
+
+#### Installing PHP (XAMPP)
+
+If PHP is not installed on your system, XAMPP is recommended for Windows:
+
+1. Download XAMPP from: https://www.apachefriends.org/download.html
+2. Run the installer and follow the installation wizard
+3. Start Apache and MySQL from XAMPP Control Panel
+4. PHP will be available via XAMPP installation
+
+#### Installing Node.js
+
+If Node.js is not installed on your system:
+
+1. Download Node.js v24.22.1 from: https://nodejs.org/dist/v24.22.1/node-v24.22.1-x64.msi
+2. Run the installer and follow the installation wizard
+3. After installation, verify Node.js is installed by running in terminal or PowerShell:
+   ```bash
+   node -v
+   ```
 
 2. **Setup**
    ```bash
@@ -396,9 +418,31 @@ class JWT {
    ```
 
 3. **Run Local Server**
+
+#### Quick Start (Recommended)
+
+The project includes a custom script to run the PHP development server:
+
+1. **Navigate to the backend directory**
    ```bash
-   php -S localhost:8000
+   cd path/to/Student-Organization-Participation-Tracker/backend
    ```
+
+2. **Run the PHP development server**
+   ```bash
+   npx php-run-devs
+   ```
+
+   This command will:
+   - Start the PHP built-in server
+   - Run on port 8000 by default
+   - Enable API access at `http://localhost:8000`
+
+#### Alternative Method (Manual PHP Server)
+
+```bash
+php -S localhost:8000
+```
 
 4. **Test API**
    - Open browser to `http://localhost:8000` to see API root
@@ -471,30 +515,30 @@ docker run -p 8080:80 -e DB_HOST=[host] -e DB_NAME=[name] -e DB_USER=[user] -e D
 
 ```bash
 # Admin Login
-curl -X POST https://your-app.onrender.com/api/admin/login \
+curl -X POST https://crtsopt.onrender.com/api/admin/login \
   -H "Content-Type: application/json" \
   -d '{"email":"admin@example.com","password":"password123"}'
 
 # Get all admins (requires JWT token)
-curl -X GET https://your-app.onrender.com/api/admin \
+curl -X GET https://crtsopt.onrender.com/api/admin \
   -H "Authorization: Bearer YOUR_JWT_TOKEN"
 
 # Get all students
-curl -X GET https://your-app.onrender.com/api/admin/students \
+curl -X GET https://crtsopt.onrender.com/api/admin/students \
   -H "Authorization: Bearer YOUR_JWT_TOKEN"
 
 # Create new student
-curl -X POST https://your-app.onrender.com/api/admin/students \
+curl -X POST https://crtsopt.onrender.com/api/admin/students \
   -H "Content-Type: application/json" \
   -H "Authorization: Bearer YOUR_JWT_TOKEN" \
   -d '{"name":"John Doe","email":"john@example.com","student_id":"STU001"}'
 
 # Get all organizations
-curl -X GET https://your-app.onrender.com/api/admin/organizations \
+curl -X GET https://crtsopt.onrender.com/api/admin/organizations \
   -H "Authorization: Bearer YOUR_JWT_TOKEN"
 
 # Create new event
-curl -X POST https://your-app.onrender.com/api/admin/events \
+curl -X POST https://crtsopt.onrender.com/api/admin/events \
   -H "Content-Type: application/json" \
   -H "Authorization: Bearer YOUR_JWT_TOKEN" \
   -d '{"title":"Annual Meeting","date":"2026-01-15","location":"Main Hall"}'
@@ -533,6 +577,13 @@ Error responses:
 - **Inheritance**: Extend base classes for shared functionality
 - **Polymorphism**: Use interfaces and abstract classes where appropriate
 - **Single Responsibility**: Each class should have one reason to change
+
+### Bug Fixes in v2.1
+
+- Fixed responsiveness issues across all management pages for better mobile and tablet support
+- Fixed multiple fetch request bugs that caused duplicate API calls
+- Fixed slow fetch performance by optimizing API response handling
+- Improved error handling for failed API requests
 
 ### Code Style
 
@@ -589,8 +640,24 @@ Error responses:
 
 ## License
 
-[Your License Here]
+MIT License
 
-## Support
+Copyright (c) 2026 Jhon Ladines
 
-For issues and questions, please contact the development team.
+Permission is hereby granted, free of charge, to any person obtaining a copy
+of this software and associated documentation files (the "Software"), to deal
+in the Software without restriction, including without limitation the rights
+to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+copies of the Software, and to permit persons to whom the Software is
+furnished to do so, subject to the following conditions:
+
+The above copyright notice and this permission notice shall be included in all
+copies or substantial portions of the Software.
+
+THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+SOFTWARE.

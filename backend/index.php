@@ -3,7 +3,7 @@
 header('Content-Type: application/json');
 
 $allowedOrigins = [
-    'http://127.0.0.2:5500',
+    'http://localhost:3000',
 ];
 
 $origin = $_SERVER['HTTP_ORIGIN'] ?? '';

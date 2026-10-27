@@ -72,12 +72,15 @@ frontend/
 │   ├── utils/               # Utility functions
 │   │   ├── jwt.js           # JWT token handling
 │   │   ├── modal.js         # Modal utilities
+│   │   ├── navigation.js    # Navigation utilities
 │   │   └── steps.js         # Step utilities
 │   └── static/              # Static assets
 ├── index.html               # Single HTML entry point
 ├── index.css                # Global styles
 ├── app.js                   # Main app component with routing
 ├── main.js                  # Application entry point
+├── start.js                 # Application startup script
+├── .htaccess                # Apache URL rewriting configuration for clean URLs
 └── vercel.json              # Vercel deployment configuration
 ```
 
@@ -89,8 +92,14 @@ frontend/
 - Has a single `<div id="root"></div>` where all pages are rendered
 - Loads the main JavaScript module
 
+#### 1.1. **URL Rewriting** (`.htaccess`)
+- Uses Apache `.htaccess` for clean URL rewriting
+- Removes `index.html` from URLs for a cleaner appearance
+- Enables proper SPA routing without hash fragments
+- Example: `/admin/dashboard` instead of `/index.html#/admin/dashboard`
+
 #### 2. **App Component** (`app.js`)
-- Implements hash-based routing (similar to React Router)
+- Implements pathname-based routing using History API
 - Manages route-to-component mapping
 - Handles page rendering dynamically
 - Includes route guards (e.g., authentication checks)
@@ -120,28 +129,28 @@ frontend/
 
 ## Routing System
 
-The application uses hash-based routing, which allows navigation without page reloads:
+The application uses pathname-based routing with History API, which allows navigation without page reloads:
 
 ### Available Routes
 
-| Route Hash | Page Component | Description |
+| Route Path | Page Component | Description |
 |------------|----------------|-------------|
-| `''` (empty) | HomePage | Landing page |
-| `#admin-login` | AdminLogin | Admin login page |
-| `#admin-dashboard` | AdminDashboard | Admin dashboard (protected) |
-| `#edit-admin-profile` | AdminProfile | Admin profile editing (protected) |
-| `#manage-adviser` | ManageAdviser | Adviser management (protected) |
-| `#manage-roles` | ManageRoles | Role management (protected) |
-| `#manage-students` | ManageStudents | Student management (protected) |
-| `#manage-organizations` | ManageOrganizations | Organization management (protected) |
-| `#manage-events` | ManageEvents | Event management (protected) |
-| `#manage-event-registrations` | ManageEventRegist | Event registration management (protected) |
-| `#manage-org-memberships` | ManageOrgMemberships | Organization membership management (protected) |
+| `/` | HomePage | Landing page |
+| `/auth/admin/login` | AdminLogin | Admin login page |
+| `/admin/dashboard` | AdminDashboard | Admin dashboard (protected) |
+| `/admin/profile` | AdminProfile | Admin profile editing (protected) |
+| `/admin/adviser` | ManageAdviser | Adviser management (protected) |
+| `/admin/roles` | ManageRoles | Role management (protected) |
+| `/admin/students` | ManageStudents | Student management (protected) |
+| `/admin/organizations` | ManageOrganizations | Organization management (protected) |
+| `/admin/events` | ManageEvents | Event management (protected) |
+| `/admin/event-registrations` | ManageEventRegist | Event registration management (protected) |
+| `/admin/org-memberships` | ManageOrgMemberships | Organization membership management (protected) |
 
 ### Route Guards
 
 The application includes route protection logic:
-- If user is authenticated and tries to access `#admin-login`, they are redirected to `#admin-dashboard`
+- If user is authenticated and tries to access `/auth/admin/login`, they are redirected to `/admin/dashboard`
 - Additional guards can be added in `app.js`
 
 ### Navigation
@@ -149,10 +158,10 @@ The application includes route protection logic:
 Navigate between pages using JavaScript:
 ```javascript
 // Navigate to admin dashboard
-window.location.hash = '#admin-dashboard';
+window.appNavigate('/admin/dashboard');
 
 // Navigate to home
-window.location.hash = '';
+window.appNavigate('/');
 ```
 
 ## Development Setup
@@ -162,6 +171,18 @@ window.location.hash = '';
 - Modern web browser (Chrome, Firefox, Edge, Safari)
 - VS Code (recommended)
 - Live Server Extension for VS Code
+- Node.js (required for running the project)
+
+#### Installing Node.js
+
+If Node.js is not installed on your system:
+
+1. Download Node.js v24.22.1 from: https://nodejs.org/dist/v24.22.1/node-v24.22.1-x64.msi
+2. Run the installer and follow the installation wizard
+3. After installation, verify Node.js is installed by running in terminal or PowerShell:
+   ```bash
+   node -v
+   ```
 
 ### Installation
 
@@ -182,25 +203,35 @@ window.location.hash = '';
 
 ### Running the Application
 
-1. **Open Project in VS Code**
-   - File → Open Folder
-   - Select the `frontend` directory
+#### Quick Start (Required)
 
-2. **Start Live Server**
-   - Right-click on `index.html`
-   - Select "Open with Live Server"
-   - Or press Alt+L, then Alt+O (Windows/Linux)
-   - Or click "Go Live" in the bottom right status bar
+The project requires the custom script to run the development server. **Note: The project will not work with Live Server or by opening index.html directly from file explorer.**
 
-3. **Access the Application**
-   - The application will open in your default browser
-   - Typically at `http://127.0.0.1:5500` or `http://localhost:5500`
+1. **Navigate to the frontend directory**
+   ```bash
+   cd path/to/Student-Organization-Participation-Tracker/frontend
+   ```
+
+2. **Run the development server**
+   ```bash
+   npx run-devs
+   ```
+
+   This command will:
+   - Start the development server
+   - Open the application in your default browser
+   - Enable hot-reloading for code changes
+
+**Important Notes:**
+- Do not use Live Server extension - the project will not function correctly
+- Do not open `index.html` directly from file explorer - ES6 modules require a proper server
+- The `npx run-devs` command is the only supported way to run the application
 
 ### Development Workflow
 
 1. **Make Code Changes**
    - Edit JavaScript modules in `src/`
-   - Changes are automatically reflected (Live Server auto-reloads)
+   - Changes are automatically reflected (the dev server auto-reloads)
 
 2. **Debugging**
    - Use browser DevTools (F12)
@@ -243,17 +274,17 @@ window.location.hash = '';
    // In constructor
    this.routes = {
        // ... existing routes
-       '#new-page': NewPage
+       '/admin/new-page': NewPage
    };
    this.initFunctions = {
        // ... existing functions
-       '#new-page': initNewPage
+       '/admin/new-page': initNewPage
    };
    ```
 
 3. **Navigate to Page**:
    ```javascript
-   window.location.hash = '#new-page';
+   window.appNavigate('/admin/new-page');
    ```
 
 ### Creating a New API Module
@@ -473,7 +504,7 @@ export function isAuthenticated() {
 
 export function logout() {
     localStorage.removeItem('token');
-    window.location.hash = '#admin-login';
+    window.appNavigate('/auth/admin/login');
 }
 
 export function getAdminData() {
@@ -665,6 +696,13 @@ export const server = 'http://localhost:8000';
 - **Security**: Validate all inputs, sanitize HTML
 - **Accessibility**: Use semantic HTML, ARIA labels
 
+### Bug Fixes in v2.1.0
+
+- Fixed responsiveness issues across all management pages for better mobile and tablet support
+- Fixed multiple fetch request bugs that caused duplicate API calls
+- Fixed slow fetch performance by optimizing API response handling
+- Improved error handling for failed API requests
+
 ### File Naming
 
 - Use PascalCase for components: `HomePage.js`
@@ -682,8 +720,24 @@ export const server = 'http://localhost:8000';
 
 ## License
 
-[Your License Here]
+MIT License
 
-## Support
+Copyright (c) 2026 Jhon Ladines
 
-For issues and questions, please contact the development team.
+Permission is hereby granted, free of charge, to any person obtaining a copy
+of this software and associated documentation files (the "Software"), to deal
+in the Software without restriction, including without limitation the rights
+to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+copies of the Software, and to permit persons to whom the Software is
+furnished to do so, subject to the following conditions:
+
+The above copyright notice and this permission notice shall be included in all
+copies or substantial portions of the Software.
+
+THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+SOFTWARE.

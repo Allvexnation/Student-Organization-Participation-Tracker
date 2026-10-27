@@ -5,15 +5,16 @@ import * as EventRegistAPI from '../../api/admin/EventRegistrations/ManageEventR
 import * as EventsAPI from '../../api/admin/Events/ManageEvents.js';
 import * as StudentsAPI from '../../api/admin/Students/ManageStudents.js';
 import { showToast } from '../ToastMessage.js';
+import { skeletonEventRegistForm, skeletonEventRegistView } from '../SkeletonLoading.js';
 
-export function openManageEventRegistModal({ mode = 'add', registration = null, onSubmit }) {
+export function openManageEventRegistModal({ mode = 'add', registration = null, registrationId = null, onSubmit }) {
     const isEdit = mode === 'edit';
     const title = isEdit ? 'Edit Registration' : 'New Registration';
     const buttonText = isEdit ? 'Save Changes' : 'Add Registration';
 
     const formContent = `
         <form id="eventRegistForm" class="space-y-5">
-            ${isEdit ? `<input type="hidden" id="eventRegistId" value="${registration.id}">` : ''}
+            ${isEdit ? `<input type="hidden" id="eventRegistId" value="${registration?.id || registrationId || ''}">` : ''}
 
             <fieldset>
                 <legend class="text-xs font-semibold text-gray-500 uppercase tracking-wider mb-3">Registration Details</legend>
@@ -54,74 +55,155 @@ export function openManageEventRegistModal({ mode = 'add', registration = null, 
         </form>
     `;
 
-    openModal(title, formContent, 'mid-large');
+    if (isEdit && !registration && registrationId) {
+        openModal(title, skeletonEventRegistForm(), 'mid-large');
 
-    const modalOverlay = document.getElementById('modal-overlay');
-    const modalContent = document.getElementById('modal-content');
-    if (modalOverlay && modalContent) {
-        animateModalOpen(modalOverlay, modalContent, 'scale');
+        const modalOverlay = document.getElementById('modal-overlay');
+        const modalContent = document.getElementById('modal-content');
+        if (modalOverlay && modalContent) {
+            animateModalOpen(modalOverlay, modalContent, 'scale');
+        }
+
+        setTimeout(async () => {
+            try {
+                const fetchedRegist = await EventRegistAPI.getEventRegistration(registrationId);
+                const modalBody = document.getElementById('modal-body');
+                if (modalBody) {
+                    modalBody.innerHTML = formContent;
+                    populateFormWithRegist(fetchedRegist);
+                    setupFormHandlers(fetchedRegist.id, buttonText, onSubmit);
+                }
+            } catch (error) {
+                console.error('Error loading registration:', error);
+                showToast('Failed to load registration', 'error');
+                closeManageEventRegistModal();
+            }
+        }, 100);
+    } else {
+        openModal(title, formContent, 'mid-large');
+
+        const modalOverlay = document.getElementById('modal-overlay');
+        const modalContent = document.getElementById('modal-content');
+        if (modalOverlay && modalContent) {
+            animateModalOpen(modalOverlay, modalContent, 'scale');
+        }
+
+        setTimeout(() => {
+            const form = document.getElementById('eventRegistForm');
+            if (form) {
+                animateFormElements(form);
+            }
+        }, 100);
+
+        setupFormHandlers(registration?.id, buttonText, onSubmit);
     }
+}
+
+function populateFormWithRegist(registration) {
+    const form = document.getElementById('eventRegistForm');
+    if (!form) return;
+
+    document.getElementById('eventRegistId').value = registration.id;
 
     setTimeout(() => {
-        const form = document.getElementById('eventRegistForm');
-        if (form) {
-            animateFormElements(form);
+        const formEl = document.getElementById('eventRegistForm');
+        if (formEl) {
+            animateFormElements(formEl);
         }
-    }, 100);
+    }, 50);
 
-    async function loadEvents() {
-        try {
-            const events = await EventsAPI.getAllEvents();
-            const eventSelect = document.getElementById('eventId');
-            if (eventSelect) {
-                eventSelect.innerHTML = '<option value="">Select Event</option>';
-                events.forEach(event => {
-                    const option = document.createElement('option');
-                    option.value = event.id;
-                    option.textContent = event.title;
-                    if (isEdit && registration && String(registration.event_id) === String(event.id)) {
-                        option.selected = true;
-                    }
-                    eventSelect.appendChild(option);
-                });
-            }
-        } catch (error) {
-            console.error('Error loading events:', error);
-            showToast('Failed to load events', 'error');
-        }
-    }
+    Promise.all([loadEvents(registration.event_id), loadStudents(registration.student_id)]);
+}
 
-    async function loadStudents() {
-        try {
-            const students = await StudentsAPI.getAllStudents();
-            const studentSelect = document.getElementById('studentId');
-            if (studentSelect) {
-                studentSelect.innerHTML = '<option value="">Select Student</option>';
-                students.forEach(student => {
-                    const option = document.createElement('option');
-                    option.value = student.id;
-                    option.textContent = `${student.first_name} ${student.last_name}`;
-                    if (isEdit && registration && String(registration.student_id) === String(student.id)) {
-                        option.selected = true;
-                    }
-                    studentSelect.appendChild(option);
-                });
-            }
-        } catch (error) {
-            console.error('Error loading students:', error);
-            showToast('Failed to load students', 'error');
-        }
-    }
-
-    loadEvents();
-    loadStudents();
-
+function setupFormHandlers(registId, buttonText, onSubmit) {
     const form = document.getElementById('eventRegistForm');
     if (form) {
         form.addEventListener('submit', async (e) => {
             e.preventDefault();
-            await processEventRegistSubmit(isEdit ? registration.id : null, buttonText, onSubmit);
+            await processEventRegistSubmit(registId, buttonText, onSubmit);
         });
+    }
+
+    if (!registId) {
+        Promise.all([loadEvents(), loadStudents()]);
+    }
+}
+
+async function loadEvents(selectedEventId = null) {
+    try {
+        const cachedData = localStorage.getItem('cachedEvents');
+        let events;
+        
+        if (cachedData) {
+            try {
+                events = JSON.parse(cachedData);
+            } catch (e) {
+                console.error('Error parsing cached events:', e);
+                events = await EventsAPI.getAllEvents();
+                localStorage.setItem('cachedEvents', JSON.stringify(events));
+                localStorage.setItem('cachedEventsTimestamp', Date.now().toString());
+            }
+        } else {
+            events = await EventsAPI.getAllEvents();
+            localStorage.setItem('cachedEvents', JSON.stringify(events));
+            localStorage.setItem('cachedEventsTimestamp', Date.now().toString());
+        }
+        
+        const eventSelect = document.getElementById('eventId');
+        if (eventSelect) {
+            eventSelect.innerHTML = '<option value="">Select Event</option>';
+            events.forEach(event => {
+                const option = document.createElement('option');
+                option.value = event.id;
+                option.textContent = event.title;
+                if (selectedEventId && selectedEventId == event.id) {
+                    option.selected = true;
+                }
+                eventSelect.appendChild(option);
+            });
+        }
+    } catch (error) {
+        console.error('Error loading events:', error);
+        showToast('Failed to load events', 'error');
+    }
+}
+
+async function loadStudents(selectedStudentId = null) {
+    try {
+        const cachedData = localStorage.getItem('cachedStudents');
+        let students;
+        
+        if (cachedData) {
+            try {
+                students = JSON.parse(cachedData);
+            } catch (e) {
+                console.error('Error parsing cached students:', e);
+                students = await StudentsAPI.getAllStudents();
+                localStorage.setItem('cachedStudents', JSON.stringify(students));
+                localStorage.setItem('cachedStudentsTimestamp', Date.now().toString());
+            }
+        } else {
+            students = await StudentsAPI.getAllStudents();
+            localStorage.setItem('cachedStudents', JSON.stringify(students));
+            localStorage.setItem('cachedStudentsTimestamp', Date.now().toString());
+        }
+        
+        const studentSelect = document.getElementById('studentId');
+        if (studentSelect) {
+            studentSelect.innerHTML = '<option value="">Select Student</option>';
+            students.forEach(student => {
+                const option = document.createElement('option');
+                option.value = student.id;
+                option.textContent = `${student.first_name} ${student.last_name}`;
+                if (selectedStudentId && selectedStudentId == student.id) {
+                    option.selected = true;
+                }
+                studentSelect.appendChild(option);
+            });
+        }
+    } catch (error) {
+        console.error('Error loading students:', error);
+        showToast('Failed to load students', 'error');
     }
 }
 
@@ -203,6 +285,14 @@ async function closeManageEventRegistModal() {
 window.closeManageEventRegistModal = closeManageEventRegistModal;
 
 export async function openViewEventRegistModal(id) {
+    openModal('Registration Details', skeletonEventRegistView(), 'mid-large');
+
+    const modalOverlay = document.getElementById('modal-overlay');
+    const modalContent = document.getElementById('modal-content');
+    if (modalOverlay && modalContent) {
+        animateModalOpen(modalOverlay, modalContent, 'scale');
+    }
+
     try {
         const registration = await EventRegistAPI.getEventRegistration(id);
         const registeredAt = registration.registered_at ? new Date(registration.registered_at).toLocaleString('en-PH', {
@@ -288,12 +378,9 @@ export async function openViewEventRegistModal(id) {
             </div>
         `;
 
-        openModal('Registration Details', content, 'mid-large');
-
-        const modalOverlay = document.getElementById('modal-overlay');
-        const modalContent = document.getElementById('modal-content');
-        if (modalOverlay && modalContent) {
-            animateModalOpen(modalOverlay, modalContent, 'scale');
+        const modalBody = document.getElementById('modal-body');
+        if (modalBody) {
+            modalBody.innerHTML = content;
         }
 
         setTimeout(() => {
@@ -304,9 +391,10 @@ export async function openViewEventRegistModal(id) {
             if (typeof lucide !== 'undefined') {
                 lucide.createIcons();
             }
-        }, 100);
+        }, 50);
     } catch (error) {
         console.error('Error loading registration:', error);
         showToast('Failed to load registration', 'error');
+        closeModal();
     }
 }

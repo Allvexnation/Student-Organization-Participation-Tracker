@@ -3,22 +3,23 @@ import { openConfirmDialog } from '../Dialog/ConfirmDialog.js';
 import { animateModalOpen, animateModalClose, clearModalAnimations, animateFormElements, clearFormAnimations, animateViewModalElements } from '../../provider/ModalAnimation.js';
 import * as RolesAPI from '../../api/admin/roles/ManageRoles.js';
 import { showToast } from '../ToastMessage.js';
+import { skeletonRoleForm, skeletonRoleView } from '../SkeletonLoading.js';
 
-export function openManageRolesModal({ mode = 'add', role = null, onSubmit }) {
+export function openManageRolesModal({ mode = 'add', role = null, roleId = null, onSubmit }) {
     const isEdit = mode === 'edit';
     const title = isEdit ? 'Edit Role' : 'New Role';
     const buttonText = isEdit ? 'Save Changes' : 'Add Role';
 
     const formContent = `
         <form id="roleForm" class="space-y-5">
-            ${isEdit ? `<input type="hidden" id="roleId" value="${role.id}">` : ''}
+            ${isEdit ? `<input type="hidden" id="roleId" value="${role?.id || roleId || ''}">` : ''}
 
             <fieldset>
                 <legend class="text-xs font-semibold text-gray-500 uppercase tracking-wider mb-3">Role Information</legend>
                 <div class="space-y-3">
                     <div>
                         <label for="roleName" class="block text-sm font-medium text-gray-700 mb-1">Role Name <span class="text-red-500">*</span></label>
-                        <input type="text" id="roleName" name="roleName" value="${isEdit ? role.role_name : ''}" required
+                        <input type="text" id="roleName" name="roleName" value="${isEdit && role ? role.role_name : ''}" required
                             placeholder="e.g. Admin, Moderator, Member"
                             class="w-full px-3 py-2 text-sm border border-gray-200 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-transparent transition">
                     </div>
@@ -44,26 +45,71 @@ export function openManageRolesModal({ mode = 'add', role = null, onSubmit }) {
         </form>
     `;
 
-    openModal(title, formContent, 'medium');
+    if (isEdit && !role && roleId) {
+        openModal(title, skeletonRoleForm(), 'medium');
 
-    const modalOverlay = document.getElementById('modal-overlay');
-    const modalContent = document.getElementById('modal-content');
-    if (modalOverlay && modalContent) {
-        animateModalOpen(modalOverlay, modalContent, 'scale');
+        const modalOverlay = document.getElementById('modal-overlay');
+        const modalContent = document.getElementById('modal-content');
+        if (modalOverlay && modalContent) {
+            animateModalOpen(modalOverlay, modalContent, 'scale');
+        }
+
+        setTimeout(async () => {
+            try {
+                const fetchedRole = await RolesAPI.getRole(roleId);
+                const modalBody = document.getElementById('modal-body');
+                if (modalBody) {
+                    modalBody.innerHTML = formContent;
+                    populateFormWithRole(fetchedRole);
+                    setupFormHandlers(fetchedRole.id, buttonText, onSubmit);
+                }
+            } catch (error) {
+                console.error('Error loading role:', error);
+                showToast('Failed to load role', 'error');
+                closeManageRolesModal();
+            }
+        }, 100);
+    } else {
+        openModal(title, formContent, 'medium');
+
+        const modalOverlay = document.getElementById('modal-overlay');
+        const modalContent = document.getElementById('modal-content');
+        if (modalOverlay && modalContent) {
+            animateModalOpen(modalOverlay, modalContent, 'scale');
+        }
+
+        setTimeout(() => {
+            const form = document.getElementById('roleForm');
+            if (form) {
+                animateFormElements(form);
+            }
+        }, 100);
+
+        setupFormHandlers(role?.id, buttonText, onSubmit);
     }
+}
+
+function populateFormWithRole(role) {
+    const form = document.getElementById('roleForm');
+    if (!form) return;
+
+    document.getElementById('roleId').value = role.id;
+    document.getElementById('roleName').value = role.role_name;
 
     setTimeout(() => {
-        const form = document.getElementById('roleForm');
-        if (form) {
-            animateFormElements(form);
+        const formEl = document.getElementById('roleForm');
+        if (formEl) {
+            animateFormElements(formEl);
         }
-    }, 100);
+    }, 50);
+}
 
+function setupFormHandlers(roleId, buttonText, onSubmit) {
     const form = document.getElementById('roleForm');
     if (form) {
         form.addEventListener('submit', async (e) => {
             e.preventDefault();
-            await processRoleSubmit(isEdit ? role.id : null, buttonText, onSubmit);
+            await processRoleSubmit(roleId, buttonText, onSubmit);
         });
     }
 }
@@ -150,6 +196,14 @@ async function closeManageRolesModal() {
 window.closeManageRolesModal = closeManageRolesModal;
 
 export async function openViewRolesModal(id) {
+    openModal('Role Details', skeletonRoleView(), 'mid-large');
+
+    const modalOverlay = document.getElementById('modal-overlay');
+    const modalContent = document.getElementById('modal-content');
+    if (modalOverlay && modalContent) {
+        animateModalOpen(modalOverlay, modalContent, 'scale');
+    }
+
     try {
         const role = await RolesAPI.getRole(id);
         const dateCreated = new Date(role.created_at).toLocaleDateString('en-PH', {
@@ -228,12 +282,9 @@ export async function openViewRolesModal(id) {
             </div>
         `;
 
-        openModal('Role Details', content, 'mid-large');
-
-        const modalOverlay = document.getElementById('modal-overlay');
-        const modalContent = document.getElementById('modal-content');
-        if (modalOverlay && modalContent) {
-            animateModalOpen(modalOverlay, modalContent, 'scale');
+        const modalBody = document.getElementById('modal-body');
+        if (modalBody) {
+            modalBody.innerHTML = content;
         }
 
         setTimeout(() => {
@@ -241,9 +292,10 @@ export async function openViewRolesModal(id) {
             if (modalContentEl) {
                 animateViewModalElements(modalContentEl);
             }
-        }, 100);
+        }, 50);
     } catch (error) {
         console.error('Error loading role:', error);
         showToast('Failed to load role', 'error');
+        closeModal();
     }
 }

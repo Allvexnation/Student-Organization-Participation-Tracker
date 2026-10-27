@@ -24,7 +24,7 @@ export function openModal(title, content, size = 'medium', zIndex = 'z-50', anim
                     </svg>
                 </button>
             </div>
-            <div class="p-4">
+            <div id="modal-body" class="p-4">
                 ${content}
             </div>
         </div>

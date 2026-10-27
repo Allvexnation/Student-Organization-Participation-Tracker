@@ -1,70 +1,53 @@
 import { AdminNavbar, initAdminNavbar } from '../../../components/Navbar/AdminNavbar.js';
 import { requireAuth } from '../../../utils/jwt.js';
 import * as EventsAPI from '../../../api/admin/Events/ManageEvents.js';
-import { initManageEventsAnimations, addButtonHoverAnimations, animateSearchInput, animateTableRows } from '../../../provider/Animation/ManageEventsAnimation.js';
+import { initManageEventsAnimations, animateTableRows } from '../../../provider/Animation/ManageEventsAnimation.js';
 import { openManageEventsModal, openViewEventsModal } from '../../../components/Modal/ManageEventsModal.js';
 import { openConfirmDialog } from '../../../components/Dialog/ConfirmDialog.js';
 import { showToast } from '../../../components/ToastMessage.js';
 import { CrudMenu } from '../../../components/CrudMenu.js';
+import { skeletonTableRows } from '../../../components/SkeletonLoading.js';
 
 export function ManageEvents() {
     return `
         ${AdminNavbar()}
-        <main class="container mx-auto px-4 py-8 bg-white min-h-screen">
-            <div class="p-6">
-                <div class="flex justify-between items-center mb-6">
-                    <h2 class="text-2xl font-bold text-blue-800">Events</h2>
-                    <button id="addEventBtn" class="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg flex items-center gap-2 transition-colors">
+        <main class="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
+            <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 mb-6">
+                <div>
+                    <h1 class="text-2xl font-semibold text-gray-900">Manage Events</h1>
+                    <p class="text-sm text-gray-500 mt-1">Manage events and their details in the system.</p>
+                </div>
+                <div class="flex items-center gap-2.5">
+                    <input 
+                        type="text" 
+                        id="eventSearch" 
+                        placeholder="Search events..." 
+                        class="px-3 py-2 text-sm border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent w-48 sm:w-64">
+                    <button 
+                        type="button" 
+                        id="addEventBtn" 
+                        class="px-4 py-2 text-sm font-medium text-white bg-blue-900 hover:bg-blue-800 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 transition flex items-center gap-2 shadow-sm">
                         <i data-lucide="plus" class="w-4 h-4"></i>
-                        <span>Add Event</span>
+                        <span>Add New</span>
                     </button>
                 </div>
+            </div>
 
-                <div class="mb-4">
-                    <input type="text" id="eventSearch" placeholder="Search events..." class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500">
-                </div>
-
+            <div class="bg-white border border-gray-200 rounded-lg shadow-sm overflow-hidden">
                 <div class="overflow-x-auto">
-                    <table class="w-full table-fixed border-collapse">
+                    <table class="w-full text-sm text-left">
                         <thead>
-                            <tr class="bg-blue-50">
-                                <th class="px-3 py-2.5 text-left text-sm font-semibold text-blue-900 border-b-2 border-blue-200 whitespace-nowrap">Title</th>
-                                <th class="hidden sm:table-cell px-3 py-2.5 text-left text-sm font-semibold text-blue-900 border-b-2 border-blue-200 whitespace-nowrap">Organization</th>
-                                <th class="px-3 py-2.5 text-left text-sm font-semibold text-blue-900 border-b-2 border-blue-200 whitespace-nowrap">Date</th>
-                                <th class="hidden sm:table-cell px-3 py-2.5 text-left text-sm font-semibold text-blue-900 border-b-2 border-blue-200 whitespace-nowrap">Venue</th>
-                                <th class="px-3 py-2.5 text-left text-sm font-semibold text-blue-900 border-b-2 border-blue-200 whitespace-nowrap">Category</th>
-                                <th class="w-28 px-3 py-2.5 text-center text-sm font-semibold text-blue-900 border-b-2 border-blue-200 whitespace-nowrap">Actions</th>
+                            <tr class="bg-gray-50 border-b border-gray-200 text-xs font-medium text-gray-500 uppercase tracking-wider">
+                                <th class="px-5 py-3.5 w-12 text-center">#</th>
+                                <th class="px-5 py-3.5">Title</th>
+                                <th class="px-5 py-3.5 hidden sm:table-cell">Organization</th>
+                                <th class="px-5 py-3.5">Date</th>
+                                <th class="px-5 py-3.5 hidden sm:table-cell">Venue</th>
+                                <th class="px-5 py-3.5 text-center w-28">Actions</th>
                             </tr>
                         </thead>
-                        <tbody id="eventTableBody">
-                            ${Array.from({ length: 5 }, () => `
-                                <tr>
-                                    <td class="px-3 py-2.5 border-b">
-                                        <div class="h-4 w-3/4 bg-gray-200 rounded animate-pulse"></div>
-                                    </td>
-                                    <td class="hidden sm:table-cell px-3 py-2.5 border-b">
-                                        <div class="h-4 w-3/4 bg-gray-200 rounded animate-pulse"></div>
-                                    </td>
-                                    <td class="px-3 py-2.5 border-b">
-                                        <div class="h-4 w-20 bg-gray-200 rounded animate-pulse"></div>
-                                    </td>
-                                    <td class="hidden sm:table-cell px-3 py-2.5 border-b">
-                                        <div class="h-4 w-1/2 bg-gray-200 rounded animate-pulse"></div>
-                                    </td>
-                                    <td class="px-3 py-2.5 border-b">
-                                        <div class="h-6 w-20 bg-gray-200 rounded-full animate-pulse"></div>
-                                    </td>
-                                    <td class="px-3 py-2.5 border-b">
-                                        <div class="flex justify-center">
-                                            <div class="inline-flex items-center gap-0.5 bg-gray-50/80 p-0.5 rounded-lg border border-gray-200/70">
-                                                <div class="w-7 h-7 bg-gray-200 rounded-md animate-pulse"></div>
-                                                <div class="w-7 h-7 bg-gray-200 rounded-md animate-pulse"></div>
-                                                <div class="w-7 h-7 bg-gray-200 rounded-md animate-pulse"></div>
-                                            </div>
-                                        </div>
-                                    </td>
-                                </tr>
-                            `).join('')}
+                        <tbody id="eventTableBody" class="divide-y divide-gray-100">
+                            ${skeletonTableRows(window.innerWidth < 640 ? 3 : 4, window.innerWidth < 640 ? 3 : 5, true)}
                         </tbody>
                     </table>
                 </div>
@@ -78,8 +61,6 @@ export async function initManageEvents() {
     await initAdminNavbar();
 
     initManageEventsAnimations();
-    addButtonHoverAnimations('button');
-    animateSearchInput('#eventSearch');
 
     let events = [];
     let hasLoaded = false;
@@ -109,7 +90,7 @@ export async function initManageEvents() {
             if (tbody) {
                 tbody.innerHTML = `
                     <tr>
-                        <td colspan="6" class="px-4 py-8 text-center text-red-500">Failed to load events</td>
+                        <td colspan="6" class="px-5 py-12 text-center text-red-500">Failed to load events</td>
                     </tr>
                 `;
             }
@@ -128,37 +109,44 @@ export async function initManageEvents() {
         if (!data || data.length === 0) {
             tbody.innerHTML = `
                 <tr>
-                    <td colspan="6" class="px-4 py-8 text-center text-gray-500">No events found</td>
+                    <td colspan="6" class="px-5 py-12 text-center">
+                        <i data-lucide="calendar" class="w-10 h-10 text-gray-200 mx-auto mb-2"></i>
+                        <p class="text-sm text-gray-500 font-medium">No events found.</p>
+                        <p class="text-xs text-gray-400 mt-1">Click "Add New" to create the first event.</p>
+                    </td>
                 </tr>
             `;
+            if (typeof lucide !== 'undefined') lucide.createIcons();
             return;
         }
 
-        tbody.innerHTML = data.map(event => `
-            <tr class="hover:bg-gray-50 transition-colors">
-                <td class="px-3 py-2.5 border-b text-gray-900 font-medium truncate">${event.title}</td>
-                <td class="hidden sm:table-cell px-3 py-2.5 border-b text-gray-600 truncate">${event.organization_name || 'N/A'}</td>
-                <td class="px-3 py-2.5 border-b text-gray-600 text-sm whitespace-nowrap">${event.event_date ? new Date(event.event_date).toLocaleDateString() : 'N/A'}</td>
-                <td class="hidden sm:table-cell px-3 py-2.5 border-b text-gray-600 truncate">${event.venue || 'N/A'}</td>
-                <td class="px-3 py-2.5 border-b">
-                    <span class="px-2 py-1 text-xs font-medium rounded-full bg-blue-100 text-blue-800">
-                        ${event.event_category}
-                    </span>
+        tbody.innerHTML = data.map((event, index) => {
+            return `
+            <tr style="transition: background-color 0.2s;" onmouseover="this.style.backgroundColor = document.documentElement.classList.contains('dark') ? 'rgba(255, 255, 255, 0.02)' : 'rgba(0, 0, 0, 0.1)'" onmouseout="this.style.backgroundColor = ''">
+                <td class="px-3 sm:px-5 py-2 sm:py-3.5 text-xs text-gray-400 text-center font-mono">
+                    ${index + 1}
                 </td>
-                <td class="px-3 py-2.5 border-b text-center align-middle" onclick="event.stopPropagation()">
-                    <div class="flex justify-center">
-                        ${CrudMenu({
-                            id: String(event.id),
-                            showView: true,
-                            onView: 'viewEvent',
-                            onEdit: 'editEvent',
-                            onDelete: 'deleteEvent',
-                            deleteLabel: event.title
-                        })}
-                    </div>
+                <td class="px-3 sm:px-5 py-2 sm:py-3.5">
+                    <p class="text-xs sm:text-sm font-semibold text-gray-900">${event.title}</p>
+                </td>
+                <td class="px-3 sm:px-5 py-2 sm:py-3.5 hidden sm:table-cell text-gray-600 text-sm truncate">${event.organization_name || 'N/A'}</td>
+                <td class="px-3 sm:px-5 py-2 sm:py-3.5 text-gray-600 text-sm whitespace-nowrap">
+                    ${event.event_date ? new Date(event.event_date).toLocaleDateString() : '—'}
+                </td>
+                <td class="px-3 sm:px-5 py-2 sm:py-3.5 hidden sm:table-cell text-gray-600 text-sm truncate">${event.venue || 'N/A'}</td>
+                <td class="px-3 sm:px-5 py-2 sm:py-3.5 text-center">
+                    ${CrudMenu({ 
+                        id: String(event.id), 
+                        showView: true,
+                        onView: 'viewEvent',
+                        onEdit: 'editEvent', 
+                        onDelete: 'deleteEvent',
+                        deleteLabel: event.title
+                    })}
                 </td>
             </tr>
-        `).join('');
+            `;
+        }).join('');
 
         if (typeof lucide !== 'undefined') {
             lucide.createIcons();
@@ -181,21 +169,15 @@ export async function initManageEvents() {
         });
     });
 
-    window.editEvent = async (id) => {
-        try {
-            const event = await EventsAPI.getEvent(id);
-            openManageEventsModal({
-                mode: 'edit',
-                event: event,
-                onSubmit: async (id, data) => {
-                    await EventsAPI.updateEvent(id, data);
-                    loadEvents(true);
-                }
-            });
-        } catch (error) {
-            console.error('Error loading event:', error);
-            showToast('Failed to load event', 'error');
-        }
+    window.editEvent = (id) => {
+        openManageEventsModal({
+            mode: 'edit',
+            eventId: id,
+            onSubmit: async (id, data) => {
+                await EventsAPI.updateEvent(id, data);
+                loadEvents(true);
+            }
+        });
     };
 
     window.viewEvent = async (id) => {
@@ -233,5 +215,12 @@ export async function initManageEvents() {
         renderEvents(filtered);
     });
 
-    loadEvents();
+    const waitForElement = () => {
+        if (document.getElementById('eventTableBody')) {
+            loadEvents();
+        } else {
+            setTimeout(waitForElement, 50);
+        }
+    };
+    waitForElement();
 }

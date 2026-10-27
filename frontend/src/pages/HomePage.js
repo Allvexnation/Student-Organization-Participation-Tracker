@@ -1,11 +1,11 @@
 export function HomePage() {
     return `
-        <div class="min-h-screen relative bg-cover bg-center" style="background-image: url('public/banner.png');">
+        <div class="min-h-screen relative bg-cover bg-center" style="background-image: url('/public/banner.png');">
             <div class="absolute inset-0 bg-blue-900 opacity-50"></div>
             
             <div class="relative z-10 max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-16">
                 <div class="flex justify-center mb-12">
-                    <img src="public/crtlogo.png" alt="CRT Logo" class="h-32 w-auto bg-white rounded-full p-4 shadow-lg">
+                    <img src="/public/crtlogo.png" alt="CRT Logo" class="h-32 w-auto bg-white rounded-full p-4 shadow-lg">
                 </div>
                 
                 <div class="text-center mb-16">
@@ -48,7 +48,7 @@ export function HomePage() {
                 </div>
                 
                 <div class="flex justify-center">
-                    <a href="/admin-login" class="bg-blue-800 hover:bg-blue-900 text-white font-semibold py-3 px-10 rounded transition-colors duration-200 shadow-lg">
+                    <a href="/auth/admin/login" class="bg-blue-800 hover:bg-blue-900 text-white font-semibold py-3 px-10 rounded transition-colors duration-200 shadow-lg">
                         Login to Portal
                     </a>
                 </div>

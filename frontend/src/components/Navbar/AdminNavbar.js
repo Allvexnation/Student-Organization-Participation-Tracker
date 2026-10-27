@@ -1,4 +1,4 @@
-import { AdminStripBar } from '../Stripbar/AdminStripbar.js';
+import { AdminStripBar, initStripBarDropdowns } from '../Stripbar/AdminStripbar.js';
 import { getAdminData, logout, verifyAdminExists } from '../../api/admin/AdminLogin.js';
 import { openConfirmDialog } from '../Dialog/ConfirmDialog.js';
 import { showToast, updateToast } from '../ToastMessage.js';
@@ -10,7 +10,7 @@ export function AdminNavbar() {
         <div class="container mx-auto px-4">
             <div class="flex items-center justify-between h-16">
                 <div class="flex items-center">
-                    <img src="public/crtlogo.png" alt="CRT Logo" class="h-10 w-auto mr-3">
+                    <img src="/public/crtlogo.png" alt="CRT Logo" class="h-10 w-auto mr-3">
                     <span class="font-bold text-lg hidden md:block">College for Research & Technology - Admin</span>
                     <span class="font-bold text-lg md:hidden">CRT - Admin</span>
                 </div>
@@ -56,7 +56,7 @@ export function initAdminNavbar() {
     
     verifyPromise.then(exists => {
         if (!exists) {
-            navigate('/admin-login');
+            navigate('/auth/admin/login');
             return;
         }
 
@@ -89,7 +89,7 @@ export function initAdminNavbar() {
                         logout();
                         updateToast('Logged out successfully!', 'success');
                         setTimeout(() => {
-                            navigate('/admin-login');
+                            navigate('/auth/admin/login');
                         }, 1500);
                     },
                     confirmText: 'Logout',
@@ -108,7 +108,7 @@ export function initAdminNavbar() {
                         logout();
                         updateToast('Logged out successfully!', 'success');
                         setTimeout(() => {
-                            navigate('/admin-login');
+                            navigate('/auth/admin/login');
                         }, 1500);
                     },
                     confirmText: 'Logout',
@@ -165,5 +165,7 @@ export function initAdminNavbar() {
                 tabsContainer.scrollBy({ left: 200, behavior: 'smooth' });
             });
         }
+
+        initStripBarDropdowns();
     });
 }

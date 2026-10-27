@@ -20,7 +20,6 @@ export async function adminLogin(usernameOrEmail, password) {
             throw new Error(data.message || 'Login failed');
         }
 
-        // Store token using jwt.js
         if (data.token) {
             setToken(data.token);
             localStorage.setItem('adminData', JSON.stringify(data.admin));

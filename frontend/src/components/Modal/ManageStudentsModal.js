@@ -3,10 +3,11 @@ import { openConfirmDialog } from '../Dialog/ConfirmDialog.js';
 import { animateModalOpen, animateModalClose, clearModalAnimations, animateFormElements, clearFormAnimations, animateViewModalElements } from '../../provider/ModalAnimation.js';
 import * as StudentsAPI from '../../api/admin/Students/ManageStudents.js';
 import { showToast } from '../ToastMessage.js';
+import { skeletonStudentForm, skeletonStudentView } from '../SkeletonLoading.js';
 
 let croppedStudentImage = null;
 
-export function openManageStudentsModal({ mode = 'add', student = null, onSubmit }) {
+export function openManageStudentsModal({ mode = 'add', student = null, studentId = null, onSubmit }) {
     croppedStudentImage = null;
     const isEdit = mode === 'edit';
     const title = isEdit ? 'Edit Student' : 'New Student';
@@ -15,7 +16,7 @@ export function openManageStudentsModal({ mode = 'add', student = null, onSubmit
 
     const formContent = `
         <form id="studentForm" class="space-y-5">
-            ${isEdit ? `<input type="hidden" id="studentId" value="${student.id}">` : ''}
+            ${isEdit ? `<input type="hidden" id="studentId" value="${student?.id || studentId || ''}">` : ''}
             ${isEdit && existingImageUrl ? `<input type="hidden" id="existingImageUrl" value="${existingImageUrl}">` : ''}
 
             <fieldset>
@@ -23,8 +24,8 @@ export function openManageStudentsModal({ mode = 'add', student = null, onSubmit
                 <div class="space-y-3">
                     <div class="flex flex-col sm:flex-row sm:items-center gap-4">
                         <div id="imagePreviewContainer" class="flex-shrink-0 w-20 h-20 rounded-lg bg-gray-100 border-2 border-dashed border-gray-300 flex items-center justify-center overflow-hidden">
-                            ${existingImageUrl 
-                                ? `<img src="${existingImageUrl}" alt="Preview" class="w-full h-full object-cover" id="imagePreview">` 
+                            ${existingImageUrl
+                                ? `<img src="${existingImageUrl}" alt="Preview" class="w-full h-full object-cover" id="imagePreview">`
                                 : `<i data-lucide="user" class="w-8 h-8 text-gray-400" id="imagePreviewIcon"></i>`
                             }
                         </div>
@@ -46,20 +47,20 @@ export function openManageStudentsModal({ mode = 'add', student = null, onSubmit
                 <div class="space-y-3">
                     <div>
                         <label for="studentNumber" class="block text-sm font-medium text-gray-700 mb-1">Student Number <span class="text-red-500">*</span></label>
-                        <input type="text" id="studentNumber" name="studentNumber" value="${isEdit ? student.student_number : ''}" required
+                        <input type="text" id="studentNumber" name="studentNumber" value="${isEdit && student ? student.student_number : ''}" required
                             placeholder="e.g. 2023-00001"
                             class="w-full px-3 py-2 text-sm border border-gray-200 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-transparent transition">
                     </div>
                     <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
                         <div>
                             <label for="firstName" class="block text-sm font-medium text-gray-700 mb-1">First Name <span class="text-red-500">*</span></label>
-                            <input type="text" id="firstName" name="firstName" value="${isEdit ? student.first_name : ''}" required
+                            <input type="text" id="firstName" name="firstName" value="${isEdit && student ? student.first_name : ''}" required
                                 placeholder="e.g. Juan"
                                 class="w-full px-3 py-2 text-sm border border-gray-200 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-transparent transition">
                         </div>
                         <div>
                             <label for="lastName" class="block text-sm font-medium text-gray-700 mb-1">Last Name <span class="text-red-500">*</span></label>
-                            <input type="text" id="lastName" name="lastName" value="${isEdit ? student.last_name : ''}" required
+                            <input type="text" id="lastName" name="lastName" value="${isEdit && student ? student.last_name : ''}" required
                                 placeholder="e.g. Dela Cruz"
                                 class="w-full px-3 py-2 text-sm border border-gray-200 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-transparent transition">
                         </div>
@@ -74,7 +75,7 @@ export function openManageStudentsModal({ mode = 'add', student = null, onSubmit
                 <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
                     <div>
                         <label for="program" class="block text-sm font-medium text-gray-700 mb-1">Program <span class="text-red-500">*</span></label>
-                        <input type="text" id="program" name="program" value="${isEdit ? student.program : ''}" required
+                        <input type="text" id="program" name="program" value="${isEdit && student ? student.program : ''}" required
                             placeholder="e.g. BSIT, BSCS"
                             class="w-full px-3 py-2 text-sm border border-gray-200 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-transparent transition">
                     </div>
@@ -83,11 +84,11 @@ export function openManageStudentsModal({ mode = 'add', student = null, onSubmit
                         <select id="yearLevel" name="yearLevel" required
                             class="w-full px-3 py-2 text-sm border border-gray-200 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-transparent bg-white transition">
                             <option value="">Select Year Level</option>
-                            <option value="1st Year" ${isEdit && student.year_level === '1st Year' ? 'selected' : ''}>1st Year</option>
-                            <option value="2nd Year" ${isEdit && student.year_level === '2nd Year' ? 'selected' : ''}>2nd Year</option>
-                            <option value="3rd Year" ${isEdit && student.year_level === '3rd Year' ? 'selected' : ''}>3rd Year</option>
-                            <option value="4th Year" ${isEdit && student.year_level === '4th Year' ? 'selected' : ''}>4th Year</option>
-                            <option value="5th Year" ${isEdit && student.year_level === '5th Year' ? 'selected' : ''}>5th Year</option>
+                            <option value="1st Year" ${isEdit && student?.year_level === '1st Year' ? 'selected' : ''}>1st Year</option>
+                            <option value="2nd Year" ${isEdit && student?.year_level === '2nd Year' ? 'selected' : ''}>2nd Year</option>
+                            <option value="3rd Year" ${isEdit && student?.year_level === '3rd Year' ? 'selected' : ''}>3rd Year</option>
+                            <option value="4th Year" ${isEdit && student?.year_level === '4th Year' ? 'selected' : ''}>4th Year</option>
+                            <option value="5th Year" ${isEdit && student?.year_level === '5th Year' ? 'selected' : ''}>5th Year</option>
                         </select>
                     </div>
                 </div>
@@ -101,13 +102,13 @@ export function openManageStudentsModal({ mode = 'add', student = null, onSubmit
                     <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
                         <div>
                             <label for="username" class="block text-sm font-medium text-gray-700 mb-1">Username <span class="text-red-500">*</span></label>
-                            <input type="text" id="username" name="username" value="${isEdit ? student.username : ''}" required
+                            <input type="text" id="username" name="username" value="${isEdit && student ? student.username : ''}" required
                                 placeholder="e.g. juandelacruz"
                                 class="w-full px-3 py-2 text-sm border border-gray-200 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-transparent transition">
                         </div>
                         <div>
                             <label for="email" class="block text-sm font-medium text-gray-700 mb-1">Email <span class="text-red-500">*</span></label>
-                            <input type="email" id="email" name="email" value="${isEdit ? student.email : ''}" required
+                            <input type="email" id="email" name="email" value="${isEdit && student ? student.email : ''}" required
                                 placeholder="e.g. juan@example.com"
                                 class="w-full px-3 py-2 text-sm border border-gray-200 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-transparent transition">
                         </div>
@@ -141,26 +142,84 @@ export function openManageStudentsModal({ mode = 'add', student = null, onSubmit
         </form>
     `;
 
-    openModal(title, formContent, 'mid-large');
+    if (isEdit && !student && studentId) {
+        openModal(title, skeletonStudentForm(), 'mid-large');
 
-    const modalOverlay = document.getElementById('modal-overlay');
-    const modalContent = document.getElementById('modal-content');
-    if (modalOverlay && modalContent) {
-        animateModalOpen(modalOverlay, modalContent, 'scale');
+        const modalOverlay = document.getElementById('modal-overlay');
+        const modalContent = document.getElementById('modal-content');
+        if (modalOverlay && modalContent) {
+            animateModalOpen(modalOverlay, modalContent, 'scale');
+        }
+
+        setTimeout(async () => {
+            try {
+                const fetchedStudent = await StudentsAPI.getStudent(studentId);
+                const modalBody = document.getElementById('modal-body');
+                if (modalBody) {
+                    modalBody.innerHTML = formContent;
+                    populateFormWithStudent(fetchedStudent);
+                    setupFormHandlers(fetchedStudent.id, buttonText, onSubmit);
+                    if (typeof lucide !== 'undefined') lucide.createIcons();
+                }
+            } catch (error) {
+                console.error('Error loading student:', error);
+                showToast('Failed to load student', 'error');
+                closeManageStudentsModal();
+            }
+        }, 100);
+    } else {
+        openModal(title, formContent, 'mid-large');
+
+        const modalOverlay = document.getElementById('modal-overlay');
+        const modalContent = document.getElementById('modal-content');
+        if (modalOverlay && modalContent) {
+            animateModalOpen(modalOverlay, modalContent, 'scale');
+        }
+
+        setTimeout(() => {
+            const form = document.getElementById('studentForm');
+            if (form) {
+                animateFormElements(form);
+            }
+        }, 100);
+
+        setupFormHandlers(student?.id, buttonText, onSubmit);
+    }
+}
+
+function populateFormWithStudent(student) {
+    const form = document.getElementById('studentForm');
+    if (!form) return;
+
+    document.getElementById('studentId').value = student.id;
+    document.getElementById('studentNumber').value = student.student_number;
+    document.getElementById('firstName').value = student.first_name;
+    document.getElementById('lastName').value = student.last_name;
+    document.getElementById('program').value = student.program;
+    document.getElementById('yearLevel').value = student.year_level;
+    document.getElementById('username').value = student.username;
+    document.getElementById('email').value = student.email;
+
+    if (student.profile_photo) {
+        document.getElementById('existingImageUrl').value = student.profile_photo;
+        document.getElementById('imageUrl').value = student.profile_photo;
+        document.getElementById('imagePreviewContainer').innerHTML = `<img src="${student.profile_photo}" alt="Preview" class="w-full h-full object-cover" id="imagePreview">`;
     }
 
     setTimeout(() => {
-        const form = document.getElementById('studentForm');
-        if (form) {
-            animateFormElements(form);
+        const formEl = document.getElementById('studentForm');
+        if (formEl) {
+            animateFormElements(formEl);
         }
-    }, 100);
+    }, 50);
+}
 
+function setupFormHandlers(studentId, buttonText, onSubmit) {
     const form = document.getElementById('studentForm');
     if (form) {
         form.addEventListener('submit', async (e) => {
             e.preventDefault();
-            await processStudentSubmit(isEdit ? student.id : null, buttonText, onSubmit);
+            await processStudentSubmit(studentId, buttonText, onSubmit);
         });
     }
 
@@ -300,6 +359,14 @@ async function closeManageStudentsModal() {
 window.closeManageStudentsModal = closeManageStudentsModal;
 
 export async function openViewStudentsModal(id) {
+    openModal('Student Details', skeletonStudentView(), 'mid-large');
+
+    const modalOverlay = document.getElementById('modal-overlay');
+    const modalContent = document.getElementById('modal-content');
+    if (modalOverlay && modalContent) {
+        animateModalOpen(modalOverlay, modalContent, 'scale');
+    }
+
     try {
         const student = await StudentsAPI.getStudent(id);
         const dateCreated = new Date(student.created_at).toLocaleDateString('en-PH', {
@@ -384,12 +451,9 @@ export async function openViewStudentsModal(id) {
             </div>
         `;
 
-        openModal('Student Details', content, 'mid-large');
-
-        const modalOverlay = document.getElementById('modal-overlay');
-        const modalContent = document.getElementById('modal-content');
-        if (modalOverlay && modalContent) {
-            animateModalOpen(modalOverlay, modalContent, 'scale');
+        const modalBody = document.getElementById('modal-body');
+        if (modalBody) {
+            modalBody.innerHTML = content;
         }
 
         setTimeout(() => {
@@ -397,9 +461,10 @@ export async function openViewStudentsModal(id) {
             if (modalContentEl) {
                 animateViewModalElements(modalContentEl);
             }
-        }, 100);
+        }, 50);
     } catch (error) {
         console.error('Error loading student:', error);
         showToast('Failed to load student', 'error');
+        closeModal();
     }
 }

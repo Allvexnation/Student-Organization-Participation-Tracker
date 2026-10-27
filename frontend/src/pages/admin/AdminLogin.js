@@ -6,11 +6,11 @@ import { navigate } from '../../utils/navigation.js';
 
 export function AdminLogin() {
     return `
-    <div class="min-h-screen flex items-center justify-center p-4 relative bg-cover bg-center bg-no-repeat" style="background-image: url('public/banner.png');">
+    <div class="min-h-screen flex items-center justify-center p-4 relative bg-cover bg-center bg-no-repeat" style="background-image: url('/public/banner.png');">
         <div class="absolute inset-0 pointer-events-none bg-gradient-to-b from-blue-900/50 via-blue-900/30 to-transparent"></div>
         <div class="bg-white rounded-2xl shadow-2xl w-full max-w-md p-8 relative z-10">
             <div class="text-center mb-8">
-                <img src="public/crtlogo.png" alt="CRT Logo" class="h-24 w-auto mx-auto mb-4">
+                <img src="/public/crtlogo.png" alt="CRT Logo" class="h-24 w-auto mx-auto mb-4">
                 <h1 class="text-2xl font-bold text-blue-800">College for Research & Technology</h1>
                 <p class="text-gray-600 mt-2">Admin Portal Login</p>
             </div>
@@ -102,7 +102,7 @@ export function initAdminLogin() {
             localStorage.setItem('adminData', JSON.stringify(result.admin));
             updateToast('Login successful! Redirecting...', 'success');
             setTimeout(() => {
-                navigate('/admin-dashboard');
+                navigate('/admin/dashboard');
             }, 2000);
         } else {
             updateToast(result.message, 'error');

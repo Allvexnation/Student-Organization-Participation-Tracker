@@ -4,22 +4,23 @@ import { animateModalOpen, animateModalClose, clearModalAnimations, animateFormE
 import * as EventsAPI from '../../api/admin/Events/ManageEvents.js';
 import * as OrganizationsAPI from '../../api/admin/Organizations/ManageOrganizations.js';
 import { showToast } from '../ToastMessage.js';
+import { skeletonEventForm, skeletonEventView } from '../SkeletonLoading.js';
 
-export function openManageEventsModal({ mode = 'add', event = null, onSubmit }) {
+export function openManageEventsModal({ mode = 'add', event = null, eventId = null, onSubmit }) {
     const isEdit = mode === 'edit';
     const title = isEdit ? 'Edit Event' : 'New Event';
     const buttonText = isEdit ? 'Save Changes' : 'Add Event';
 
     const formContent = `
         <form id="eventForm" class="space-y-5">
-            ${isEdit ? `<input type="hidden" id="eventId" value="${event.id}">` : ''}
+            ${isEdit ? `<input type="hidden" id="eventId" value="${event?.id || eventId || ''}">` : ''}
 
             <fieldset>
                 <legend class="text-xs font-semibold text-gray-500 uppercase tracking-wider mb-3">Event Details</legend>
                 <div class="space-y-3">
                     <div>
                         <label for="eventTitle" class="block text-sm font-medium text-gray-700 mb-1">Event Title <span class="text-red-500">*</span></label>
-                        <input type="text" id="eventTitle" name="eventTitle" value="${isEdit ? event.title : ''}" required
+                        <input type="text" id="eventTitle" name="eventTitle" value="${isEdit && event ? event.title : ''}" required
                             placeholder="e.g. Annual General Assembly"
                             class="w-full px-3 py-2 text-sm border border-gray-200 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-transparent transition">
                     </div>
@@ -27,7 +28,7 @@ export function openManageEventsModal({ mode = 'add', event = null, onSubmit }) 
                         <label for="eventDescription" class="block text-sm font-medium text-gray-700 mb-1">Description</label>
                         <textarea id="eventDescription" name="eventDescription" rows="3"
                             placeholder="Detailed description of the event"
-                            class="w-full px-3 py-2 text-sm border border-gray-200 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-transparent transition resize-none">${isEdit ? event.description : ''}</textarea>
+                            class="w-full px-3 py-2 text-sm border border-gray-200 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-transparent transition resize-none">${isEdit && event ? event.description : ''}</textarea>
                     </div>
                 </div>
             </fieldset>
@@ -46,12 +47,12 @@ export function openManageEventsModal({ mode = 'add', event = null, onSubmit }) 
                     </div>
                     <div>
                         <label for="eventDate" class="block text-sm font-medium text-gray-700 mb-1">Event Date <span class="text-red-500">*</span></label>
-                        <input type="datetime-local" id="eventDate" name="eventDate" value="${isEdit ? event.event_date : ''}" required
+                        <input type="datetime-local" id="eventDate" name="eventDate" value="${isEdit && event ? event.event_date : ''}" required
                             class="w-full px-3 py-2 text-sm border border-gray-200 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-transparent transition">
                     </div>
                     <div>
                         <label for="eventVenue" class="block text-sm font-medium text-gray-700 mb-1">Venue</label>
-                        <input type="text" id="eventVenue" name="eventVenue" value="${isEdit ? event.venue : ''}"
+                        <input type="text" id="eventVenue" name="eventVenue" value="${isEdit && event ? event.venue : ''}"
                             placeholder="e.g. Main Auditorium, Online via Zoom"
                             class="w-full px-3 py-2 text-sm border border-gray-200 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-transparent transition">
                     </div>
@@ -60,18 +61,18 @@ export function openManageEventsModal({ mode = 'add', event = null, onSubmit }) 
                         <select id="eventCategory" name="eventCategory" required
                             class="w-full px-3 py-2 text-sm border border-gray-200 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-transparent bg-white transition">
                             <option value="">Select Category</option>
-                            <option value="Seminar" ${isEdit && event.event_category === 'Seminar' ? 'selected' : ''}>Seminar</option>
-                            <option value="Outreach" ${isEdit && event.event_category === 'Outreach' ? 'selected' : ''}>Outreach</option>
-                            <option value="General Assembly" ${isEdit && event.event_category === 'General Assembly' ? 'selected' : ''}>General Assembly</option>
-                            <option value="Workshop" ${isEdit && event.event_category === 'Workshop' ? 'selected' : ''}>Workshop</option>
-                            <option value="Competition" ${isEdit && event.event_category === 'Competition' ? 'selected' : ''}>Competition</option>
-                            <option value="Social Event" ${isEdit && event.event_category === 'Social Event' ? 'selected' : ''}>Social Event</option>
-                            <option value="Other" ${isEdit && (!['Seminar', 'Outreach', 'General Assembly', 'Workshop', 'Competition', 'Social Event'].includes(event.event_category)) ? 'selected' : ''}>Other</option>
+                            <option value="Seminar" ${isEdit && event?.event_category === 'Seminar' ? 'selected' : ''}>Seminar</option>
+                            <option value="Outreach" ${isEdit && event?.event_category === 'Outreach' ? 'selected' : ''}>Outreach</option>
+                            <option value="General Assembly" ${isEdit && event?.event_category === 'General Assembly' ? 'selected' : ''}>General Assembly</option>
+                            <option value="Workshop" ${isEdit && event?.event_category === 'Workshop' ? 'selected' : ''}>Workshop</option>
+                            <option value="Competition" ${isEdit && event?.event_category === 'Competition' ? 'selected' : ''}>Competition</option>
+                            <option value="Social Event" ${isEdit && event?.event_category === 'Social Event' ? 'selected' : ''}>Social Event</option>
+                            <option value="Other" ${isEdit && event?.event_category && !['Seminar', 'Outreach', 'General Assembly', 'Workshop', 'Competition', 'Social Event'].includes(event.event_category) ? 'selected' : ''}>Other</option>
                         </select>
                     </div>
-                    <div id="customCategoryContainer" class="${isEdit && (!['Seminar', 'Outreach', 'General Assembly', 'Workshop', 'Competition', 'Social Event'].includes(event.event_category)) ? '' : 'hidden'}">
+                    <div id="customCategoryContainer" class="${isEdit && event?.event_category && !['Seminar', 'Outreach', 'General Assembly', 'Workshop', 'Competition', 'Social Event'].includes(event.event_category) ? '' : 'hidden'}">
                         <label for="customCategory" class="block text-sm font-medium text-gray-700 mb-1">Specify Category <span class="text-red-500">*</span></label>
-                        <input type="text" id="customCategory" name="customCategory" value="${isEdit && (!['Seminar', 'Outreach', 'General Assembly', 'Workshop', 'Competition', 'Social Event'].includes(event.event_category)) ? event.event_category : ''}"
+                        <input type="text" id="customCategory" name="customCategory" value="${isEdit && event?.event_category && !['Seminar', 'Outreach', 'General Assembly', 'Workshop', 'Competition', 'Social Event'].includes(event.event_category) ? event.event_category : ''}"
                             placeholder="e.g. Sports Competition, Cultural Event"
                             class="w-full px-3 py-2 text-sm border border-gray-200 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-transparent transition">
                     </div>
@@ -97,43 +98,84 @@ export function openManageEventsModal({ mode = 'add', event = null, onSubmit }) 
         </form>
     `;
 
-    openModal(title, formContent, 'mid-large');
+    if (isEdit && !event && eventId) {
+        openModal(title, skeletonEventForm(), 'mid-large');
 
-    const modalOverlay = document.getElementById('modal-overlay');
-    const modalContent = document.getElementById('modal-content');
-    if (modalOverlay && modalContent) {
-        animateModalOpen(modalOverlay, modalContent, 'scale');
+        const modalOverlay = document.getElementById('modal-overlay');
+        const modalContent = document.getElementById('modal-content');
+        if (modalOverlay && modalContent) {
+            animateModalOpen(modalOverlay, modalContent, 'scale');
+        }
+
+        setTimeout(async () => {
+            try {
+                const fetchedEvent = await EventsAPI.getEvent(eventId);
+                const modalBody = document.getElementById('modal-body');
+                if (modalBody) {
+                    modalBody.innerHTML = formContent;
+                    populateFormWithEvent(fetchedEvent);
+                    setupFormHandlers(fetchedEvent.id, buttonText, onSubmit);
+                }
+            } catch (error) {
+                console.error('Error loading event:', error);
+                showToast('Failed to load event', 'error');
+                closeManageEventsModal();
+            }
+        }, 100);
+    } else {
+        openModal(title, formContent, 'mid-large');
+
+        const modalOverlay = document.getElementById('modal-overlay');
+        const modalContent = document.getElementById('modal-content');
+        if (modalOverlay && modalContent) {
+            animateModalOpen(modalOverlay, modalContent, 'scale');
+        }
+
+        setTimeout(() => {
+            const form = document.getElementById('eventForm');
+            if (form) {
+                animateFormElements(form);
+            }
+        }, 100);
+
+        setupFormHandlers(event?.id, buttonText, onSubmit);
+    }
+}
+
+function populateFormWithEvent(event) {
+    const form = document.getElementById('eventForm');
+    if (!form) return;
+
+    document.getElementById('eventId').value = event.id;
+    document.getElementById('eventTitle').value = event.title;
+    document.getElementById('eventDescription').value = event.description || '';
+    document.getElementById('eventDate').value = event.event_date;
+    document.getElementById('eventVenue').value = event.venue || '';
+    document.getElementById('eventCategory').value = ['Seminar', 'Outreach', 'General Assembly', 'Workshop', 'Competition', 'Social Event'].includes(event.event_category) ? event.event_category : 'Other';
+
+    if (!['Seminar', 'Outreach', 'General Assembly', 'Workshop', 'Competition', 'Social Event'].includes(event.event_category)) {
+        document.getElementById('customCategory').value = event.event_category;
+        document.getElementById('customCategoryContainer').classList.remove('hidden');
     }
 
     setTimeout(() => {
-        const form = document.getElementById('eventForm');
-        if (form) {
-            animateFormElements(form);
+        const formEl = document.getElementById('eventForm');
+        if (formEl) {
+            animateFormElements(formEl);
         }
-    }, 100);
+    }, 50);
 
-    async function loadOrganizations() {
-        try {
-            const organizations = await OrganizationsAPI.getAllOrganizations();
-            const orgSelect = document.getElementById('organizationId');
-            if (orgSelect) {
-                orgSelect.innerHTML = '<option value="">Select Organization</option>';
-                organizations.forEach(org => {
-                    const option = document.createElement('option');
-                    option.value = org.id;
-                    option.textContent = org.name;
-                    if (isEdit && event.organization_id == org.id) {
-                        option.selected = true;
-                    }
-                    orgSelect.appendChild(option);
-                });
-            }
-        } catch (error) {
-            console.error('Error loading organizations:', error);
-            showToast('Failed to load organizations', 'error');
-        }
+    loadOrganizations(event.organization_id);
+}
+
+function setupFormHandlers(eventId, buttonText, onSubmit) {
+    const form = document.getElementById('eventForm');
+    if (form) {
+        form.addEventListener('submit', async (e) => {
+            e.preventDefault();
+            await processEventSubmit(eventId, buttonText, onSubmit);
+        });
     }
-    loadOrganizations();
 
     const categorySelect = document.getElementById('eventCategory');
     const customCategoryContainer = document.getElementById('customCategoryContainer');
@@ -152,12 +194,47 @@ export function openManageEventsModal({ mode = 'add', event = null, onSubmit }) 
         });
     }
 
-    const form = document.getElementById('eventForm');
-    if (form) {
-        form.addEventListener('submit', async (e) => {
-            e.preventDefault();
-            await processEventSubmit(isEdit ? event.id : null, buttonText, onSubmit);
-        });
+    if (!eventId) {
+        loadOrganizations();
+    }
+}
+
+async function loadOrganizations(selectedOrgId = null) {
+    try {
+        const cachedData = localStorage.getItem('cachedOrganizations');
+        let organizations;
+        
+        if (cachedData) {
+            try {
+                organizations = JSON.parse(cachedData);
+            } catch (e) {
+                console.error('Error parsing cached organizations:', e);
+                organizations = await OrganizationsAPI.getAllOrganizations();
+                localStorage.setItem('cachedOrganizations', JSON.stringify(organizations));
+                localStorage.setItem('cachedOrganizationsTimestamp', Date.now().toString());
+            }
+        } else {
+            organizations = await OrganizationsAPI.getAllOrganizations();
+            localStorage.setItem('cachedOrganizations', JSON.stringify(organizations));
+            localStorage.setItem('cachedOrganizationsTimestamp', Date.now().toString());
+        }
+        
+        const orgSelect = document.getElementById('organizationId');
+        if (orgSelect) {
+            orgSelect.innerHTML = '<option value="">Select Organization</option>';
+            organizations.forEach(org => {
+                const option = document.createElement('option');
+                option.value = org.id;
+                option.textContent = org.name;
+                if (selectedOrgId && selectedOrgId == org.id) {
+                    option.selected = true;
+                }
+                orgSelect.appendChild(option);
+            });
+        }
+    } catch (error) {
+        console.error('Error loading organizations:', error);
+        showToast('Failed to load organizations', 'error');
     }
 }
 
@@ -251,6 +328,14 @@ async function closeManageEventsModal() {
 window.closeManageEventsModal = closeManageEventsModal;
 
 export async function openViewEventsModal(id) {
+    openModal('Event Details', skeletonEventView(), 'mid-large');
+
+    const modalOverlay = document.getElementById('modal-overlay');
+    const modalContent = document.getElementById('modal-content');
+    if (modalOverlay && modalContent) {
+        animateModalOpen(modalOverlay, modalContent, 'scale');
+    }
+
     try {
         const event = await EventsAPI.getEvent(id);
         const eventDate = event.event_date ? new Date(event.event_date).toLocaleString('en-PH', {
@@ -350,12 +435,9 @@ export async function openViewEventsModal(id) {
             </div>
         `;
 
-        openModal('Event Details', content, 'mid-large');
-
-        const modalOverlay = document.getElementById('modal-overlay');
-        const modalContent = document.getElementById('modal-content');
-        if (modalOverlay && modalContent) {
-            animateModalOpen(modalOverlay, modalContent, 'scale');
+        const modalBody = document.getElementById('modal-body');
+        if (modalBody) {
+            modalBody.innerHTML = content;
         }
 
         setTimeout(() => {
@@ -366,9 +448,10 @@ export async function openViewEventsModal(id) {
             if (typeof lucide !== 'undefined') {
                 lucide.createIcons();
             }
-        }, 100);
+        }, 50);
     } catch (error) {
         console.error('Error loading event:', error);
         showToast('Failed to load event', 'error');
+        closeModal();
     }
 }

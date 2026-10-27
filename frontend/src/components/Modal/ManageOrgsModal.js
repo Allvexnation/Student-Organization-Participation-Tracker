@@ -4,28 +4,29 @@ import { animateModalOpen, animateModalClose, clearModalAnimations, animateFormE
 import * as OrganizationsAPI from '../../api/admin/Organizations/ManageOrganizations.js';
 import * as AdviserAPI from '../../api/admin/adviser/ManageAdviser.js';
 import { showToast } from '../ToastMessage.js';
+import { skeletonOrgForm, skeletonOrgView } from '../SkeletonLoading.js';
 
-export function openManageOrgsModal({ mode = 'add', organization = null, onSubmit }) {
+export function openManageOrgsModal({ mode = 'add', organization = null, organizationId = null, onSubmit }) {
     const isEdit = mode === 'edit';
     const title = isEdit ? 'Edit Organization' : 'New Organization';
     const buttonText = isEdit ? 'Save Changes' : 'Add Organization';
 
     const formContent = `
         <form id="orgForm" class="space-y-5">
-            ${isEdit ? `<input type="hidden" id="orgId" value="${organization.id}">` : ''}
+            ${isEdit ? `<input type="hidden" id="orgId" value="${organization?.id || organizationId || ''}">` : ''}
 
             <fieldset>
                 <legend class="text-xs font-semibold text-gray-500 uppercase tracking-wider mb-3">Organization Details</legend>
                 <div class="space-y-3">
                     <div>
                         <label for="orgCode" class="block text-sm font-medium text-gray-700 mb-1">Organization Code <span class="text-red-500">*</span></label>
-                        <input type="text" id="orgCode" name="orgCode" value="${isEdit ? organization.org_code : ''}" required
+                        <input type="text" id="orgCode" name="orgCode" value="${isEdit && organization ? organization.org_code : ''}" required
                             placeholder="e.g. PITS, JMS, BEC"
                             class="w-full px-3 py-2 text-sm border border-gray-200 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-transparent transition uppercase">
                     </div>
                     <div>
                         <label for="orgName" class="block text-sm font-medium text-gray-700 mb-1">Organization Name <span class="text-red-500">*</span></label>
-                        <input type="text" id="orgName" name="orgName" value="${isEdit ? organization.name : ''}" required
+                        <input type="text" id="orgName" name="orgName" value="${isEdit && organization ? organization.name : ''}" required
                             placeholder="e.g. Philippine Institute of Technology Students"
                             class="w-full px-3 py-2 text-sm border border-gray-200 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-transparent transition">
                     </div>
@@ -33,7 +34,7 @@ export function openManageOrgsModal({ mode = 'add', organization = null, onSubmi
                         <label for="orgDescription" class="block text-sm font-medium text-gray-700 mb-1">Description</label>
                         <textarea id="orgDescription" name="orgDescription" rows="3"
                             placeholder="Brief overview or purpose of the organization"
-                            class="w-full px-3 py-2 text-sm border border-gray-200 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-transparent transition resize-none">${isEdit ? organization.description : ''}</textarea>
+                            class="w-full px-3 py-2 text-sm border border-gray-200 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-transparent transition resize-none">${isEdit && organization ? organization.description : ''}</textarea>
                     </div>
                 </div>
             </fieldset>
@@ -55,9 +56,9 @@ export function openManageOrgsModal({ mode = 'add', organization = null, onSubmi
                         <select id="orgStatus" name="orgStatus" required
                             class="w-full px-3 py-2 text-sm border border-gray-200 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-transparent bg-white transition">
                             <option value="">Select Status</option>
-                            <option value="Active" ${isEdit && organization.status === 'Active' ? 'selected' : ''}>Active</option>
-                            <option value="Inactive" ${isEdit && organization.status === 'Inactive' ? 'selected' : ''}>Inactive</option>
-                            <option value="Suspended" ${isEdit && organization.status === 'Suspended' ? 'selected' : ''}>Suspended</option>
+                            <option value="Active" ${isEdit && organization?.status === 'Active' ? 'selected' : ''}>Active</option>
+                            <option value="Inactive" ${isEdit && organization?.status === 'Inactive' ? 'selected' : ''}>Inactive</option>
+                            <option value="Suspended" ${isEdit && organization?.status === 'Suspended' ? 'selected' : ''}>Suspended</option>
                         </select>
                     </div>
                 </div>
@@ -82,50 +83,103 @@ export function openManageOrgsModal({ mode = 'add', organization = null, onSubmi
         </form>
     `;
 
-    openModal(title, formContent, 'mid-large');
+    if (isEdit && !organization && organizationId) {
+        openModal(title, skeletonOrgForm(), 'mid-large');
 
-    const modalOverlay = document.getElementById('modal-overlay');
-    const modalContent = document.getElementById('modal-content');
-    if (modalOverlay && modalContent) {
-        animateModalOpen(modalOverlay, modalContent, 'scale');
+        const modalOverlay = document.getElementById('modal-overlay');
+        const modalContent = document.getElementById('modal-content');
+        if (modalOverlay && modalContent) {
+            animateModalOpen(modalOverlay, modalContent, 'scale');
+        }
+
+        setTimeout(async () => {
+            try {
+                const fetchedOrg = await OrganizationsAPI.getOrganization(organizationId);
+                const modalBody = document.getElementById('modal-body');
+                if (modalBody) {
+                    modalBody.innerHTML = formContent;
+                    populateFormWithOrg(fetchedOrg);
+                    setupFormHandlers(fetchedOrg.id, buttonText, onSubmit);
+                }
+            } catch (error) {
+                console.error('Error loading organization:', error);
+                showToast('Failed to load organization', 'error');
+                closeManageOrgsModal();
+            }
+        }, 100);
+    } else {
+        openModal(title, formContent, 'mid-large');
+
+        const modalOverlay = document.getElementById('modal-overlay');
+        const modalContent = document.getElementById('modal-content');
+        if (modalOverlay && modalContent) {
+            animateModalOpen(modalOverlay, modalContent, 'scale');
+        }
+
+        setTimeout(() => {
+            const form = document.getElementById('orgForm');
+            if (form) {
+                animateFormElements(form);
+            }
+        }, 100);
+
+        setupFormHandlers(organization?.id, buttonText, onSubmit);
     }
+}
+
+function populateFormWithOrg(organization) {
+    const form = document.getElementById('orgForm');
+    if (!form) return;
+
+    document.getElementById('orgId').value = organization.id;
+    document.getElementById('orgCode').value = organization.org_code;
+    document.getElementById('orgName').value = organization.name;
+    document.getElementById('orgDescription').value = organization.description || '';
+    document.getElementById('orgStatus').value = organization.status;
 
     setTimeout(() => {
-        const form = document.getElementById('orgForm');
-        if (form) {
-            animateFormElements(form);
+        const formEl = document.getElementById('orgForm');
+        if (formEl) {
+            animateFormElements(formEl);
         }
-    }, 100);
+    }, 50);
 
-    async function loadAdvisers() {
-        try {
-            const advisers = await AdviserAPI.getAllAdvisers();
-            const adviserSelect = document.getElementById('orgAdviser');
-            if (adviserSelect) {
-                adviserSelect.innerHTML = '<option value="">Select Adviser</option>';
-                advisers.forEach(adviser => {
-                    const option = document.createElement('option');
-                    option.value = adviser.id;
-                    option.textContent = adviser.name;
-                    if (isEdit && organization.adviser_id == adviser.id) {
-                        option.selected = true;
-                    }
-                    adviserSelect.appendChild(option);
-                });
-            }
-        } catch (error) {
-            console.error('Error loading advisers:', error);
-            showToast('Failed to load advisers', 'error');
-        }
-    }
-    loadAdvisers();
+    loadAdvisers(organization.adviser_id);
+}
 
+function setupFormHandlers(orgId, buttonText, onSubmit) {
     const form = document.getElementById('orgForm');
     if (form) {
         form.addEventListener('submit', async (e) => {
             e.preventDefault();
-            await processOrgSubmit(isEdit ? organization.id : null, buttonText, onSubmit);
+            await processOrgSubmit(orgId, buttonText, onSubmit);
         });
+    }
+
+    if (!orgId) {
+        loadAdvisers();
+    }
+}
+
+async function loadAdvisers(selectedAdviserId = null) {
+    try {
+        const advisers = await AdviserAPI.getAllAdvisers();
+        const adviserSelect = document.getElementById('orgAdviser');
+        if (adviserSelect) {
+            adviserSelect.innerHTML = '<option value="">Select Adviser</option>';
+            advisers.forEach(adviser => {
+                const option = document.createElement('option');
+                option.value = adviser.id;
+                option.textContent = adviser.name;
+                if (selectedAdviserId && selectedAdviserId == adviser.id) {
+                    option.selected = true;
+                }
+                adviserSelect.appendChild(option);
+            });
+        }
+    } catch (error) {
+        console.error('Error loading advisers:', error);
+        showToast('Failed to load advisers', 'error');
     }
 }
 
@@ -210,6 +264,14 @@ async function closeManageOrgsModal() {
 window.closeManageOrgsModal = closeManageOrgsModal;
 
 export async function openViewOrgsModal(id) {
+    openModal('Organization Details', skeletonOrgView(), 'mid-large');
+
+    const modalOverlay = document.getElementById('modal-overlay');
+    const modalContent = document.getElementById('modal-content');
+    if (modalOverlay && modalContent) {
+        animateModalOpen(modalOverlay, modalContent, 'scale');
+    }
+
     try {
         const organization = await OrganizationsAPI.getOrganization(id);
         const createdAt = organization.created_at ? new Date(organization.created_at).toLocaleDateString('en-PH', {
@@ -297,12 +359,9 @@ export async function openViewOrgsModal(id) {
             </div>
         `;
 
-        openModal('Organization Details', content, 'mid-large');
-
-        const modalOverlay = document.getElementById('modal-overlay');
-        const modalContent = document.getElementById('modal-content');
-        if (modalOverlay && modalContent) {
-            animateModalOpen(modalOverlay, modalContent, 'scale');
+        const modalBody = document.getElementById('modal-body');
+        if (modalBody) {
+            modalBody.innerHTML = content;
         }
 
         setTimeout(() => {
@@ -310,9 +369,10 @@ export async function openViewOrgsModal(id) {
             if (modalContentEl) {
                 animateViewModalElements(modalContentEl);
             }
-        }, 100);
+        }, 50);
     } catch (error) {
         console.error('Error loading organization:', error);
         showToast('Failed to load organization', 'error');
+        closeModal();
     }
 }

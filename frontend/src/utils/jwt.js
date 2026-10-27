@@ -50,7 +50,7 @@ export function isAuthenticated() {
 
 export function requireAuth() {
     if (!isAuthenticated()) {
-        navigate('/admin-login');
+        navigate('/auth/admin/login');
     }
 }
 

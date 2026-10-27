@@ -6,15 +6,16 @@ import * as StudentsAPI from '../../api/admin/Students/ManageStudents.js';
 import * as OrganizationsAPI from '../../api/admin/Organizations/ManageOrganizations.js';
 import * as RolesAPI from '../../api/admin/roles/ManageRoles.js';
 import { showToast } from '../ToastMessage.js';
+import { skeletonOrgMemForm, skeletonOrgMemView } from '../SkeletonLoading.js';
 
-export function openManageOrgMemModal({ mode = 'add', membership = null, onSubmit }) {
+export function openManageOrgMemModal({ mode = 'add', membership = null, membershipId = null, onSubmit }) {
     const isEdit = mode === 'edit';
     const title = isEdit ? 'Edit Membership' : 'New Membership';
     const buttonText = isEdit ? 'Save Changes' : 'Add Membership';
 
     const formContent = `
         <form id="orgMemForm" class="space-y-5">
-            ${isEdit ? `<input type="hidden" id="orgMemId" value="${membership.id}">` : ''}
+            ${isEdit ? `<input type="hidden" id="orgMemId" value="${membership?.id || membershipId || ''}">` : ''}
 
             <fieldset>
                 <legend class="text-xs font-semibold text-gray-500 uppercase tracking-wider mb-3">Membership Details</legend>
@@ -35,7 +36,7 @@ export function openManageOrgMemModal({ mode = 'add', membership = null, onSubmi
                     </div>
                     <div>
                         <label for="dateJoined" class="block text-sm font-medium text-gray-700 mb-1">Date Joined <span class="text-red-500">*</span></label>
-                        <input type="date" id="dateJoined" name="dateJoined" value="${isEdit ? membership.date_joined : ''}" required
+                        <input type="date" id="dateJoined" name="dateJoined" value="${isEdit && membership ? membership.date_joined : ''}" required
                             class="w-full px-3 py-2 text-sm border border-gray-200 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-transparent transition">
                     </div>
                 </div>
@@ -58,9 +59,9 @@ export function openManageOrgMemModal({ mode = 'add', membership = null, onSubmi
                         <select id="membershipStatus" name="membershipStatus" required
                             class="w-full px-3 py-2 text-sm border border-gray-200 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-transparent bg-white transition">
                             <option value="">Select Status</option>
-                            <option value="Active" ${isEdit && membership.membership_status === 'Active' ? 'selected' : ''}>Active</option>
-                            <option value="Inactive" ${isEdit && membership.membership_status === 'Inactive' ? 'selected' : ''}>Inactive</option>
-                            <option value="Resigned" ${isEdit && membership.membership_status === 'Resigned' ? 'selected' : ''}>Resigned</option>
+                            <option value="Active" ${isEdit && membership?.membership_status === 'Active' ? 'selected' : ''}>Active</option>
+                            <option value="Inactive" ${isEdit && membership?.membership_status === 'Inactive' ? 'selected' : ''}>Inactive</option>
+                            <option value="Resigned" ${isEdit && membership?.membership_status === 'Resigned' ? 'selected' : ''}>Resigned</option>
                         </select>
                     </div>
                 </div>
@@ -85,97 +86,196 @@ export function openManageOrgMemModal({ mode = 'add', membership = null, onSubmi
         </form>
     `;
 
-    openModal(title, formContent, 'mid-large');
+    if (isEdit && !membership && membershipId) {
+        openModal(title, skeletonOrgMemForm(), 'mid-large');
 
-    const modalOverlay = document.getElementById('modal-overlay');
-    const modalContent = document.getElementById('modal-content');
-    if (modalOverlay && modalContent) {
-        animateModalOpen(modalOverlay, modalContent, 'scale');
+        const modalOverlay = document.getElementById('modal-overlay');
+        const modalContent = document.getElementById('modal-content');
+        if (modalOverlay && modalContent) {
+            animateModalOpen(modalOverlay, modalContent, 'scale');
+        }
+
+        setTimeout(async () => {
+            try {
+                const fetchedMem = await OrgMembershipsAPI.getOrgMembership(membershipId);
+                const modalBody = document.getElementById('modal-body');
+                if (modalBody) {
+                    modalBody.innerHTML = formContent;
+                    populateFormWithMem(fetchedMem);
+                    setupFormHandlers(fetchedMem.id, buttonText, onSubmit);
+                }
+            } catch (error) {
+                console.error('Error loading membership:', error);
+                showToast('Failed to load membership', 'error');
+                closeManageOrgMemModal();
+            }
+        }, 100);
+    } else {
+        openModal(title, formContent, 'mid-large');
+
+        const modalOverlay = document.getElementById('modal-overlay');
+        const modalContent = document.getElementById('modal-content');
+        if (modalOverlay && modalContent) {
+            animateModalOpen(modalOverlay, modalContent, 'scale');
+        }
+
+        setTimeout(() => {
+            const form = document.getElementById('orgMemForm');
+            if (form) {
+                animateFormElements(form);
+            }
+        }, 100);
+
+        setupFormHandlers(membership?.id, buttonText, onSubmit);
     }
+}
+
+function populateFormWithMem(membership) {
+    const form = document.getElementById('orgMemForm');
+    if (!form) return;
+
+    document.getElementById('orgMemId').value = membership.id;
+    document.getElementById('dateJoined').value = membership.date_joined;
+    document.getElementById('membershipStatus').value = membership.membership_status;
 
     setTimeout(() => {
-        const form = document.getElementById('orgMemForm');
-        if (form) {
-            animateFormElements(form);
+        const formEl = document.getElementById('orgMemForm');
+        if (formEl) {
+            animateFormElements(formEl);
         }
-    }, 100);
+    }, 50);
 
-    async function loadStudents() {
-        try {
-            const students = await StudentsAPI.getAllStudents();
-            const studentSelect = document.getElementById('studentId');
-            if (studentSelect) {
-                studentSelect.innerHTML = '<option value="">Select Student</option>';
-                students.forEach(student => {
-                    const option = document.createElement('option');
-                    option.value = student.id;
-                    option.textContent = `${student.first_name} ${student.last_name}`;
-                    if (isEdit && membership.student_id == student.id) {
-                        option.selected = true;
-                    }
-                    studentSelect.appendChild(option);
-                });
-            }
-        } catch (error) {
-            console.error('Error loading students:', error);
-            showToast('Failed to load students', 'error');
-        }
-    }
+    Promise.all([loadStudents(membership.student_id), loadOrganizations(membership.organization_id), loadRoles(membership.role_id)]);
+}
 
-    async function loadOrganizations() {
-        try {
-            const organizations = await OrganizationsAPI.getAllOrganizations();
-            const orgSelect = document.getElementById('organizationId');
-            if (orgSelect) {
-                orgSelect.innerHTML = '<option value="">Select Organization</option>';
-                organizations.forEach(org => {
-                    const option = document.createElement('option');
-                    option.value = org.id;
-                    option.textContent = org.name;
-                    if (isEdit && membership.organization_id == org.id) {
-                        option.selected = true;
-                    }
-                    orgSelect.appendChild(option);
-                });
-            }
-        } catch (error) {
-            console.error('Error loading organizations:', error);
-            showToast('Failed to load organizations', 'error');
-        }
-    }
-
-    async function loadRoles() {
-        try {
-            const roles = await RolesAPI.getAllRoles();
-            const roleSelect = document.getElementById('roleId');
-            if (roleSelect) {
-                roleSelect.innerHTML = '<option value="">Select Position</option>';
-                roles.forEach(role => {
-                    const option = document.createElement('option');
-                    option.value = role.id;
-                    option.textContent = role.role_name;
-                    if (isEdit && membership.role_id == role.id) {
-                        option.selected = true;
-                    }
-                    roleSelect.appendChild(option);
-                });
-            }
-        } catch (error) {
-            console.error('Error loading roles:', error);
-            showToast('Failed to load roles', 'error');
-        }
-    }
-
-    loadStudents();
-    loadOrganizations();
-    loadRoles();
-
+function setupFormHandlers(memId, buttonText, onSubmit) {
     const form = document.getElementById('orgMemForm');
     if (form) {
         form.addEventListener('submit', async (e) => {
             e.preventDefault();
-            await processOrgMemSubmit(isEdit ? membership.id : null, buttonText, onSubmit);
+            await processOrgMemSubmit(memId, buttonText, onSubmit);
         });
+    }
+
+    if (!memId) {
+        Promise.all([loadStudents(), loadOrganizations(), loadRoles()]);
+    }
+}
+
+async function loadStudents(selectedStudentId = null) {
+    try {
+        const cachedData = localStorage.getItem('cachedStudents');
+        let students;
+        
+        if (cachedData) {
+            try {
+                students = JSON.parse(cachedData);
+            } catch (e) {
+                console.error('Error parsing cached students:', e);
+                students = await StudentsAPI.getAllStudents();
+                localStorage.setItem('cachedStudents', JSON.stringify(students));
+                localStorage.setItem('cachedStudentsTimestamp', Date.now().toString());
+            }
+        } else {
+            students = await StudentsAPI.getAllStudents();
+            localStorage.setItem('cachedStudents', JSON.stringify(students));
+            localStorage.setItem('cachedStudentsTimestamp', Date.now().toString());
+        }
+        
+        const studentSelect = document.getElementById('studentId');
+        if (studentSelect) {
+            studentSelect.innerHTML = '<option value="">Select Student</option>';
+            students.forEach(student => {
+                const option = document.createElement('option');
+                option.value = student.id;
+                option.textContent = `${student.first_name} ${student.last_name}`;
+                if (selectedStudentId && selectedStudentId == student.id) {
+                    option.selected = true;
+                }
+                studentSelect.appendChild(option);
+            });
+        }
+    } catch (error) {
+        console.error('Error loading students:', error);
+        showToast('Failed to load students', 'error');
+    }
+}
+
+async function loadOrganizations(selectedOrgId = null) {
+    try {
+        const cachedData = localStorage.getItem('cachedOrganizations');
+        let organizations;
+        
+        if (cachedData) {
+            try {
+                organizations = JSON.parse(cachedData);
+            } catch (e) {
+                console.error('Error parsing cached organizations:', e);
+                organizations = await OrganizationsAPI.getAllOrganizations();
+                localStorage.setItem('cachedOrganizations', JSON.stringify(organizations));
+                localStorage.setItem('cachedOrganizationsTimestamp', Date.now().toString());
+            }
+        } else {
+            organizations = await OrganizationsAPI.getAllOrganizations();
+            localStorage.setItem('cachedOrganizations', JSON.stringify(organizations));
+            localStorage.setItem('cachedOrganizationsTimestamp', Date.now().toString());
+        }
+        
+        const orgSelect = document.getElementById('organizationId');
+        if (orgSelect) {
+            orgSelect.innerHTML = '<option value="">Select Organization</option>';
+            organizations.forEach(org => {
+                const option = document.createElement('option');
+                option.value = org.id;
+                option.textContent = org.name;
+                if (selectedOrgId && selectedOrgId == org.id) {
+                    option.selected = true;
+                }
+                orgSelect.appendChild(option);
+            });
+        }
+    } catch (error) {
+        console.error('Error loading organizations:', error);
+        showToast('Failed to load organizations', 'error');
+    }
+}
+
+async function loadRoles(selectedRoleId = null) {
+    try {
+        const cachedData = localStorage.getItem('cachedRoles');
+        let roles;
+        
+        if (cachedData) {
+            try {
+                roles = JSON.parse(cachedData);
+            } catch (e) {
+                console.error('Error parsing cached roles:', e);
+                roles = await RolesAPI.getAllRoles();
+                localStorage.setItem('cachedRoles', JSON.stringify(roles));
+                localStorage.setItem('cachedRolesTimestamp', Date.now().toString());
+            }
+        } else {
+            roles = await RolesAPI.getAllRoles();
+            localStorage.setItem('cachedRoles', JSON.stringify(roles));
+            localStorage.setItem('cachedRolesTimestamp', Date.now().toString());
+        }
+        
+        const roleSelect = document.getElementById('roleId');
+        if (roleSelect) {
+            roleSelect.innerHTML = '<option value="">Select Position</option>';
+            roles.forEach(role => {
+                const option = document.createElement('option');
+                option.value = role.id;
+                option.textContent = role.role_name;
+                if (selectedRoleId && selectedRoleId == role.id) {
+                    option.selected = true;
+                }
+                roleSelect.appendChild(option);
+            });
+        }
+    } catch (error) {
+        console.error('Error loading roles:', error);
+        showToast('Failed to load roles', 'error');
     }
 }
 
@@ -260,6 +360,14 @@ async function closeManageOrgMemModal() {
 window.closeManageOrgMemModal = closeManageOrgMemModal;
 
 export async function openViewOrgMemModal(id) {
+    openModal('Membership Details', skeletonOrgMemView(), 'mid-large');
+
+    const modalOverlay = document.getElementById('modal-overlay');
+    const modalContent = document.getElementById('modal-content');
+    if (modalOverlay && modalContent) {
+        animateModalOpen(modalOverlay, modalContent, 'scale');
+    }
+
     try {
         const membership = await OrgMembershipsAPI.getOrgMembership(id);
         const dateJoined = membership.date_joined ? new Date(membership.date_joined).toLocaleDateString('en-PH', {
@@ -327,12 +435,9 @@ export async function openViewOrgMemModal(id) {
             </div>
         `;
 
-        openModal('Membership Details', content, 'mid-large');
-
-        const modalOverlay = document.getElementById('modal-overlay');
-        const modalContent = document.getElementById('modal-content');
-        if (modalOverlay && modalContent) {
-            animateModalOpen(modalOverlay, modalContent, 'scale');
+        const modalBody = document.getElementById('modal-body');
+        if (modalBody) {
+            modalBody.innerHTML = content;
         }
 
         setTimeout(() => {
@@ -340,9 +445,13 @@ export async function openViewOrgMemModal(id) {
             if (modalContentEl) {
                 animateViewModalElements(modalContentEl);
             }
-        }, 100);
+            if (typeof lucide !== 'undefined') {
+                lucide.createIcons();
+            }
+        }, 50);
     } catch (error) {
         console.error('Error loading membership:', error);
         showToast('Failed to load membership', 'error');
+        closeModal();
     }
 }
