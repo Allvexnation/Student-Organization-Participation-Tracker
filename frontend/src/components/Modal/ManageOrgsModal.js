@@ -207,7 +207,7 @@ async function processOrgSubmit(id, buttonText, onSubmit) {
         status: document.getElementById('orgStatus').value
     };
 
-    const isEdit = id !== null;
+    const isEdit = id != null;
 
     if (isEdit) {
         openConfirmDialog({

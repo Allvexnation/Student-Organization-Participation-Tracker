@@ -139,7 +139,7 @@ async function processRoleSubmit(id, buttonText, onSubmit) {
         return;
     }
 
-    const isEdit = id !== null;
+    const isEdit = id != null;
 
     if (isEdit) {
         openConfirmDialog({

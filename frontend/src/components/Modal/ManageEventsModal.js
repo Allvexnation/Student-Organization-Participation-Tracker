@@ -271,7 +271,7 @@ async function processEventSubmit(id, buttonText, onSubmit) {
         event_category: eventCategory
     };
 
-    const isEdit = id !== null;
+    const isEdit = id != null;
 
     if (isEdit) {
         openConfirmDialog({

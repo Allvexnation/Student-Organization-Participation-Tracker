@@ -302,7 +302,7 @@ async function processStudentSubmit(id, buttonText, onSubmit) {
         profile_photo: imageUrl
     };
 
-    const isEdit = id !== null;
+    const isEdit = id != null;
 
     if (isEdit) {
         openConfirmDialog({

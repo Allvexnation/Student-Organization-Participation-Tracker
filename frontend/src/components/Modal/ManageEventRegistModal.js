@@ -228,7 +228,7 @@ async function processEventRegistSubmit(id, buttonText, onSubmit) {
         student_id: document.getElementById('studentId').value
     };
 
-    const isEdit = id !== null;
+    const isEdit = id != null;
 
     if (isEdit) {
         openConfirmDialog({

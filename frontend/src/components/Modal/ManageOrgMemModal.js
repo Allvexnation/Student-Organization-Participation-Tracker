@@ -303,7 +303,7 @@ async function processOrgMemSubmit(id, buttonText, onSubmit) {
         membership_status: document.getElementById('membershipStatus').value
     };
 
-    const isEdit = id !== null;
+    const isEdit = id != null;
 
     if (isEdit) {
         openConfirmDialog({
