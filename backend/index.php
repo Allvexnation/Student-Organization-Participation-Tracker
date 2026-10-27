@@ -3,7 +3,7 @@
 header('Content-Type: application/json');
 
 $allowedOrigins = [
-    'https://crtsopt.vercel.app',
+    'http://localhost:3000',
 ];
 
 $origin = $_SERVER['HTTP_ORIGIN'] ?? '';
