@@ -1,5 +1,5 @@
 import { AdminNavbar, initAdminNavbar } from '../../../components/Navbar/AdminNavbar.js';
-import { requireAuth } from '../../../utils/jwt.js';
+import { protectAdminRoute } from '../../../middleware/AdminMiddleware.js';
 import * as OrgMembershipsAPI from '../../../api/admin/OrgMemberships/ManageOrgMemberships.js';
 import { initManageOrgMemAnimations, animateTableRows } from '../../../provider/Animation/ManageOrgMemAnimation.js';
 import { openManageOrgMemModal, openViewOrgMemModal } from '../../../components/Modal/ManageOrgMemModal.js';
@@ -48,7 +48,7 @@ export function ManageOrgMemberships() {
                             </tr>
                         </thead>
                         <tbody id="orgMemTableBody" class="divide-y divide-gray-100">
-                            ${skeletonTableRows(window.innerWidth < 640 ? 3 : 4, window.innerWidth < 640 ? 3 : 6, true)}
+                            ${skeletonTableRows(window.innerWidth < 640 ? 3 : 4, window.innerWidth < 640 ? 3 : 7, true)}
                         </tbody>
                     </table>
                 </div>
@@ -58,7 +58,7 @@ export function ManageOrgMemberships() {
 }
 
 export async function initManageOrgMemberships() {
-    requireAuth();
+    protectAdminRoute();
     await initAdminNavbar();
 
     initManageOrgMemAnimations();

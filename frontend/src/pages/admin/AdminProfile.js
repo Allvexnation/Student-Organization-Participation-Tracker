@@ -1,7 +1,7 @@
 import { AdminNavbar, initAdminNavbar } from '../../components/Navbar/AdminNavbar.js';
 import { getAdminData } from '../../api/admin/AdminLogin.js';
 import { getAdminProfile, updateAdminProfile } from '../../api/admin/AdminProfile.js';
-import { requireAuth } from '../../utils/jwt.js';
+import { protectAdminRoute } from '../../middleware/AdminMiddleware.js';
 import { openConfirmDialog } from '../../components/Dialog/ConfirmDialog.js';
 import { showToast, updateToast } from '../../components/ToastMessage.js';
 
@@ -233,7 +233,7 @@ export function AdminProfile() {
 }
 
 export function initAdminProfile() {
-    requireAuth();
+    protectAdminRoute();
     initAdminNavbar();
 
     const adminData = getAdminData() || {};

@@ -1,5 +1,5 @@
 import { AdminNavbar, initAdminNavbar } from '../../../components/Navbar/AdminNavbar.js';
-import { requireAuth } from '../../../utils/jwt.js';
+import { protectAdminRoute } from '../../../middleware/AdminMiddleware.js';
 import * as OrganizationsAPI from '../../../api/admin/Organizations/ManageOrganizations.js';
 import { initManageOrgsAnimations, animateTableRows } from '../../../provider/Animation/ManageOrgsAnimation.js';
 import { openManageOrgsModal, openViewOrgsModal } from '../../../components/Modal/ManageOrgsModal.js';
@@ -47,7 +47,7 @@ export function ManageOrganizations() {
                             </tr>
                         </thead>
                         <tbody id="orgTableBody" class="divide-y divide-gray-100">
-                            ${skeletonTableRows(window.innerWidth < 640 ? 3 : 4, window.innerWidth < 640 ? 3 : 5, true)}
+                            ${skeletonTableRows(window.innerWidth < 640 ? 3 : 4, window.innerWidth < 640 ? 3 : 6, true)}
                         </tbody>
                     </table>
                 </div>
@@ -57,7 +57,7 @@ export function ManageOrganizations() {
 }
 
 export async function initManageOrganizations() {
-    requireAuth();
+    protectAdminRoute();
     await initAdminNavbar();
 
     initManageOrgsAnimations();

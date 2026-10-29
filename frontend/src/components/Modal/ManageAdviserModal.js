@@ -51,27 +51,18 @@ export function openManageAdviserModal({ mode = 'add', adviser = null, adviserId
                             placeholder="e.g. Juan Dela Cruz"
                             class="w-full px-3 py-2 text-sm border border-gray-200 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-transparent transition">
                     </div>
-                    <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                        <div>
-                            <label for="adviserUsername" class="block text-sm font-medium text-gray-700 mb-1">Username <span class="text-red-500">*</span></label>
-                            <input type="text" id="adviserUsername" name="adviserUsername" value="${isEdit && adviser ? adviser.username : ''}" required
-                                placeholder="e.g. juandelacruz"
-                                class="w-full px-3 py-2 text-sm border border-gray-200 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-transparent transition">
-                        </div>
-                        <div>
-                            <label for="adviserEmail" class="block text-sm font-medium text-gray-700 mb-1">Email <span class="text-red-500">*</span></label>
-                            <input type="email" id="adviserEmail" name="adviserEmail" value="${isEdit && adviser ? adviser.email : ''}" required
-                                placeholder="e.g. juan@example.com"
-                                class="w-full px-3 py-2 text-sm border border-gray-200 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-transparent transition">
-                        </div>
-                    </div>
                     <div>
-                        <label for="adviserPassword" class="block text-sm font-medium text-gray-700 mb-1">Password ${!isEdit ? '<span class="text-red-500">*</span>' : ''}</label>
-                        <input type="password" id="adviserPassword" name="adviserPassword" ${!isEdit ? 'required' : ''}
-                            placeholder="${isEdit ? 'Leave blank to keep existing password' : 'Enter password'}"
+                        <label for="adviserEmail" class="block text-sm font-medium text-gray-700 mb-1">Email <span class="text-red-500">*</span></label>
+                        <input type="email" id="adviserEmail" name="adviserEmail" value="${isEdit && adviser ? adviser.email : ''}" required
+                            placeholder="e.g. juan@example.com"
                             class="w-full px-3 py-2 text-sm border border-gray-200 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-transparent transition">
-                        ${isEdit ? '<p class="text-xs text-gray-400 mt-1">Leave blank to keep existing password</p>' : ''}
                     </div>
+                    ${!isEdit ? `
+                    <p class="text-xs text-gray-500 bg-blue-50 border border-blue-200 rounded-md px-3 py-2">
+                        <i data-lucide="info" class="w-4 h-4 inline mr-1"></i>
+                        Username and password will be auto-generated and sent to the adviser's email.
+                    </p>
+                    ` : ``}
                 </div>
             </fieldset>
 
@@ -264,17 +255,16 @@ async function processAdviserSubmit(id, buttonText, onSubmit) {
 
     let imageUrl = document.getElementById('imageUrl').value;
 
+    const isEdit = id != null;
+
     const formData = {
         name: document.getElementById('adviserName').value.trim(),
-        username: document.getElementById('adviserUsername').value.trim(),
         email: document.getElementById('adviserEmail').value.trim(),
-        password: document.getElementById('adviserPassword').value,
         role: document.getElementById('adviserRole').value,
         status: document.getElementById('adviserStatus').value,
         profile_photo: imageUrl
     };
 
-    const isEdit = id != null;
 
     if (isEdit) {
         openConfirmDialog({
@@ -300,9 +290,13 @@ async function processAdviserSubmit(id, buttonText, onSubmit) {
     } else {
         setModalButtonLoading('submitBtn', true, buttonText);
         try {
-            await onSubmit(id, formData);
+            const response = await onSubmit(id, formData);
             closeManageAdviserModal();
-            showToast('Adviser added successfully', 'success');
+            if (response && response.username) {
+                showToast(`Adviser added successfully. Username: ${response.username}. Password sent to email.`, 'success');
+            } else {
+                showToast('Adviser added successfully', 'success');
+            }
         } catch (error) {
             console.error('Error saving adviser:', error);
             showFormError('Failed to save adviser. Please try again.');

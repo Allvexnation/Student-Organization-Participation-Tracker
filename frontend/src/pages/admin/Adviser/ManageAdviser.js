@@ -1,5 +1,5 @@
 import { AdminNavbar, initAdminNavbar } from '../../../components/Navbar/AdminNavbar.js';
-import { requireAuth } from '../../../utils/jwt.js';
+import { protectAdminRoute } from '../../../middleware/AdminMiddleware.js';
 import * as AdviserAPI from '../../../api/admin/adviser/ManageAdviser.js';
 import { initManageAdviserAnimations, animateTableRows } from '../../../provider/Animation/ManageAdviserAnimation.js';
 import { openManageAdviserModal, openViewAdviserModal } from '../../../components/Modal/ManageAdviserModal.js';
@@ -50,7 +50,7 @@ export function ManageAdviser() {
                             </tr>
                         </thead>
                         <tbody id="adviserTableBody" class="divide-y divide-gray-100">
-                            ${skeletonTableRows(window.innerWidth < 640 ? 3 : 4, window.innerWidth < 640 ? 3 : 8, true)}
+                            ${skeletonTableRows(window.innerWidth < 640 ? 3 : 4, window.innerWidth < 640 ? 3 : 9, true)}
                         </tbody>
                     </table>
                 </div>
@@ -60,7 +60,7 @@ export function ManageAdviser() {
 }
 
 export async function initManageAdviser() {
-    requireAuth();
+    protectAdminRoute();
     await initAdminNavbar();
 
     initManageAdviserAnimations();
@@ -183,7 +183,9 @@ export async function initManageAdviser() {
                 if (id) {
                     await AdviserAPI.updateAdviser(id, data);
                 } else {
-                    await AdviserAPI.createAdviser(data);
+                    const response = await AdviserAPI.createAdviser(data);
+                    loadAdvisers(true);
+                    return response;
                 }
                 loadAdvisers(true);
             }
@@ -212,9 +214,10 @@ export async function initManageAdviser() {
             confirmText: 'Delete',
             cancelText: 'Cancel',
             type: 'danger',
-            onConfirm: async () => {
+            showReason: true,
+            onConfirm: async (reason) => {
                 try {
-                    await AdviserAPI.deleteAdviser(id);
+                    await AdviserAPI.deleteAdviser(id, reason);
                     loadAdvisers(true);
                     showToast('Adviser deleted successfully', 'success');
                 } catch (error) {

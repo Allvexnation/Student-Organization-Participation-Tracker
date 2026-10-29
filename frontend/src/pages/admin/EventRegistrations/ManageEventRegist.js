@@ -1,6 +1,6 @@
 import { AdminNavbar, initAdminNavbar } from '../../../components/Navbar/AdminNavbar.js';
-import { requireAuth } from '../../../utils/jwt.js';
-import * as EventRegistAPI from '../../../api/admin/EventRegistrations/ManageEventRegist.js';
+import { protectAdminRoute } from '../../../middleware/AdminMiddleware.js';
+import * as EventOrgAPI from '../../../api/admin/EventOrganizations/EventOrganizations.js';
 import { initManageEventRegistAnimations, animateTableRows } from '../../../provider/Animation/ManageEventRegistAnimation.js';
 import { openManageEventRegistModal, openViewEventRegistModal } from '../../../components/Modal/ManageEventRegistModal.js';
 import { openConfirmDialog } from '../../../components/Dialog/ConfirmDialog.js';
@@ -40,14 +40,14 @@ export function ManageEventRegist() {
                             <tr class="bg-gray-50 border-b border-gray-200 text-xs font-medium text-gray-500 uppercase tracking-wider">
                                 <th class="px-5 py-3.5 w-12 text-center">#</th>
                                 <th class="px-5 py-3.5">Event</th>
-                                <th class="px-5 py-3.5">Student</th>
-                                <th class="px-5 py-3.5 hidden sm:table-cell">Organization</th>
+                                <th class="px-5 py-3.5">Organization</th>
+                                <th class="px-5 py-3.5 hidden sm:table-cell">Approver</th>
                                 <th class="px-5 py-3.5">Registered At</th>
                                 <th class="px-5 py-3.5 text-center w-28">Actions</th>
                             </tr>
                         </thead>
                         <tbody id="eventRegistTableBody" class="divide-y divide-gray-100">
-                            ${skeletonTableRows(window.innerWidth < 640 ? 3 : 4, window.innerWidth < 640 ? 3 : 5, true)}
+                            ${skeletonTableRows(window.innerWidth < 640 ? 3 : 4, window.innerWidth < 640 ? 3 : 6, true)}
                         </tbody>
                     </table>
                 </div>
@@ -57,7 +57,7 @@ export function ManageEventRegist() {
 }
 
 export async function initManageEventRegist() {
-    requireAuth();
+    protectAdminRoute();
     await initAdminNavbar();
 
     initManageEventRegistAnimations();
@@ -79,7 +79,7 @@ export async function initManageEventRegist() {
         }
 
         try {
-            eventRegistrations = await EventRegistAPI.getAllEventRegistrations();
+            eventRegistrations = await EventOrgAPI.getAllEventOrganizations();
             localStorage.setItem('cachedEventRegistrations', JSON.stringify(eventRegistrations));
             localStorage.setItem('cachedEventRegistrationsTimestamp', Date.now().toString());
             renderEventRegistrations(eventRegistrations);
@@ -129,8 +129,8 @@ export async function initManageEventRegist() {
                 <td class="px-3 sm:px-5 py-2 sm:py-3.5">
                     <p class="text-xs sm:text-sm font-semibold text-gray-900">${reg.event_title || 'N/A'}</p>
                 </td>
-                <td class="px-3 sm:px-5 py-2 sm:py-3.5 text-gray-600 text-sm truncate">${reg.student_name || 'N/A'}</td>
-                <td class="px-3 sm:px-5 py-2 sm:py-3.5 hidden sm:table-cell text-gray-600 text-sm truncate">${reg.organization_name || 'N/A'}</td>
+                <td class="px-3 sm:px-5 py-2 sm:py-3.5 text-gray-600 text-sm truncate">${reg.organization_name || 'N/A'}</td>
+                <td class="px-3 sm:px-5 py-2 sm:py-3.5 hidden sm:table-cell text-gray-600 text-sm truncate">${reg.approver_name || 'N/A'}</td>
                 <td class="px-3 sm:px-5 py-2 sm:py-3.5 text-gray-600 text-sm whitespace-nowrap">
                     ${reg.registered_at ? new Date(reg.registered_at).toLocaleDateString() : '—'}
                 </td>
@@ -141,7 +141,7 @@ export async function initManageEventRegist() {
                         onView: 'viewEventRegist',
                         onEdit: 'editEventRegist', 
                         onDelete: 'deleteEventRegist',
-                        deleteLabel: reg.student_name
+                        deleteLabel: reg.organization_name
                     })}
                 </td>
             </tr>
@@ -160,9 +160,9 @@ export async function initManageEventRegist() {
             mode: 'add',
             onSubmit: async (id, data) => {
                 if (id) {
-                    await EventRegistAPI.updateEventRegistration(id, data);
+                    await EventOrgAPI.updateEventOrganization(id, data);
                 } else {
-                    await EventRegistAPI.createEventRegistration(data);
+                    await EventOrgAPI.createEventOrganization(data);
                 }
                 loadEventRegistrations(true);
             }
@@ -174,7 +174,7 @@ export async function initManageEventRegist() {
             mode: 'edit',
             registrationId: id,
             onSubmit: async (id, data) => {
-                await EventRegistAPI.updateEventRegistration(id, data);
+                await EventOrgAPI.updateEventOrganization(id, data);
                 loadEventRegistrations(true);
             }
         });
@@ -193,7 +193,7 @@ export async function initManageEventRegist() {
             type: 'danger',
             onConfirm: async () => {
                 try {
-                    await EventRegistAPI.deleteEventRegistration(id);
+                    await EventOrgAPI.deleteEventOrganization(id);
                     loadEventRegistrations(true);
                     showToast('Event registration deleted successfully', 'success');
                 } catch (error) {
@@ -208,8 +208,8 @@ export async function initManageEventRegist() {
         const searchTerm = e.target.value.toLowerCase();
         const filtered = eventRegistrations.filter(reg => 
             (reg.event_title || '').toLowerCase().includes(searchTerm) ||
-            (reg.student_name || '').toLowerCase().includes(searchTerm) ||
-            (reg.organization_name || '').toLowerCase().includes(searchTerm)
+            (reg.organization_name || '').toLowerCase().includes(searchTerm) ||
+            (reg.approver_name || '').toLowerCase().includes(searchTerm)
         );
         renderEventRegistrations(filtered);
     });

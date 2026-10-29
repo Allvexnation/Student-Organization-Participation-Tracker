@@ -1,9 +1,10 @@
 import { openModal, closeModal, setModalButtonLoading } from '../../utils/modal.js';
 import { openConfirmDialog } from '../Dialog/ConfirmDialog.js';
 import { animateModalOpen, animateModalClose, clearModalAnimations, animateFormElements, clearFormAnimations, animateViewModalElements } from '../../provider/ModalAnimation.js';
-import * as EventRegistAPI from '../../api/admin/EventRegistrations/ManageEventRegist.js';
+import * as EventOrgAPI from '../../api/admin/EventOrganizations/EventOrganizations.js';
 import * as EventsAPI from '../../api/admin/Events/ManageEvents.js';
-import * as StudentsAPI from '../../api/admin/Students/ManageStudents.js';
+import * as OrganizationsAPI from '../../api/admin/Organizations/ManageOrganizations.js';
+import { getApprovers } from '../../api/admin/EventOrganizations/EventOrganizations.js';
 import { showToast } from '../ToastMessage.js';
 import { skeletonEventRegistForm, skeletonEventRegistView } from '../SkeletonLoading.js';
 
@@ -27,10 +28,17 @@ export function openManageEventRegistModal({ mode = 'add', registration = null, 
                         </select>
                     </div>
                     <div>
-                        <label for="studentId" class="block text-sm font-medium text-gray-700 mb-1">Student <span class="text-red-500">*</span></label>
-                        <select id="studentId" name="studentId" required
+                        <label for="organizationId" class="block text-sm font-medium text-gray-700 mb-1">Organization <span class="text-red-500">*</span></label>
+                        <select id="organizationId" name="organizationId" required
                             class="w-full px-3 py-2 text-sm border border-gray-200 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-transparent bg-white transition">
-                            <option value="">Select Student</option>
+                            <option value="">Select Organization</option>
+                        </select>
+                    </div>
+                    <div>
+                        <label for="approverId" class="block text-sm font-medium text-gray-700 mb-1">Approver (Admin/Adviser) <span class="text-red-500">*</span></label>
+                        <select id="approverId" name="approverId" required
+                            class="w-full px-3 py-2 text-sm border border-gray-200 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-transparent bg-white transition">
+                            <option value="">Select Approver</option>
                         </select>
                     </div>
                 </div>
@@ -66,7 +74,7 @@ export function openManageEventRegistModal({ mode = 'add', registration = null, 
 
         setTimeout(async () => {
             try {
-                const fetchedRegist = await EventRegistAPI.getEventRegistration(registrationId);
+                const fetchedRegist = await EventOrgAPI.getEventOrganization(registrationId);
                 const modalBody = document.getElementById('modal-body');
                 if (modalBody) {
                     modalBody.innerHTML = formContent;
@@ -112,7 +120,7 @@ function populateFormWithRegist(registration) {
         }
     }, 50);
 
-    Promise.all([loadEvents(registration.event_id), loadStudents(registration.student_id)]);
+    Promise.all([loadEvents(registration.event_id), loadOrganizations(registration.organization_id), loadApprovers(registration.approver_id)]);
 }
 
 function setupFormHandlers(registId, buttonText, onSubmit) {
@@ -125,7 +133,9 @@ function setupFormHandlers(registId, buttonText, onSubmit) {
     }
 
     if (!registId) {
-        Promise.all([loadEvents(), loadStudents()]);
+        setTimeout(() => {
+            Promise.all([loadEvents(), loadOrganizations(), loadApprovers()]);
+        }, 100);
     }
 }
 
@@ -168,42 +178,66 @@ async function loadEvents(selectedEventId = null) {
     }
 }
 
-async function loadStudents(selectedStudentId = null) {
+async function loadOrganizations(selectedOrganizationId = null) {
     try {
-        const cachedData = localStorage.getItem('cachedStudents');
-        let students;
+        const cachedData = localStorage.getItem('cachedOrganizations');
+        let organizations;
         
         if (cachedData) {
             try {
-                students = JSON.parse(cachedData);
+                organizations = JSON.parse(cachedData);
             } catch (e) {
-                console.error('Error parsing cached students:', e);
-                students = await StudentsAPI.getAllStudents();
-                localStorage.setItem('cachedStudents', JSON.stringify(students));
-                localStorage.setItem('cachedStudentsTimestamp', Date.now().toString());
+                console.error('Error parsing cached organizations:', e);
+                organizations = await OrganizationsAPI.getAllOrganizations();
+                localStorage.setItem('cachedOrganizations', JSON.stringify(organizations));
+                localStorage.setItem('cachedOrganizationsTimestamp', Date.now().toString());
             }
         } else {
-            students = await StudentsAPI.getAllStudents();
-            localStorage.setItem('cachedStudents', JSON.stringify(students));
-            localStorage.setItem('cachedStudentsTimestamp', Date.now().toString());
+            organizations = await OrganizationsAPI.getAllOrganizations();
+            localStorage.setItem('cachedOrganizations', JSON.stringify(organizations));
+            localStorage.setItem('cachedOrganizationsTimestamp', Date.now().toString());
         }
         
-        const studentSelect = document.getElementById('studentId');
-        if (studentSelect) {
-            studentSelect.innerHTML = '<option value="">Select Student</option>';
-            students.forEach(student => {
+        const organizationSelect = document.getElementById('organizationId');
+        if (organizationSelect) {
+            organizationSelect.innerHTML = '<option value="">Select Organization</option>';
+            organizations.forEach(org => {
                 const option = document.createElement('option');
-                option.value = student.id;
-                option.textContent = `${student.first_name} ${student.last_name}`;
-                if (selectedStudentId && selectedStudentId == student.id) {
+                option.value = org.id;
+                option.textContent = org.name;
+                if (selectedOrganizationId && selectedOrganizationId == org.id) {
                     option.selected = true;
                 }
-                studentSelect.appendChild(option);
+                organizationSelect.appendChild(option);
             });
         }
     } catch (error) {
-        console.error('Error loading students:', error);
-        showToast('Failed to load students', 'error');
+        console.error('Error loading organizations:', error);
+        showToast('Failed to load organizations', 'error');
+    }
+}
+
+async function loadApprovers(selectedApproverId = null) {
+    try {
+        const approvers = await getApprovers();
+        
+        const approverSelect = document.getElementById('approverId');
+        if (approverSelect) {
+            approverSelect.innerHTML = '<option value="">Select Approver</option>';
+            approvers.forEach(approver => {
+                const option = document.createElement('option');
+                option.value = approver.id;
+                const typeLabel = approver.type === 'admin' ? 'Admin' : 'Adviser';
+                option.textContent = `${approver.name} (${typeLabel})`;
+                if (selectedApproverId && selectedApproverId == approver.id) {
+                    option.selected = true;
+                }
+                approverSelect.appendChild(option);
+            });
+        }
+    } catch (error) {
+        console.error('Error loading approvers:', error);
+        showToast('Failed to load approvers', 'error');
     }
 }
 
@@ -225,7 +259,8 @@ async function processEventRegistSubmit(id, buttonText, onSubmit) {
 
     const formData = {
         event_id: document.getElementById('eventId').value,
-        student_id: document.getElementById('studentId').value
+        organization_id: document.getElementById('organizationId').value,
+        approver_id: document.getElementById('approverId').value
     };
 
     const isEdit = id != null;
@@ -294,7 +329,7 @@ export async function openViewEventRegistModal(id) {
     }
 
     try {
-        const registration = await EventRegistAPI.getEventRegistration(id);
+        const registration = await EventOrgAPI.getEventOrganization(id);
         const registeredAt = registration.registered_at ? new Date(registration.registered_at).toLocaleString('en-PH', {
             weekday: 'long',
             year: 'numeric',
@@ -320,13 +355,13 @@ export async function openViewEventRegistModal(id) {
             <div class="space-y-5">
                 <div class="flex flex-col sm:flex-row sm:items-center gap-4 bg-gray-50 rounded-lg p-4 border border-gray-100">
                     <div class="flex-shrink-0 w-24 h-24 sm:w-32 sm:h-32 rounded-lg bg-blue-900 text-blue-100 flex items-center justify-center text-2xl font-bold shadow-sm mx-auto sm:mx-0">
-                        <i data-lucide="user-check" class="w-12 h-12"></i>
+                        <i data-lucide="users" class="w-12 h-12"></i>
                     </div>
                     <div class="text-center sm:text-left">
-                        <h3 class="text-lg font-semibold text-gray-900">${registration.student_name || 'N/A'}</h3>
+                        <h3 class="text-lg font-semibold text-gray-900">${registration.organization_name || 'N/A'}</h3>
                         <p class="text-sm text-gray-500 mt-0.5">${registration.event_title || 'N/A'}</p>
                         <span class="inline-flex items-center px-2.5 py-0.5 mt-0.5 rounded-full text-xs font-medium bg-green-50 text-green-900 border border-gray-200">
-                            Registered
+                            ${registration.status || 'Registered'}
                         </span>
                     </div>
                 </div>
@@ -339,12 +374,12 @@ export async function openViewEventRegistModal(id) {
                             <dd class="text-sm font-semibold text-gray-900 mt-0.5">${registration.event_title || 'N/A'}</dd>
                         </div>
                         <div>
-                            <dt class="text-xs text-gray-400 font-medium">Student</dt>
-                            <dd class="text-sm font-semibold text-gray-900 mt-0.5">${registration.student_name || 'N/A'}</dd>
-                        </div>
-                        <div>
                             <dt class="text-xs text-gray-400 font-medium">Organization</dt>
                             <dd class="text-sm font-semibold text-gray-900 mt-0.5">${registration.organization_name || 'N/A'}</dd>
+                        </div>
+                        <div>
+                            <dt class="text-xs text-gray-400 font-medium">Approver</dt>
+                            <dd class="text-sm font-semibold text-gray-900 mt-0.5">${registration.approver_name || 'N/A'}</dd>
                         </div>
                         <div>
                             <dt class="text-xs text-gray-400 font-medium">Registered At</dt>

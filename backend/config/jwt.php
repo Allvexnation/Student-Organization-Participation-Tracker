@@ -10,9 +10,17 @@ class JWT {
 
     private static function initConfig() {
         if (self::$secret_key === null) {
-            self::$secret_key = $_ENV['JWT_SECRET_KEY'];
-            self::$algorithm = $_ENV['JWT_ALGORITHM'];
-            self::$token_expiry = (int)$_ENV['JWT_TOKEN_EXPIRY'];
+            $connection = getenv('JWT_CONNECTION');
+
+            if ($connection === 'Production') {
+                self::$secret_key = $_ENV['PROD_JWT_SECRET_KEY'];
+                self::$algorithm = $_ENV['PROD_JWT_ALGORITHM'];
+                self::$token_expiry = (int)$_ENV['PROD_JWT_TOKEN_EXPIRY'];
+            } else {
+                self::$secret_key = $_ENV['DEV_JWT_SECRET_KEY'];
+                self::$algorithm = $_ENV['DEV_JWT_ALGORITHM'];
+                self::$token_expiry = (int)$_ENV['DEV_JWT_TOKEN_EXPIRY'];
+            }
         }
     }
 
@@ -64,6 +72,10 @@ class JWT {
     public static function getUserId($token) {
         $decoded = self::decode($token);
         return $decoded ? $decoded['user_id'] : null;
+    }
+
+    public static function getPayload($token) {
+        return self::decode($token);
     }
 
     private static function base64UrlEncode($data) {

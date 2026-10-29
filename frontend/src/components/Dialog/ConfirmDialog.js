@@ -6,7 +6,8 @@ export function openConfirmDialog({
     onConfirm, 
     confirmText = 'Confirm', 
     cancelText = 'Cancel', 
-    type = 'danger' 
+    type = 'danger',
+    showReason = false
 }) {
     const isDanger = type === 'danger';
     
@@ -30,6 +31,16 @@ export function openConfirmDialog({
                     <p class="text-sm text-gray-700 leading-normal">${message}</p>
                 </div>
             </div>
+            ${showReason ? `
+            <div>
+                <label for="deleteReason" class="block text-sm font-medium text-gray-700 mb-1">Reason for deletion <span class="text-red-500">*</span></label>
+                <textarea 
+                    id="deleteReason" 
+                    rows="3" 
+                    placeholder="Please provide a reason for this deletion..."
+                    class="w-full px-3 py-2 text-sm border border-gray-200 rounded-md focus:ring-2 focus:ring-red-500 focus:border-transparent transition resize-none"></textarea>
+            </div>
+            ` : ''}
 
             <div class="flex items-center justify-end gap-2 pt-3">
                 <button 
@@ -58,9 +69,20 @@ export function openConfirmDialog({
     const confirmBtn = document.getElementById('confirmBtn');
     if (confirmBtn) {
         confirmBtn.addEventListener('click', async () => {
+            if (showReason) {
+                const reason = document.getElementById('deleteReason').value.trim();
+                if (!reason) {
+                    const reasonInput = document.getElementById('deleteReason');
+                    reasonInput.classList.add('border-red-500');
+                    reasonInput.placeholder = 'Reason is required';
+                    return;
+                }
+            }
+
             setModalButtonLoading('confirmBtn', true, confirmText);
             try {
-                await onConfirm();
+                const reason = showReason ? document.getElementById('deleteReason').value.trim() : null;
+                await onConfirm(reason);
                 closeModal();
             } catch (error) {
                 console.error('Error in confirm action:', error);

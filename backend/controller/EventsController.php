@@ -76,7 +76,7 @@ class EventsController {
             return;
         }
 
-        if (!isset($data['organization_id']) || !isset($data['title']) || !isset($data['event_date']) || !isset($data['event_category'])) {
+        if (!isset($data['organization_ids']) || !is_array($data['organization_ids']) || empty($data['organization_ids']) || !isset($data['title']) || !isset($data['event_day_start']) || !isset($data['event_day_end']) || !isset($data['event_category'])) {
             http_response_code(400);
             echo json_encode(['message' => 'Missing required fields']);
             return;
@@ -113,7 +113,7 @@ class EventsController {
             return;
         }
 
-        if (!isset($data['organization_id']) || !isset($data['title']) || !isset($data['event_date']) || !isset($data['event_category'])) {
+        if (!isset($data['organization_ids']) || !is_array($data['organization_ids']) || empty($data['organization_ids']) || !isset($data['title']) || !isset($data['event_day_start']) || !isset($data['event_day_end']) || !isset($data['event_category'])) {
             http_response_code(400);
             echo json_encode(['message' => 'Missing required fields']);
             return;

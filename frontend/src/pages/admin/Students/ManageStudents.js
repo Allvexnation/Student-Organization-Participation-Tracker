@@ -1,5 +1,5 @@
 import { AdminNavbar, initAdminNavbar } from '../../../components/Navbar/AdminNavbar.js';
-import { requireAuth } from '../../../utils/jwt.js';
+import { protectAdminRoute } from '../../../middleware/AdminMiddleware.js';
 import * as StudentsAPI from '../../../api/admin/Students/ManageStudents.js';
 import { initManageStudentsAnimations, animateTableRows } from '../../../provider/Animation/ManageStudentsAnimation.js';
 import { openManageStudentsModal, openViewStudentsModal } from '../../../components/Modal/ManageStudentsModal.js';
@@ -59,7 +59,7 @@ export function ManageStudents() {
 }
 
 export async function initManageStudents() {
-    requireAuth();
+    protectAdminRoute();
     await initAdminNavbar();
 
     initManageStudentsAnimations();
@@ -175,7 +175,11 @@ export async function initManageStudents() {
                 if (id) {
                     await StudentsAPI.updateStudent(id, data);
                 } else {
-                    await StudentsAPI.createStudent(data);
+                    const response = await StudentsAPI.createStudent(data);
+                    localStorage.removeItem('cachedStudents');
+                    localStorage.removeItem('cachedStudentsTimestamp');
+                    loadStudents(true);
+                    return response;
                 }
                 localStorage.removeItem('cachedStudents');
                 localStorage.removeItem('cachedStudentsTimestamp');
@@ -208,9 +212,10 @@ export async function initManageStudents() {
             confirmText: 'Delete',
             cancelText: 'Cancel',
             type: 'danger',
-            onConfirm: async () => {
+            showReason: true,
+            onConfirm: async (reason) => {
                 try {
-                    await StudentsAPI.deleteStudent(id);
+                    await StudentsAPI.deleteStudent(id, reason);
                     loadStudents(true);
                     showToast('Student deleted successfully', 'success');
                 } catch (error) {

@@ -1,6 +1,6 @@
 # Student Organization Participation Tracker - Backend API
 
-**Version: 2.1**
+**Version: 2.2.0**
 
 ## Overview
 
@@ -26,29 +26,51 @@ The backend follows a clean OOP architecture with separation of concerns:
 ```
 backend/
 ├── config/
+│   ├── cors.php            # CORS configuration
 │   ├── db.php              # Database configuration and connection
 │   ├── env.php             # Environment configuration loader
-│   └── jwt.php             # JWT token generation and validation
+│   ├── jwt.php             # JWT token generation and validation
+│   └── mailer.php          # Email configuration
 ├── controller/
 │   ├── AdminController.php # Admin-related API endpoints
+│   ├── Adviser/            # Adviser sub-controllers
+│   │   ├── AdviserEventsController.php # Adviser event management
+│   │   └── AdviserOrganizationController.php # Adviser organization management
 │   ├── AdviserController.php # Adviser-related API endpoints
-│   ├── StudentsController.php # Student-related API endpoints
-│   ├── OrganizationsController.php # Organization-related API endpoints
-│   ├── EventsController.php # Event-related API endpoints
+│   ├── EventOrganizationsController.php # Event-organization relationship endpoints
 │   ├── EventRegistrationsController.php # Event registration endpoints
+│   ├── EventsController.php # Event-related API endpoints
+│   ├── MemberTasksController.php # Member task management endpoints
 │   ├── OrganizationMembershipsController.php # Org membership endpoints
+│   ├── OrganizationsController.php # Organization-related API endpoints
+│   ├── OrgMembershipsController.php # Legacy org membership endpoints
 │   ├── RoleController.php # Role management endpoints
-│   └── OrgMembershipsController.php # Legacy org membership endpoints
+│   ├── SessionController.php # Session management endpoints
+│   ├── Students/           # Student sub-controllers
+│   │   ├── EventTaskController.php # Student event task management
+│   │   └── StudentController.php # Student management
+│   └── StudentsController.php # Student-related API endpoints
 ├── model/
 │   ├── AdminModel.php      # Admin data model and business logic
+│   ├── Adviser/            # Adviser sub-models
+│   │   ├── AdviserEventsModel.php # Adviser event data model
+│   │   └── AdviserOrganizationModel.php # Adviser organization data model
 │   ├── AdviserModel.php    # Adviser data model and business logic
-│   ├── StudentsModel.php   # Student data model and business logic
-│   ├── OrganizationsModel.php # Organization data model
-│   ├── EventsModel.php     # Event data model
+│   ├── AdviserOtpModel.php # Adviser OTP data model
+│   ├── EventOrganizationsModel.php # Event-organization relationship model
 │   ├── EventRegistrationsModel.php # Event registration model
+│   ├── EventsModel.php     # Event data model
+│   ├── MemberTasksModel.php # Member task data model
 │   ├── OrganizationMembershipsModel.php # Org membership model
+│   ├── OrganizationsModel.php # Organization data model
+│   ├── OrgMembershipsModel.php # Legacy org membership model
 │   ├── RoleModel.php       # Role data model
-│   └── OrgMembershipsModel.php # Legacy org membership model
+│   ├── SessionModel.php    # Session data model
+│   ├── StudentOtpModel.php # Student OTP data model
+│   ├── Students/           # Student sub-models
+│   │   ├── EventTaskModel.php # Student event task data model
+│   │   └── StudentsModel.php # Student data model
+│   └── StudentsModel.php   # Student data model and business logic
 ├── migrations/
 │   ├── Migration.php       # Base migration class
 │   ├── Migrator.php        # Migration runner
@@ -63,30 +85,65 @@ backend/
 │   ├── 2026_01_01_000011_add_role_id_to_organization_memberships_table.php
 │   ├── 2026_01_01_000012_add_role_id_to_students_table.php
 │   ├── 2026_01_01_000012_drop_position_from_organization_memberships_table.php
-│   └── 2026_01_01_000013_alter_organizations_table_adviser_id.php
+│   ├── 2026_01_01_000013_alter_organizations_table_adviser_id.php
+│   ├── 2026_01_01_000014_add_otp_fields_to_advisers_table.php
+│   ├── 2026_01_01_000015_create_adviser_otps_table.php
+│   ├── 2026_01_01_000016_create_student_otps_table.php
+│   ├── 2026_01_01_000016_drop_otp_columns_from_advisers_table.php
+│   ├── 2026_01_01_000017_add_current_organization_id_to_advisers_table.php
+│   ├── 2026_01_01_000018_add_event_start_end_to_events_table.php
+│   ├── 2026_01_01_000019_create_event_organizations_table.php
+│   ├── 2026_01_01_000020_add_event_day_start_end_to_events_table.php
+│   ├── 2026_01_01_000021_create_event_daily_schedules_table.php
+│   ├── 2026_01_01_000022_make_event_columns_nullable.php
+│   ├── 2026_01_01_000023_create_member_tasks_table.php
+│   ├── 2026_01_01_000024_add_event_id_to_member_tasks.php
+│   ├── 2026_01_01_000024_create_task_daily_schedules_table.php
+│   ├── 2026_01_01_000025_add_start_end_date_to_member_tasks.php
+│   ├── 2026_01_01_000026_add_approver_to_event_organizations_table.php
+│   ├── 2026_01_01_000027_remove_excess_columns_from_events_table.php
+│   ├── 2026_01_01_000028_add_organization_id_to_events_table.php
+│   ├── 2026_01_01_000029_populate_organization_id_from_event_organizations.php
+│   ├── 2026_01_01_000030_create_sessions_table.php
+│   ├── 2026_01_01_000031_add_task_title_to_member_tasks.php
+│   ├── 2026_01_01_000032_add_status_to_task_daily_schedules.php
+│   ├── 2026_01_01_000033_add_student_id_to_task_daily_schedules.php
+│   └── 2026_01_01_000034_add_student_dates_to_member_tasks.php
 ├── routes/
 │   ├── AdminRoutes.php     # Admin routing configuration
+│   ├── Adviser/            # Adviser sub-routes
+│   │   ├── AdviserAuthRoutes.php # Adviser authentication routes
+│   │   └── AdviserRoutes.php # Adviser routing configuration
 │   ├── AdviserRoutes.php   # Adviser routing configuration
-│   ├── StudentsRoutes.php  # Student routing configuration
-│   ├── OrganizationsRoutes.php # Organization routing configuration
-│   ├── EventsRoutes.php    # Event routing configuration
+│   ├── EventOrganizationsRoutes.php # Event-organization routing
 │   ├── EventRegistrationsRoutes.php # Event registration routing
+│   ├── EventsRoutes.php    # Event routing configuration
 │   ├── OrganizationMembershipsRoutes.php # Org membership routing
-│   └── RoleRoutes.php      # Role routing configuration
+│   ├── OrganizationsRoutes.php # Organization routing configuration
+│   ├── RoleRoutes.php      # Role routing configuration
+│   ├── SessionRoutes.php   # Session routing configuration
+│   ├── Students/           # Student sub-routes
+│   │   └── StudentsRoutes.php # Student routing configuration
+│   └── StudentsRoutes.php  # Student routing configuration
+├── services/
+│   └── EmailService.php    # Email service for OTP and notifications
+├── template/
+│   ├── AdviserEmail.php    # Email template for advisers
+│   └── StudentEmail.php    # Email template for students
+├── utils/                  # Utility functions
 ├── view/
 │   └── web.php             # Web view for API root
-├── utils/                  # Utility functions (empty)
 ├── .htaccess               # Apache URL rewriting configuration
-├── index.php               # API entry point and routing
-├── migrate.php             # Migration execution script
+├── .dockerignore           # Docker ignore rules
+├── .env                    # Environment variables (not committed)
+├── .env.example            # Example environment variables
+├── .gitignore              # Git ignore rules
 ├── AdminSeeder.php         # Database seeder for admins
 ├── Dockerfile              # Docker configuration for deployment
-├── render.yaml             # Render deployment configuration
-├── .dockerignore           # Docker ignore rules
-├── .env.example            # Example environment variables
-├── .env                    # Environment variables (not committed)
-└── favicon.ico             # API favicon
-```
+├── favicon.ico             # API favicon
+├── index.php               # API entry point and routing
+├── migrate.php             # Migration execution script
+└── render.yaml             # Render deployment configuration
 
 ### Architecture Components
 
@@ -204,6 +261,54 @@ backend/
 | POST | `/api/admin/roles` | Create new role |
 | PUT | `/api/admin/roles/{id}` | Update role |
 | DELETE | `/api/admin/roles/{id}` | Delete role |
+
+### Event Organizations Endpoints
+
+| Method | Endpoint | Description |
+|--------|----------|-------------|
+| GET | `/api/admin/event-organizations` | Get all event-organization relationships |
+| GET | `/api/admin/event-organizations/{id}` | Get event-organization by ID |
+| POST | `/api/admin/event-organizations` | Create new event-organization relationship |
+| PUT | `/api/admin/event-organizations/{id}` | Update event-organization relationship |
+| DELETE | `/api/admin/event-organizations/{id}` | Delete event-organization relationship |
+
+### Member Tasks Endpoints
+
+| Method | Endpoint | Description |
+|--------|----------|-------------|
+| GET | `/api/admin/member-tasks` | Get all member tasks |
+| GET | `/api/admin/member-tasks/{id}` | Get member task by ID |
+| POST | `/api/admin/member-tasks` | Create new member task |
+| PUT | `/api/admin/member-tasks/{id}` | Update member task |
+| DELETE | `/api/admin/member-tasks/{id}` | Delete member task |
+
+### Session Endpoints
+
+| Method | Endpoint | Description |
+|--------|----------|-------------|
+| POST | `/api/sessions` | Create new session |
+| GET | `/api/sessions/{id}` | Get session by ID |
+| DELETE | `/api/sessions/{id}` | Delete session |
+
+### Adviser Authentication Endpoints
+
+| Method | Endpoint | Description |
+|--------|----------|-------------|
+| POST | `/api/adviser/login` | Adviser login with OTP |
+| POST | `/api/adviser/send-otp` | Send OTP to adviser email |
+| POST | `/api/adviser/verify-otp` | Verify OTP for adviser |
+| POST | `/api/adviser/forgot-password` | Request password reset |
+| POST | `/api/adviser/reset-password` | Reset adviser password |
+
+### Student Authentication Endpoints
+
+| Method | Endpoint | Description |
+|--------|----------|-------------|
+| POST | `/api/student/login` | Student login with OTP |
+| POST | `/api/student/send-otp` | Send OTP to student email |
+| POST | `/api/student/verify-otp` | Verify OTP for student |
+| POST | `/api/student/forgot-password` | Request password reset |
+| POST | `/api/student/reset-password` | Reset student password |
 
 ## Database Setup
 
@@ -577,6 +682,32 @@ Error responses:
 - **Inheritance**: Extend base classes for shared functionality
 - **Polymorphism**: Use interfaces and abstract classes where appropriate
 - **Single Responsibility**: Each class should have one reason to change
+
+### New Features in v2.2.0
+
+- **Adviser Authentication System**: Complete OTP-based authentication for advisers
+  - OTP generation and verification via email
+  - Forgot password functionality with email verification
+  - Session management for advisers
+  - Adviser-specific event and organization management endpoints
+- **Student Authentication System**: Complete OTP-based authentication for students
+  - OTP generation and verification via email
+  - Forgot password functionality with email verification
+  - Session management for students
+  - Student-specific task management endpoints
+- **Event Organizations**: New API for managing event-organization relationships with approver workflow
+- **Member Tasks**: Comprehensive task management system
+  - Task assignment to students
+  - Daily schedule tracking for tasks
+  - Task status management (pending, in-progress, completed)
+  - Student-specific task tracking with start/end dates
+- **Email Service**: Integrated email service for OTP delivery and password reset
+  - Email templates for advisers and students
+  - Configurable mailer settings
+- **Session Management**: New session table and controller for managing user sessions
+- **Enhanced Database Schema**: 21 new migrations for OTP, tasks, schedules, and session management
+- **Sub-controllers and Sub-models**: Better code organization with dedicated sub-directories for adviser and student functionality
+- **CORS Configuration**: Dedicated CORS configuration file for better cross-origin request handling
 
 ### Bug Fixes in v2.1
 

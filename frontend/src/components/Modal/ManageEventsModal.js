@@ -39,16 +39,30 @@ export function openManageEventsModal({ mode = 'add', event = null, eventId = nu
                 <legend class="text-xs font-semibold text-gray-500 uppercase tracking-wider mb-3">Event Information</legend>
                 <div class="space-y-3">
                     <div>
-                        <label for="organizationId" class="block text-sm font-medium text-gray-700 mb-1">Organization <span class="text-red-500">*</span></label>
-                        <select id="organizationId" name="organizationId" required
-                            class="w-full px-3 py-2 text-sm border border-gray-200 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-transparent bg-white transition">
-                            <option value="">Select Organization</option>
-                        </select>
+                        <label for="organizationIds" class="block text-sm font-medium text-gray-700 mb-1">Organizations <span class="text-red-500">*</span></label>
+                        <div id="organizationCheckboxes" class="space-y-2 max-h-40 overflow-y-auto border border-gray-200 rounded-md p-3 bg-gray-50">
+                            <p class="text-sm text-gray-400">Loading organizations...</p>
+                        </div>
                     </div>
                     <div>
-                        <label for="eventDate" class="block text-sm font-medium text-gray-700 mb-1">Event Date <span class="text-red-500">*</span></label>
-                        <input type="datetime-local" id="eventDate" name="eventDate" value="${isEdit && event ? event.event_date : ''}" required
+                        <label for="eventDayStart" class="block text-sm font-medium text-gray-700 mb-1">Event Day Start <span class="text-red-500">*</span></label>
+                        <input type="date" id="eventDayStart" name="eventDayStart" value="${isEdit && event ? event.event_day_start : ''}" required
                             class="w-full px-3 py-2 text-sm border border-gray-200 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-transparent transition">
+                    </div>
+                    <div>
+                        <label for="eventDayEnd" class="block text-sm font-medium text-gray-700 mb-1">Event Day End <span class="text-red-500">*</span></label>
+                        <input type="date" id="eventDayEnd" name="eventDayEnd" value="${isEdit && event ? event.event_day_end : ''}" required
+                            class="w-full px-3 py-2 text-sm border border-gray-200 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-transparent transition">
+                    </div>
+                    <div id="dailySchedulesContainer" class="hidden">
+                        <div class="flex items-center justify-between mb-2">
+                            <label class="block text-sm font-medium text-gray-700">Daily Schedule Configuration</label>
+                            <button type="button" id="setSameTimeBtn" class="px-3 py-1 text-xs font-medium text-blue-900 bg-blue-50 hover:bg-blue-100 rounded border border-blue-200 transition">
+                                Set Same Time for All Days
+                            </button>
+                        </div>
+                        <div id="dailySchedulesList" class="space-y-2 max-h-60 overflow-y-auto border border-gray-200 rounded-md p-3 bg-gray-50">
+                        </div>
                     </div>
                     <div>
                         <label for="eventVenue" class="block text-sm font-medium text-gray-700 mb-1">Venue</label>
@@ -149,7 +163,8 @@ function populateFormWithEvent(event) {
     document.getElementById('eventId').value = event.id;
     document.getElementById('eventTitle').value = event.title;
     document.getElementById('eventDescription').value = event.description || '';
-    document.getElementById('eventDate').value = event.event_date;
+    document.getElementById('eventDayStart').value = event.event_day_start || '';
+    document.getElementById('eventDayEnd').value = event.event_day_end || '';
     document.getElementById('eventVenue').value = event.venue || '';
     document.getElementById('eventCategory').value = ['Seminar', 'Outreach', 'General Assembly', 'Workshop', 'Competition', 'Social Event'].includes(event.event_category) ? event.event_category : 'Other';
 
@@ -165,7 +180,28 @@ function populateFormWithEvent(event) {
         }
     }, 50);
 
-    loadOrganizations(event.organization_id);
+    const selectedOrgIds = event.organization_ids ? event.organization_ids.split(',').map(id => parseInt(id.trim())) : [event.organization_id].filter(id => id);
+    loadOrganizations(selectedOrgIds);
+
+    if (event.daily_schedules && event.daily_schedules.length > 0) {
+        const dailySchedulesContainer = document.getElementById('dailySchedulesContainer');
+        if (dailySchedulesContainer) {
+            dailySchedulesContainer.classList.remove('hidden');
+        }
+        renderDailySchedules(event.daily_schedules);
+    } else if (event.event_day_start && event.event_day_end) {
+
+        const dailySchedulesContainer = document.getElementById('dailySchedulesContainer');
+        if (dailySchedulesContainer) {
+            dailySchedulesContainer.classList.remove('hidden');
+            const dates = getDatesInRange(new Date(event.event_day_start), new Date(event.event_day_end));
+            renderDailySchedules(dates.map(date => ({
+                date: date.toISOString().split('T')[0],
+                start_time: '09:00',
+                end_time: '17:00'
+            })));
+        }
+    }
 }
 
 function setupFormHandlers(eventId, buttonText, onSubmit) {
@@ -194,12 +230,107 @@ function setupFormHandlers(eventId, buttonText, onSubmit) {
         });
     }
 
+    const eventDayStart = document.getElementById('eventDayStart');
+    const eventDayEnd = document.getElementById('eventDayEnd');
+    const dailySchedulesContainer = document.getElementById('dailySchedulesContainer');
+    const setSameTimeBtn = document.getElementById('setSameTimeBtn');
+    
+    const generateDailySchedules = () => {
+        const startDate = eventDayStart.value;
+        const endDate = eventDayEnd.value;
+
+        if (startDate && endDate) {
+            const start = new Date(startDate);
+            const end = new Date(endDate);
+
+            if (isNaN(start.getTime()) || isNaN(end.getTime())) {
+                console.error('Invalid dates provided');
+                return;
+            }
+
+            dailySchedulesContainer.classList.remove('hidden');
+            const dates = getDatesInRange(start, end);
+            renderDailySchedules(dates.map(date => ({
+                date: date.toISOString().split('T')[0],
+                start_time: '09:00',
+                end_time: '17:00'
+            })));
+        } else {
+            dailySchedulesContainer.classList.add('hidden');
+        }
+    };
+    
+    if (eventDayStart && eventDayEnd) {
+        eventDayStart.addEventListener('change', generateDailySchedules);
+        eventDayEnd.addEventListener('change', generateDailySchedules);
+    }
+
+    if (setSameTimeBtn) {
+        setSameTimeBtn.addEventListener('click', () => {
+            const scheduleInputs = document.querySelectorAll('#dailySchedulesList > div');
+            if (scheduleInputs.length === 0) {
+                showToast('Please select a date range first', 'error');
+                return;
+            }
+
+            const firstStart = scheduleInputs[0].querySelector('input[type="time"][name^="schedule_start"]').value;
+            const firstEnd = scheduleInputs[0].querySelector('input[type="time"][name^="schedule_end"]').value;
+
+            scheduleInputs.forEach((div, index) => {
+                const startInput = div.querySelector(`input[name="schedule_start_${index}"]`);
+                const endInput = div.querySelector(`input[name="schedule_end_${index}"]`);
+                if (startInput) startInput.value = firstStart;
+                if (endInput) endInput.value = firstEnd;
+            });
+            
+            showToast('Same time applied to all days', 'success');
+        });
+    }
+
     if (!eventId) {
         loadOrganizations();
     }
 }
 
-async function loadOrganizations(selectedOrgId = null) {
+function getDatesInRange(startDate, endDate) {
+    const dates = [];
+    let currentDate = new Date(startDate);
+    const end = new Date(endDate);
+    
+    while (currentDate <= end) {
+        dates.push(new Date(currentDate));
+        currentDate.setDate(currentDate.getDate() + 1);
+    }
+    
+    return dates;
+}
+
+function renderDailySchedules(schedules) {
+    const container = document.getElementById('dailySchedulesList');
+    if (!container) return;
+    
+    container.innerHTML = schedules.map((schedule, index) => {
+        const dateValue = schedule.date || schedule.schedule_date;
+        const date = new Date(dateValue);
+        const formattedDate = date.toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' });
+        const startTime = schedule.start_time || '09:00';
+        const endTime = schedule.end_time || '17:00';
+        
+        return `
+            <div class="flex items-center gap-2 p-2 bg-white rounded border border-gray-200">
+                <span class="text-xs font-medium text-gray-700 w-28">${formattedDate}</span>
+                <input type="time" name="schedule_start_${index}" value="${startTime}" 
+                    class="px-2 py-1 text-xs border border-gray-200 rounded focus:ring-2 focus:ring-blue-500">
+                <span class="text-xs text-gray-500">to</span>
+                <input type="time" name="schedule_end_${index}" value="${endTime}" 
+                    class="px-2 py-1 text-xs border border-gray-200 rounded focus:ring-2 focus:ring-blue-500">
+                <input type="hidden" name="schedule_date_${index}" value="${dateValue}">
+            </div>
+        `;
+    }).join('');
+}
+
+async function loadOrganizations(selectedOrgIds = []) {
     try {
         const cachedData = localStorage.getItem('cachedOrganizations');
         let organizations;
@@ -219,21 +350,22 @@ async function loadOrganizations(selectedOrgId = null) {
             localStorage.setItem('cachedOrganizationsTimestamp', Date.now().toString());
         }
         
-        const orgSelect = document.getElementById('organizationId');
-        if (orgSelect) {
-            orgSelect.innerHTML = '<option value="">Select Organization</option>';
-            organizations.forEach(org => {
-                const option = document.createElement('option');
-                option.value = org.id;
-                option.textContent = org.name;
-                if (selectedOrgId && selectedOrgId == org.id) {
-                    option.selected = true;
-                }
-                orgSelect.appendChild(option);
-            });
+        const orgContainer = document.getElementById('organizationCheckboxes');
+        if (orgContainer) {
+            orgContainer.innerHTML = organizations.map(org => `
+                <label class="flex items-center space-x-2 cursor-pointer hover:bg-gray-100 p-1 rounded">
+                    <input type="checkbox" name="organizationIds" value="${org.id}" ${selectedOrgIds.includes(org.id) ? 'checked' : ''}
+                        class="w-4 h-4 text-blue-900 border-gray-300 rounded focus:ring-blue-500">
+                    <span class="text-sm text-gray-700">${org.name}</span>
+                </label>
+            `).join('');
         }
     } catch (error) {
         console.error('Error loading organizations:', error);
+        const orgContainer = document.getElementById('organizationCheckboxes');
+        if (orgContainer) {
+            orgContainer.innerHTML = '<p class="text-sm text-red-500">Failed to load organizations</p>';
+        }
         showToast('Failed to load organizations', 'error');
     }
 }
@@ -262,11 +394,40 @@ async function processEventSubmit(id, buttonText, onSubmit) {
         eventCategory = customCategoryInput.value.trim();
     }
 
+    const orgCheckboxes = document.querySelectorAll('input[name="organizationIds"]:checked');
+    const organizationIds = Array.from(orgCheckboxes).map(cb => parseInt(cb.value));
+
+    if (organizationIds.length === 0) {
+        showFormError('Please select at least one organization');
+        return;
+    }
+
+    const eventDayStart = document.getElementById('eventDayStart').value;
+    const eventDayEnd = document.getElementById('eventDayEnd').value;
+
+    const scheduleInputs = document.querySelectorAll('#dailySchedulesList > div');
+    const dailySchedules = [];
+    scheduleInputs.forEach((div, index) => {
+        const date = div.querySelector(`input[name="schedule_date_${index}"]`).value;
+        const startTime = div.querySelector(`input[name="schedule_start_${index}"]`).value;
+        const endTime = div.querySelector(`input[name="schedule_end_${index}"]`).value;
+ 
+        if (date && date !== '0000-00-00' && date !== '') {
+            dailySchedules.push({
+                date: date,
+                start_time: startTime,
+                end_time: endTime
+            });
+        }
+    });
+
     const formData = {
         title: document.getElementById('eventTitle').value.trim(),
         description: document.getElementById('eventDescription').value.trim(),
-        organization_id: document.getElementById('organizationId').value,
-        event_date: document.getElementById('eventDate').value,
+        organization_ids: organizationIds,
+        event_day_start: eventDayStart,
+        event_day_end: eventDayEnd,
+        daily_schedules: dailySchedules,
         venue: document.getElementById('eventVenue').value.trim(),
         event_category: eventCategory
     };
@@ -338,14 +499,32 @@ export async function openViewEventsModal(id) {
 
     try {
         const event = await EventsAPI.getEvent(id);
-        const eventDate = event.event_date ? new Date(event.event_date).toLocaleString('en-PH', {
-            weekday: 'long',
-            year: 'numeric',
-            month: 'long',
-            day: 'numeric',
-            hour: '2-digit',
-            minute: '2-digit'
-        }) : 'N/A';
+        
+        const formatDate = (date) => {
+            if (!date) return 'N/A';
+            return new Date(date).toLocaleDateString('en-PH', {
+                weekday: 'long',
+                year: 'numeric',
+                month: 'long',
+                day: 'numeric'
+            });
+        };
+        
+        const eventDayStart = formatDate(event.event_day_start);
+        const eventDayEnd = formatDate(event.event_day_end);
+        const dateRange = event.event_day_start === event.event_day_end 
+            ? eventDayStart 
+            : `${eventDayStart} to ${eventDayEnd}`;
+        
+        const formatTime = (time) => {
+            if (!time) return 'N/A';
+            const [hours, minutes] = time.substring(0, 5).split(':');
+            const hour = parseInt(hours);
+            const ampm = hour >= 12 ? 'PM' : 'AM';
+            const hour12 = hour % 12 || 12;
+            return `${hour12}:${minutes} ${ampm}`;
+        };
+        
         const createdAt = event.created_at ? new Date(event.created_at).toLocaleDateString('en-PH', {
             weekday: 'long',
             year: 'numeric',
@@ -395,9 +574,9 @@ export async function openViewEventsModal(id) {
                 <div class="border-b border-gray-200 pb-4">
                     <h4 class="text-xs font-semibold text-gray-500 uppercase tracking-wider mb-3">Event Information</h4>
                     <dl class="grid grid-cols-1 sm:grid-cols-2 gap-x-6 gap-y-3">
-                        <div>
-                            <dt class="text-xs text-gray-400 font-medium">Event Date</dt>
-                            <dd class="text-sm font-semibold text-gray-900 mt-0.5">${eventDate}</dd>
+                        <div class="sm:col-span-2">
+                            <dt class="text-xs text-gray-400 font-medium">Date Range</dt>
+                            <dd class="text-sm font-semibold text-gray-900 mt-0.5">${dateRange}</dd>
                         </div>
                         <div>
                             <dt class="text-xs text-gray-400 font-medium">Venue</dt>
@@ -409,6 +588,24 @@ export async function openViewEventsModal(id) {
                         </div>
                     </dl>
                 </div>
+
+                ${event.daily_schedules && event.daily_schedules.length > 0 ? `
+                <div class="border-b border-gray-200 pb-4">
+                    <h4 class="text-xs font-semibold text-gray-500 uppercase tracking-wider mb-3">Daily Schedule</h4>
+                    <div class="space-y-2 max-h-48 overflow-y-auto">
+                        ${event.daily_schedules.map(schedule => {
+                            const date = new Date(schedule.schedule_date);
+                            const formattedDate = date.toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' });
+                            return `
+                                <div class="flex items-center justify-between p-2 bg-gray-50 rounded border border-gray-100">
+                                    <span class="text-sm font-medium text-gray-700">${formattedDate}</span>
+                                    <span class="text-sm text-gray-600">${formatTime(schedule.start_time)} - ${formatTime(schedule.end_time)}</span>
+                                </div>
+                            `;
+                        }).join('')}
+                    </div>
+                </div>
+                ` : ''}
 
                 <div class="border-b border-gray-200 pb-4">
                     <h4 class="text-xs font-semibold text-gray-500 uppercase tracking-wider mb-3">Timestamps</h4>

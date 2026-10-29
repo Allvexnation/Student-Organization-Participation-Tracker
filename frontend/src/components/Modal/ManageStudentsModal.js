@@ -99,27 +99,18 @@ export function openManageStudentsModal({ mode = 'add', student = null, studentI
             <fieldset>
                 <legend class="text-xs font-semibold text-gray-500 uppercase tracking-wider mb-3">Account Information</legend>
                 <div class="space-y-3">
-                    <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                        <div>
-                            <label for="username" class="block text-sm font-medium text-gray-700 mb-1">Username <span class="text-red-500">*</span></label>
-                            <input type="text" id="username" name="username" value="${isEdit && student ? student.username : ''}" required
-                                placeholder="e.g. juandelacruz"
-                                class="w-full px-3 py-2 text-sm border border-gray-200 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-transparent transition">
-                        </div>
-                        <div>
-                            <label for="email" class="block text-sm font-medium text-gray-700 mb-1">Email <span class="text-red-500">*</span></label>
-                            <input type="email" id="email" name="email" value="${isEdit && student ? student.email : ''}" required
-                                placeholder="e.g. juan@example.com"
-                                class="w-full px-3 py-2 text-sm border border-gray-200 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-transparent transition">
-                        </div>
-                    </div>
                     <div>
-                        <label for="password" class="block text-sm font-medium text-gray-700 mb-1">Password ${!isEdit ? '<span class="text-red-500">*</span>' : ''}</label>
-                        <input type="password" id="password" name="password" ${!isEdit ? 'required' : ''}
-                            placeholder="${isEdit ? 'Leave blank to keep existing password' : 'Enter password'}"
+                        <label for="email" class="block text-sm font-medium text-gray-700 mb-1">Email <span class="text-red-500">*</span></label>
+                        <input type="email" id="email" name="email" value="${isEdit && student ? student.email : ''}" required
+                            placeholder="e.g. juan@example.com"
                             class="w-full px-3 py-2 text-sm border border-gray-200 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-transparent transition">
-                        ${isEdit ? '<p class="text-xs text-gray-400 mt-1">Leave blank to keep existing password</p>' : ''}
                     </div>
+                    ${!isEdit ? `
+                    <p class="text-xs text-gray-500 bg-blue-50 border border-blue-200 rounded-md px-3 py-2">
+                        <i data-lucide="info" class="w-4 h-4 inline mr-1"></i>
+                        Username and password will be auto-generated and sent to the student's email.
+                    </p>
+                    ` : ``}
                 </div>
             </fieldset>
 
@@ -290,19 +281,18 @@ async function processStudentSubmit(id, buttonText, onSubmit) {
 
     let imageUrl = document.getElementById('imageUrl').value;
 
+    const isEdit = id != null;
+
     const formData = {
         student_number: document.getElementById('studentNumber').value.trim(),
         first_name: document.getElementById('firstName').value.trim(),
         last_name: document.getElementById('lastName').value.trim(),
         program: document.getElementById('program').value.trim(),
         year_level: document.getElementById('yearLevel').value,
-        username: document.getElementById('username').value.trim(),
         email: document.getElementById('email').value.trim(),
-        password: document.getElementById('password').value,
         profile_photo: imageUrl
     };
 
-    const isEdit = id != null;
 
     if (isEdit) {
         openConfirmDialog({
@@ -328,9 +318,13 @@ async function processStudentSubmit(id, buttonText, onSubmit) {
     } else {
         setModalButtonLoading('submitBtn', true, buttonText);
         try {
-            await onSubmit(id, formData);
+            const response = await onSubmit(id, formData);
             closeManageStudentsModal();
-            showToast('Student added successfully', 'success');
+            if (response && response.username) {
+                showToast(`Student added successfully. Username: ${response.username}. Password sent to email.`, 'success');
+            } else {
+                showToast('Student added successfully', 'success');
+            }
         } catch (error) {
             console.error('Error saving student:', error);
             showFormError('Failed to save student. Please try again.');

@@ -1,13 +1,16 @@
 <?php
 
 require_once __DIR__ . '/../model/AdminModel.php';
+require_once __DIR__ . '/../model/SessionModel.php';
 require_once __DIR__ . '/../config/jwt.php';
 
 class AdminController {
     private $adminModel;
+    private $sessionModel;
 
     public function __construct() {
         $this->adminModel = new AdminModel();
+        $this->sessionModel = new SessionModel();
     }
 
     public function login() {
@@ -39,6 +42,17 @@ class AdminController {
                 'role' => 'admin'
             ];
             $token = JWT::encode($tokenPayload);
+            
+            $expiresAt = date('Y-m-d H:i:s', time() + (24 * 60 * 60));
+            $sessionData = [
+                'user_id' => $admin['id'],
+                'user_type' => 'admin',
+                'token' => $token,
+                'expires_at' => $expiresAt,
+                'is_active' => 1
+            ];
+            
+            $this->sessionModel->create($sessionData);
             
             http_response_code(200);
             echo json_encode([

@@ -1,5 +1,5 @@
 import { AdminNavbar, initAdminNavbar } from '../../../components/Navbar/AdminNavbar.js';
-import { requireAuth } from '../../../utils/jwt.js';
+import { protectAdminRoute } from '../../../middleware/AdminMiddleware.js';
 import * as EventsAPI from '../../../api/admin/Events/ManageEvents.js';
 import { initManageEventsAnimations, animateTableRows } from '../../../provider/Animation/ManageEventsAnimation.js';
 import { openManageEventsModal, openViewEventsModal } from '../../../components/Modal/ManageEventsModal.js';
@@ -41,13 +41,14 @@ export function ManageEvents() {
                                 <th class="px-5 py-3.5 w-12 text-center">#</th>
                                 <th class="px-5 py-3.5">Title</th>
                                 <th class="px-5 py-3.5 hidden sm:table-cell">Organization</th>
-                                <th class="px-5 py-3.5">Date</th>
+                                <th class="px-5 py-3.5">Date Range</th>
+                                <th class="px-5 py-3.5 hidden sm:table-cell">Schedules</th>
                                 <th class="px-5 py-3.5 hidden sm:table-cell">Venue</th>
                                 <th class="px-5 py-3.5 text-center w-28">Actions</th>
                             </tr>
                         </thead>
                         <tbody id="eventTableBody" class="divide-y divide-gray-100">
-                            ${skeletonTableRows(window.innerWidth < 640 ? 3 : 4, window.innerWidth < 640 ? 3 : 5, true)}
+                            ${skeletonTableRows(window.innerWidth < 640 ? 3 : 4, window.innerWidth < 640 ? 3 : 6, true)}
                         </tbody>
                     </table>
                 </div>
@@ -57,7 +58,7 @@ export function ManageEvents() {
 }
 
 export async function initManageEvents() {
-    requireAuth();
+    protectAdminRoute();
     await initAdminNavbar();
 
     initManageEventsAnimations();
@@ -67,7 +68,11 @@ export async function initManageEvents() {
 
     async function loadEvents(forceRefresh = false) {
         const cachedData = localStorage.getItem('cachedEvents');
-        if (cachedData && !forceRefresh) {
+        const cachedTimestamp = localStorage.getItem('cachedEventsTimestamp');
+        const cacheAge = cachedTimestamp ? Date.now() - parseInt(cachedTimestamp) : Infinity;
+        
+        // Force refresh if cache is older than 5 minutes or explicitly requested
+        if (cachedData && !forceRefresh && cacheAge < 300000) {
             try {
                 events = JSON.parse(cachedData);
                 renderEvents(events);
@@ -90,7 +95,7 @@ export async function initManageEvents() {
             if (tbody) {
                 tbody.innerHTML = `
                     <tr>
-                        <td colspan="6" class="px-5 py-12 text-center text-red-500">Failed to load events</td>
+                        <td colspan="7" class="px-5 py-12 text-center text-red-500">Failed to load events</td>
                     </tr>
                 `;
             }
@@ -109,7 +114,7 @@ export async function initManageEvents() {
         if (!data || data.length === 0) {
             tbody.innerHTML = `
                 <tr>
-                    <td colspan="6" class="px-5 py-12 text-center">
+                    <td colspan="7" class="px-5 py-12 text-center">
                         <i data-lucide="calendar" class="w-10 h-10 text-gray-200 mx-auto mb-2"></i>
                         <p class="text-sm text-gray-500 font-medium">No events found.</p>
                         <p class="text-xs text-gray-400 mt-1">Click "Add New" to create the first event.</p>
@@ -121,6 +126,31 @@ export async function initManageEvents() {
         }
 
         tbody.innerHTML = data.map((event, index) => {
+            const formatDate = (date) => {
+                if (!date) return '—';
+                return new Date(date).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
+            };
+            
+            const formatTime = (time) => {
+                if (!time) return '—';
+                const [hours, minutes] = time.split(':');
+                const hour = parseInt(hours);
+                const ampm = hour >= 12 ? 'PM' : 'AM';
+                const hour12 = hour % 12 || 12;
+                return `${hour12}:${minutes} ${ampm}`;
+            };
+            
+            const dateRange = event.event_day_start && event.event_day_end 
+                ? (event.event_day_start === event.event_day_end 
+                    ? formatDate(event.event_day_start) 
+                    : `${formatDate(event.event_day_start)} - ${formatDate(event.event_day_end)}`)
+                : '—';
+            
+            const scheduleCount = event.daily_schedules ? event.daily_schedules.length : 0;
+            const scheduleInfo = scheduleCount > 0 
+                ? `<span class="text-xs text-blue-600 font-medium">${scheduleCount} day${scheduleCount > 1 ? 's' : ''}</span>`
+                : '<span class="text-xs text-gray-400">No schedules</span>';
+            
             return `
             <tr style="transition: background-color 0.2s;" onmouseover="this.style.backgroundColor = document.documentElement.classList.contains('dark') ? 'rgba(255, 255, 255, 0.02)' : 'rgba(0, 0, 0, 0.1)'" onmouseout="this.style.backgroundColor = ''">
                 <td class="px-3 sm:px-5 py-2 sm:py-3.5 text-xs text-gray-400 text-center font-mono">
@@ -131,7 +161,10 @@ export async function initManageEvents() {
                 </td>
                 <td class="px-3 sm:px-5 py-2 sm:py-3.5 hidden sm:table-cell text-gray-600 text-sm truncate">${event.organization_name || 'N/A'}</td>
                 <td class="px-3 sm:px-5 py-2 sm:py-3.5 text-gray-600 text-sm whitespace-nowrap">
-                    ${event.event_date ? new Date(event.event_date).toLocaleDateString() : '—'}
+                    ${dateRange}
+                </td>
+                <td class="px-3 sm:px-5 py-2 sm:py-3.5 hidden sm:table-cell">
+                    ${scheduleInfo}
                 </td>
                 <td class="px-3 sm:px-5 py-2 sm:py-3.5 hidden sm:table-cell text-gray-600 text-sm truncate">${event.venue || 'N/A'}</td>
                 <td class="px-3 sm:px-5 py-2 sm:py-3.5 text-center">

@@ -9,7 +9,19 @@ import { ManageOrganizations, initManageOrganizations } from './src/pages/admin/
 import { ManageEvents, initManageEvents } from './src/pages/admin/Events/ManageEvents.js';
 import { ManageEventRegist, initManageEventRegist } from './src/pages/admin/EventRegistrations/ManageEventRegist.js';
 import { ManageOrgMemberships, initManageOrgMemberships } from './src/pages/admin/OrgMemeberships/ManageOrgMemberships.js';
-import { isAuthenticated } from './src/utils/jwt.js';
+import { AdviserLogin, initAdviserLogin } from './src/pages/adviser/AdviserLogin.js';
+import { AdviserDashboard, initAdviserDashboard } from './src/pages/adviser/AdviserDashboard.js';
+import { AdviserProfile, initAdviserProfile } from './src/pages/adviser/AdviserProfile.js';
+import { AdviserOrganization, initAdviserOrganization } from './src/pages/adviser/Organization/AdviserOrganization.js';
+import { AdviserEvents, initAdviserEvents } from './src/pages/adviser/Events/AdviserEvents.js';
+import { AdviserForgotPassword, initAdviserForgotPassword } from './src/pages/adviser/AdviserForgotPassword.js';
+import { StudentLogin, initStudentLogin } from './src/pages/students/StudentLogin.js';
+import { StudentForgotPassword, initStudentForgotPassword } from './src/pages/students/StudentForgotPassword.js';
+import { StudentDashboard, initStudentDashboard } from './src/pages/students/StudentDashboard.js';
+import { StudentProfile, initStudentProfile } from './src/pages/students/StudentProfile.js';
+import { EventTask, initEventTask } from './src/pages/students/Task/EventTask.js';
+import { NotFoundPage, initNotFoundPage } from './src/pages/404/404.js';
+import { isAuthenticated, getUserRole } from './src/utils/jwt.js';
 
 const link = document.createElement('link');
 link.rel = 'stylesheet';
@@ -30,7 +42,19 @@ export class App {
             '/admin/organizations': ManageOrganizations,
             '/admin/events': ManageEvents,
             '/admin/event-registrations': ManageEventRegist,
-            '/admin/org-memberships': ManageOrgMemberships
+            '/admin/org-memberships': ManageOrgMemberships,
+            '/auth/adviser/login': AdviserLogin,
+            '/auth/adviser/forgot-password': AdviserForgotPassword,
+            '/adviser/dashboard': AdviserDashboard,
+            '/adviser/profile': AdviserProfile,
+            '/adviser/organization': AdviserOrganization,
+            '/adviser/events': AdviserEvents,
+            '/auth/student/login': StudentLogin,
+            '/auth/student/forgot-password': StudentForgotPassword,
+            '/student/dashboard': StudentDashboard,
+            '/student/profile': StudentProfile,
+            '/student/tasks': EventTask,
+            '404': NotFoundPage
         };
         this.initFunctions = {
             '/': initHomePage,
@@ -43,7 +67,19 @@ export class App {
             '/admin/organizations': initManageOrganizations,
             '/admin/events': initManageEvents,
             '/admin/event-registrations': initManageEventRegist,
-            '/admin/org-memberships': initManageOrgMemberships
+            '/admin/org-memberships': initManageOrgMemberships,
+            '/auth/adviser/login': initAdviserLogin,
+            '/auth/adviser/forgot-password': initAdviserForgotPassword,
+            '/adviser/dashboard': initAdviserDashboard,
+            '/adviser/profile': initAdviserProfile,
+            '/adviser/organization': initAdviserOrganization,
+            '/adviser/events': initAdviserEvents,
+            '/auth/student/login': initStudentLogin,
+            '/auth/student/forgot-password': initStudentForgotPassword,
+            '/student/dashboard': initStudentDashboard,
+            '/student/profile': initStudentProfile,
+            '/student/tasks': initEventTask,
+            '404': initNotFoundPage
         };
 
         window.addEventListener('popstate', () => this.render());
@@ -62,17 +98,28 @@ export class App {
 
     render() {
         let route = this.getCurrentRoute();
+        const userRole = getUserRole();
 
-        if (route === '/auth/admin/login' && isAuthenticated()) {
+        if (route === '/auth/admin/login' && isAuthenticated() && userRole === 'admin') {
             route = '/admin/dashboard';
             this.navigate('/admin/dashboard');
         }
 
-        const pageComponent = this.routes[route] || this.routes['/'];
+        if (route === '/auth/adviser/login' && isAuthenticated() && userRole === 'adviser') {
+            route = '/adviser/dashboard';
+            this.navigate('/adviser/dashboard');
+        }
+
+        if (route === '/auth/student/login' && isAuthenticated() && userRole === 'student') {
+            route = '/student/dashboard';
+            this.navigate('/student/dashboard');
+        }
+
+        const pageComponent = this.routes[route] || this.routes['404'];
 
         this.root.innerHTML = pageComponent();
 
-        const initFunction = this.initFunctions[route] || this.initFunctions['/'];
+        const initFunction = this.initFunctions[route] || this.initFunctions['404'];
         if (initFunction) {
             initFunction();
         }

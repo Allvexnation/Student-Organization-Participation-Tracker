@@ -116,6 +116,40 @@ class OrganizationMembershipsModel {
         }
     }
 
+    public function readByOrganizationId($organization_id) {
+        if (!$this->conn) {
+            error_log("Database connection is null");
+            return false;
+        }
+
+        $query = "SELECT om.id, om.organization_id, om.student_id, om.date_joined, om.role_id, om.membership_status, om.updated_at, om.created_at,
+                         s.first_name, s.last_name, s.student_number,
+                         o.name as organization_name,
+                         r.role_name
+                  FROM " . $this->table_name . " om
+                  LEFT JOIN students s ON om.student_id = s.id
+                  LEFT JOIN organizations o ON om.organization_id = o.id
+                  LEFT JOIN roles r ON om.role_id = r.id
+                  WHERE om.organization_id = :organization_id
+                  ORDER BY om.created_at DESC";
+
+        try {
+            $stmt = $this->conn->prepare($query);
+            $stmt->bindParam(':organization_id', $organization_id);
+            $stmt->execute();
+            $results = $stmt->fetchAll(PDO::FETCH_ASSOC);
+
+            foreach ($results as &$membership) {
+                $membership['student_name'] = $membership['first_name'] . ' ' . $membership['last_name'];
+            }
+
+            return $results;
+        } catch(PDOException $e) {
+            error_log("Error reading organization memberships by organization: " . $e->getMessage());
+            return false;
+        }
+    }
+
     public function update($id, $data) {
         $query = "UPDATE " . $this->table_name . " 
                   SET organization_id = :organization_id, 

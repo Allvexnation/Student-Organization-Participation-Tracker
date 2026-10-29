@@ -87,11 +87,12 @@ export async function updateAdviser(id, data) {
     }
 }
 
-export async function deleteAdviser(id) {
+export async function deleteAdviser(id, reason) {
     try {
         const response = await fetch(API_ROUTES.ADMIN.ADVISER_DELETE(id), {
             method: 'DELETE',
-            headers: await getHeaders()
+            headers: await getHeaders(),
+            body: JSON.stringify({ reason })
         });
         
         if (!response.ok) {

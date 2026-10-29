@@ -2,32 +2,22 @@
 
 header('Content-Type: application/json');
 
-$allowedOrigins = [
-    'http://localhost:3000',
-];
-
-$origin = $_SERVER['HTTP_ORIGIN'] ?? '';
-
-if (in_array($origin, $allowedOrigins)) {
-    header('Access-Control-Allow-Origin: ' . $origin);
-    header('Access-Control-Allow-Credentials: true');
-}
-
-header('Access-Control-Allow-Methods: GET, POST, PUT, DELETE, OPTIONS');
-header('Access-Control-Allow-Headers: Content-Type, Authorization');
-
-if ($_SERVER['REQUEST_METHOD'] === 'OPTIONS') {
-    http_response_code(200);
-    exit();
-}
+require_once __DIR__ . '/config/cors.php';
 
 require_once __DIR__ . '/routes/AdminRoutes.php';
+require_once __DIR__ . '/routes/SessionRoutes.php';
 require_once __DIR__ . '/routes/AdviserRoutes.php';
+require_once __DIR__ . '/routes/AdviserAuthRoutes.php';
+require_once __DIR__ . '/routes/Adviser/AdviserOrganizationRoutes.php';
+require_once __DIR__ . '/routes/Adviser/AdviserTasksRoutes.php';
 require_once __DIR__ . '/routes/RoleRoutes.php';
 require_once __DIR__ . '/routes/StudentsRoutes.php';
+require_once __DIR__ . '/routes/Students/StudentAuthRoutes.php';
+require_once __DIR__ . '/routes/Students/EventTaskRoutes.php';
 require_once __DIR__ . '/routes/OrganizationsRoutes.php';
 require_once __DIR__ . '/routes/EventsRoutes.php';
 require_once __DIR__ . '/routes/EventRegistrationsRoutes.php';
+require_once __DIR__ . '/routes/EventOrganizationsRoutes.php';
 require_once __DIR__ . '/routes/OrganizationMembershipsRoutes.php';
 
 $method = $_SERVER['REQUEST_METHOD'];
@@ -48,15 +38,34 @@ if ($uri === '/' || $uri === '') {
 }
 
 $adminRoutes = new AdminRoutes();
+$sessionRoutes = new SessionRoutes();
 $adviserRoutes = new AdviserRoutes();
+$adviserAuthRoutes = new AdviserAuthRoutes();
+$adviserOrganizationRoutes = new AdviserOrganizationRoutes();
+$adviserTasksRoutes = new AdviserTasksRoutes();
 $roleRoutes = new RoleRoutes();
 $studentsRoutes = new StudentsRoutes();
+$studentAuthRoutes = new StudentAuthRoutes();
+$eventTaskRoutes = new EventTaskRoutes();
 $organizationsRoutes = new OrganizationsRoutes();
 $eventsRoutes = new EventsRoutes();
 $eventRegistrationsRoutes = new EventRegistrationsRoutes();
+$eventOrganizationsRoutes = new EventOrganizationsRoutes();
 $orgMembershipsRoutes = new OrganizationMembershipsRoutes();
 
-if (strpos($uri, '/api/admin/advisers') === 0) {
+if (strpos($uri, '/api/session') === 0) {
+    $sessionRoutes->handle($method, $uri);
+} elseif (strpos($uri, '/api/adviser/registered-events') === 0 || strpos($uri, '/api/adviser/organizations-by-event') === 0 || strpos($uri, '/api/adviser/tasks') === 0 || strpos($uri, '/api/adviser/schedule-status') === 0) {
+    $adviserTasksRoutes->handle($method, $uri);
+} elseif (strpos($uri, '/api/adviser/organization') === 0 || strpos($uri, '/api/adviser/organizations') === 0 || strpos($uri, '/api/adviser/current-organization') === 0 || strpos($uri, '/api/adviser/organization-memberships') === 0) {
+    $adviserOrganizationRoutes->handle($method, $uri);
+} elseif (strpos($uri, '/api/adviser/auth') === 0 || strpos($uri, '/api/adviser/login') === 0 || strpos($uri, '/api/adviser/logout') === 0 || strpos($uri, '/api/adviser/verify') === 0 || strpos($uri, '/api/adviser/forgot-password') === 0 || strpos($uri, '/api/adviser/verify-otp') === 0 || strpos($uri, '/api/adviser/reset-password') === 0 || strpos($uri, '/api/adviser/profile') === 0) {
+    $adviserAuthRoutes->handle($method, $uri);
+} elseif (strpos($uri, '/api/student/tasks') === 0 || strpos($uri, '/api/student/schedule-status') === 0) {
+    $eventTaskRoutes->handle($method, $uri);
+} elseif (strpos($uri, '/api/student') === 0) {
+    $studentAuthRoutes->handle($method, $uri);
+} elseif (strpos($uri, '/api/admin/advisers') === 0) {
     $adviserRoutes->handle($method, $uri);
 } elseif (strpos($uri, '/api/admin/roles') === 0) {
     $roleRoutes->handle($method, $uri);
@@ -68,6 +77,8 @@ if (strpos($uri, '/api/admin/advisers') === 0) {
     $eventsRoutes->handle($method, $uri);
 } elseif (strpos($uri, '/api/admin/event-registrations') === 0) {
     $eventRegistrationsRoutes->handle($method, $uri);
+} elseif (strpos($uri, '/api/admin/event-organizations') === 0) {
+    $eventOrganizationsRoutes->handle($method, $uri);
 } elseif (strpos($uri, '/api/admin/organization-memberships') === 0) {
     $orgMembershipsRoutes->handle($method, $uri);
 } else {

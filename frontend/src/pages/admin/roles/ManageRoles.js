@@ -1,5 +1,5 @@
 import { AdminNavbar, initAdminNavbar } from '../../../components/Navbar/AdminNavbar.js';
-import { requireAuth } from '../../../utils/jwt.js';
+import { protectAdminRoute } from '../../../middleware/AdminMiddleware.js';
 import * as RolesAPI from '../../../api/admin/roles/ManageRoles.js';
 import { initManageRolesAnimations, animateTableRows } from '../../../provider/Animation/ManageRolesAnimation.js';
 import { openManageRolesModal, openViewRolesModal } from '../../../components/Modal/ManageRolesModal.js';
@@ -57,7 +57,7 @@ export function ManageRoles() {
 }
 
 export async function initManageRoles() {
-    requireAuth();
+    protectAdminRoute();
     await initAdminNavbar();
 
     initManageRolesAnimations();

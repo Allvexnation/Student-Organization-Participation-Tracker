@@ -1,6 +1,6 @@
 import { logout, getAdminData } from '../../api/admin/AdminLogin.js';
 import { AdminNavbar, initAdminNavbar } from '../../components/Navbar/AdminNavbar.js';
-import { requireAuth } from '../../utils/jwt.js';
+import { protectAdminRoute } from '../../middleware/AdminMiddleware.js';
 
 export function AdminDashboard() {
     const adminData = getAdminData();
@@ -31,6 +31,6 @@ export function AdminDashboard() {
 }
 
 export function initAdminDashboard() {
-    requireAuth();
+    protectAdminRoute();
     initAdminNavbar();
 }

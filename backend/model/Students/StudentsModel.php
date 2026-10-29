@@ -1,6 +1,7 @@
 <?php
 
-require_once __DIR__ . '/../config/db.php';
+require_once __DIR__ . '/../../config/db.php';
+require_once __DIR__ . '/../../utils/CredentialGenerator.php';
 
 class StudentsModel {
     private $conn;
@@ -160,6 +161,9 @@ class StudentsModel {
     }
 
     public function update($id, $data) {
+        // Get existing student to preserve profile photo if not being updated
+        $existingStudent = $this->readOne($id);
+        
         $query = "UPDATE " . $this->table_name . " 
                   SET profile_photo = :profile_photo, 
                       student_number = :student_number, 
@@ -193,6 +197,9 @@ class StudentsModel {
                     $photoData = base64_decode($data['profile_photo']);
                     $stmt->bindParam(':profile_photo', $photoData, PDO::PARAM_LOB);
                 }
+            } elseif ($existingStudent && isset($existingStudent['profile_photo'])) {
+                // Keep existing photo if no new photo provided
+                $stmt->bindParam(':profile_photo', $existingStudent['profile_photo'], PDO::PARAM_LOB);
             } else {
                 $stmt->bindParam(':profile_photo', $null, PDO::PARAM_NULL);
             }
@@ -226,13 +233,82 @@ class StudentsModel {
         try {
             $stmt = $this->conn->prepare($query);
             $stmt->bindParam(':id', $id);
-            
+
             if($stmt->execute()) {
                 return true;
             }
             return false;
         } catch(PDOException $e) {
             echo "Error deleting student: " . $e->getMessage();
+            return false;
+        }
+    }
+
+    public function generateUniqueUsername($firstName, $lastName) {
+        $fullName = $firstName . ' ' . $lastName;
+        return CredentialGenerator::generateUniqueUsername($fullName, [$this, 'usernameExists']);
+    }
+
+    public function usernameExists($username) {
+        $query = "SELECT id FROM " . $this->table_name . " WHERE username = :username LIMIT 1";
+
+        try {
+            $stmt = $this->conn->prepare($query);
+            $stmt->bindParam(':username', $username);
+            $stmt->execute();
+            return $stmt->fetch() !== false;
+        } catch(PDOException $e) {
+            error_log("Error checking username existence: " . $e->getMessage());
+            return false;
+        }
+    }
+
+    public function generateSecurePassword() {
+        return CredentialGenerator::generateSecurePassword(8);
+    }
+
+    public function verifyLogin($usernameOrEmail, $password) {
+        $student = $this->readByUsername($usernameOrEmail);
+        
+        if (!$student) {
+            $student = $this->readByEmail($usernameOrEmail);
+        }
+        
+        if($student && password_verify($password, $student['password'])) {
+            return $student;
+        }
+        
+        return false;
+    }
+
+    public function findByUsernameOrEmail($usernameOrEmail) {
+        $student = $this->readByUsername($usernameOrEmail);
+        
+        if (!$student) {
+            $student = $this->readByEmail($usernameOrEmail);
+        }
+        
+        return $student;
+    }
+
+    public function resetPassword($studentId, $newPassword) {
+        $query = "UPDATE " . $this->table_name . " 
+                  SET password = :password 
+                  WHERE id = :id";
+
+        try {
+            $stmt = $this->conn->prepare($query);
+            
+            $hashedPassword = password_hash($newPassword, PASSWORD_DEFAULT);
+            $stmt->bindParam(':password', $hashedPassword);
+            $stmt->bindParam(':id', $studentId);
+            
+            if($stmt->execute()) {
+                return true;
+            }
+            return false;
+        } catch(PDOException $e) {
+            error_log("Error resetting password: " . $e->getMessage());
             return false;
         }
     }

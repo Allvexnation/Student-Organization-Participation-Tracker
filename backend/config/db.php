@@ -12,11 +12,23 @@ class Database {
     private $port;
 
     public function __construct() {
-        $this->host = getenv('DB_HOST');
-        $this->username = getenv('DB_USERNAME');
-        $this->password = getenv('DB_PASSWORD');
-        $this->database = getenv('DB_DATABASE');
-        $this->port = getenv('DB_PORT');
+        $connection = getenv('DB_CONNECTION');
+
+        if ($connection === 'Production') {
+            // Production credentials
+            $this->host = getenv('PROD_DB_HOST');
+            $this->username = getenv('PROD_DB_USERNAME');
+            $this->password = getenv('PROD_DB_PASSWORD');
+            $this->database = getenv('PROD_DB_DATABASE');
+            $this->port = getenv('PROD_DB_PORT');
+        } else {
+            // Development credentials (default)
+            $this->host = getenv('DEV_DB_HOST');
+            $this->username = getenv('DEV_DB_USERNAME');
+            $this->password = getenv('DEV_DB_PASSWORD');
+            $this->database = getenv('DEV_DB_DATABASE');
+            $this->port = getenv('DEV_DB_PORT');
+        }
     }
     public $conn;
 

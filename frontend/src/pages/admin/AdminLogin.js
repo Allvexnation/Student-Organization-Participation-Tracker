@@ -1,6 +1,6 @@
 import { adminLogin } from '../../api/admin/AdminAuth/AdminAuth.js';
 import { initStepForm } from '../../utils/steps.js';
-import { setToken } from '../../../src/utils/jwt.js';
+import { setToken, isAuthenticated, initNetworkListener, removeToken } from '../../../src/utils/jwt.js';
 import { showToast, updateToast } from '../../components/ToastMessage.js';
 import { navigate } from '../../utils/navigation.js';
 
@@ -18,10 +18,10 @@ export function AdminLogin() {
             <form id="adminLoginForm">
                 <div data-step="1">
                     <div class="mb-4">
-                        <label for="email" class="block text-sm font-medium text-gray-700 mb-2">Email Address</label>
-                        <input type="email" id="email" name="email" required
+                        <label for="email" class="block text-sm font-medium text-gray-700 mb-2">Email or Username</label>
+                        <input type="text" id="email" name="email" required
                             class="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-colors"
-                            placeholder="Enter your email">
+                            placeholder="Enter your email or username">
                     </div>
                     <div class="flex gap-3">
                         <button type="button" data-action="next"
@@ -66,6 +66,20 @@ export function AdminLogin() {
 }
 
 export function initAdminLogin() {
+
+    removeToken('adviser');
+    removeToken('student');
+
+    initNetworkListener();
+
+    (async () => {
+        const authenticated = await isAuthenticated('admin');
+        if (authenticated) {
+            navigate('/admin/dashboard');
+            return;
+        }
+    })();
+    
     document.body.classList.remove('admin-page', 'student-page');
 
     initStepForm(
@@ -73,8 +87,8 @@ export function initAdminLogin() {
         2,
         (proceed) => {
             const email = document.getElementById('email').value;
-            if (!email || !email.includes('@')) {
-                showToast('Please enter a valid email address', 'error');
+            if (!email) {
+                showToast('Please enter your email or username', 'error');
                 return;
             }
             proceed();
@@ -98,8 +112,7 @@ export function initAdminLogin() {
         const result = await adminLogin(Email, Password);
         
         if (result.token) {
-            setToken(result.token);
-            localStorage.setItem('adminData', JSON.stringify(result.admin));
+            setToken(result.token, 'admin');
             updateToast('Login successful! Redirecting...', 'success');
             setTimeout(() => {
                 navigate('/admin/dashboard');

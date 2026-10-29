@@ -1,6 +1,7 @@
 <?php
 
 require_once __DIR__ . '/../config/db.php';
+require_once __DIR__ . '/../utils/CredentialGenerator.php';
 
 class AdviserModel {
     private $conn;
@@ -204,13 +205,157 @@ class AdviserModel {
         try {
             $stmt = $this->conn->prepare($query);
             $stmt->bindParam(':id', $id);
-            
+
             if($stmt->execute()) {
                 return true;
             }
             return false;
         } catch(PDOException $e) {
             echo "Error deleting adviser: " . $e->getMessage();
+            return false;
+        }
+    }
+
+    public function generateUniqueUsername($name) {
+        return CredentialGenerator::generateUniqueUsername($name, [$this, 'usernameExists']);
+    }
+
+    public function usernameExists($username) {
+        $query = "SELECT id FROM " . $this->table_name . " WHERE username = :username LIMIT 1";
+
+        try {
+            $stmt = $this->conn->prepare($query);
+            $stmt->bindParam(':username', $username);
+            $stmt->execute();
+            return $stmt->fetch() !== false;
+        } catch(PDOException $e) {
+            error_log("Error checking username existence: " . $e->getMessage());
+            return false;
+        }
+    }
+
+    public function generateSecurePassword() {
+        return CredentialGenerator::generateSecurePassword(8);
+    }
+
+    public function verifyLogin($usernameOrEmail, $password) {
+        $adviser = $this->readByUsername($usernameOrEmail);
+        
+        if (!$adviser) {
+            $adviser = $this->readByEmail($usernameOrEmail);
+        }
+        
+        if($adviser && password_verify($password, $adviser['password'])) {
+            return $adviser;
+        }
+        
+        return false;
+    }
+
+    public function findByUsernameOrEmail($usernameOrEmail) {
+        $adviser = $this->readByUsername($usernameOrEmail);
+        
+        if (!$adviser) {
+            $adviser = $this->readByEmail($usernameOrEmail);
+        }
+        
+        return $adviser;
+    }
+
+    public function setOtp($adviserId, $otpCode, $expiryMinutes = 10) {
+        $expiry = date('Y-m-d H:i:s', strtotime("+$expiryMinutes minutes"));
+        
+        $query = "UPDATE " . $this->table_name . " 
+                  SET otp_code = :otp_code, otp_expiry = :otp_expiry 
+                  WHERE id = :id";
+
+        try {
+            $stmt = $this->conn->prepare($query);
+            $stmt->bindParam(':otp_code', $otpCode);
+            $stmt->bindParam(':otp_expiry', $expiry);
+            $stmt->bindParam(':id', $adviserId);
+            
+            if($stmt->execute()) {
+                return true;
+            }
+            return false;
+        } catch(PDOException $e) {
+            error_log("Error setting OTP: " . $e->getMessage());
+            return false;
+        }
+    }
+
+    public function verifyOtp($adviserId, $otpCode) {
+        $query = "SELECT id, otp_code, otp_expiry 
+                  FROM " . $this->table_name . " 
+                  WHERE id = :id 
+                  LIMIT 0,1";
+
+        try {
+            $stmt = $this->conn->prepare($query);
+            $stmt->bindParam(':id', $adviserId);
+            $stmt->execute();
+            $adviser = $stmt->fetch(PDO::FETCH_ASSOC);
+            
+            if (!$adviser || !$adviser['otp_code']) {
+                return false;
+            }
+            
+            if ($adviser['otp_code'] !== $otpCode) {
+                return false;
+            }
+            
+            $expiry = strtotime($adviser['otp_expiry']);
+            $now = time();
+            
+            if ($now > $expiry) {
+                return false;
+            }
+            
+            return true;
+        } catch(PDOException $e) {
+            error_log("Error verifying OTP: " . $e->getMessage());
+            return false;
+        }
+    }
+
+    public function clearOtp($adviserId) {
+        $query = "UPDATE " . $this->table_name . " 
+                  SET otp_code = NULL, otp_expiry = NULL 
+                  WHERE id = :id";
+
+        try {
+            $stmt = $this->conn->prepare($query);
+            $stmt->bindParam(':id', $adviserId);
+            
+            if($stmt->execute()) {
+                return true;
+            }
+            return false;
+        } catch(PDOException $e) {
+            error_log("Error clearing OTP: " . $e->getMessage());
+            return false;
+        }
+    }
+
+    public function resetPassword($adviserId, $newPassword) {
+        $query = "UPDATE " . $this->table_name . " 
+                  SET password = :password, otp_code = NULL, otp_expiry = NULL 
+                  WHERE id = :id";
+
+        try {
+            $stmt = $this->conn->prepare($query);
+            
+            $hashedPassword = password_hash($newPassword, PASSWORD_DEFAULT);
+            $stmt->bindParam(':password', $hashedPassword);
+            $stmt->bindParam(':id', $adviserId);
+            
+            if($stmt->execute()) {
+                return true;
+            }
+            return false;
+        } catch(PDOException $e) {
+            error_log("Error resetting password: " . $e->getMessage());
             return false;
         }
     }

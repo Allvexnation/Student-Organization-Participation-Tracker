@@ -1,6 +1,6 @@
 # Student Organization Participation Tracker - Frontend
 
-**Version: 2.0**
+**Version: 2.2.0**
 
 ## Overview
 
@@ -35,13 +35,23 @@ frontend/
 │   │   │   ├── AdminAuth/   # Admin authentication API
 │   │   │   ├── AdminLogin.js # Admin login API
 │   │   │   ├── AdminProfile.js # Admin profile API
+│   │   │   ├── EventOrganizations/ # Event organizations API
 │   │   │   ├── EventRegistrations/ # Event registration API
 │   │   │   ├── Events/      # Events API
 │   │   │   ├── OrgMemberships/ # Organization memberships API
 │   │   │   ├── Organizations/ # Organizations API
 │   │   │   ├── Students/    # Students API
+│   │   │   ├── Tasks/       # Tasks API
 │   │   │   ├── adviser/     # Adviser API
 │   │   │   └── roles/       # Roles API
+│   │   ├── adviser/         # Adviser API modules
+│   │   │   ├── AdviserAuth/ # Adviser authentication API
+│   │   │   ├── AdviserForgotPassword.js # Adviser forgot password API
+│   │   │   ├── AdviserLogin.js # Adviser login API
+│   │   │   ├── AdviserProfile.js # Adviser profile API
+│   │   │   ├── Events/      # Adviser events API
+│   │   │   └── Organization/ # Adviser organization API
+│   │   ├── students/        # Student API modules
 │   │   └── server/         # Server configuration
 │   ├── components/          # Reusable UI components
 │   │   ├── CrudMenu.js      # CRUD menu component
@@ -52,19 +62,34 @@ frontend/
 │   │   ├── Stripbar/        # Strip bar components
 │   │   ├── ToastMessage.js  # Toast notification component
 │   │   └── buttons/         # Button components
+│   ├── middleware/          # Route middleware
 │   ├── pages/               # Page components (routes)
+│   │   ├── 404/              # 404 error page
 │   │   ├── HomePage.js      # Home page
-│   │   └── admin/           # Admin pages
-│   │       ├── AdminLogin.js # Admin login page
-│   │       ├── AdminDashboard.js # Admin dashboard
-│   │       ├── AdminProfile.js # Admin profile page
-│   │       ├── Adviser/     # Adviser management pages
-│   │       ├── EventRegistrations/ # Event registration pages
-│   │       ├── Events/      # Event management pages
-│   │       ├── OrgMemeberships/ # Organization membership pages
-│   │       ├── Organizations/ # Organization management pages
-│   │       ├── Students/    # Student management pages
-│   │       └── roles/       # Role management pages
+│   │   ├── admin/           # Admin pages
+│   │   │   ├── AdminLogin.js # Admin login page
+│   │   │   ├── AdminDashboard.js # Admin dashboard
+│   │   │   ├── AdminProfile.js # Admin profile page
+│   │   │   ├── Adviser/     # Adviser management pages
+│   │   │   ├── EventRegistrations/ # Event registration pages
+│   │   │   ├── Events/      # Event management pages
+│   │   │   ├── OrgMemeberships/ # Organization membership pages
+│   │   │   ├── Organizations/ # Organization management pages
+│   │   │   ├── Students/    # Student management pages
+│   │   │   └── roles/       # Role management pages
+│   │   ├── adviser/         # Adviser pages
+│   │   │   ├── AdviserDashboard.js # Adviser dashboard
+│   │   │   ├── AdviserForgotPassword.js # Adviser forgot password page
+│   │   │   ├── AdviserLogin.js # Adviser login page
+│   │   │   ├── AdviserProfile.js # Adviser profile page
+│   │   │   ├── Events/      # Adviser event pages
+│   │   │   └── Organization/ # Adviser organization pages
+│   │   └── students/        # Student pages
+│   │       ├── StudentDashboard.js # Student dashboard
+│   │       ├── StudentForgotPassword.js # Student forgot password page
+│   │       ├── StudentLogin.js # Student login page
+│   │       ├── StudentProfile.js # Student profile page
+│   │       └── Task/         # Student task pages
 │   ├── provider/            # State management/context
 │   │   ├── Animation/       # Animation providers
 │   │   ├── ModalAnimation.js # Modal animation provider
@@ -146,6 +171,15 @@ The application uses pathname-based routing with History API, which allows navig
 | `/admin/events` | ManageEvents | Event management (protected) |
 | `/admin/event-registrations` | ManageEventRegist | Event registration management (protected) |
 | `/admin/org-memberships` | ManageOrgMemberships | Organization membership management (protected) |
+| `/auth/adviser/login` | AdviserLogin | Adviser login page |
+| `/auth/adviser/forgot-password` | AdviserForgotPassword | Adviser forgot password page |
+| `/adviser/dashboard` | AdviserDashboard | Adviser dashboard (protected) |
+| `/adviser/profile` | AdviserProfile | Adviser profile editing (protected) |
+| `/auth/student/login` | StudentLogin | Student login page |
+| `/auth/student/forgot-password` | StudentForgotPassword | Student forgot password page |
+| `/student/dashboard` | StudentDashboard | Student dashboard (protected) |
+| `/student/profile` | StudentProfile | Student profile editing (protected) |
+| `/student/tasks` | StudentTask | Student task management (protected) |
 
 ### Route Guards
 
@@ -695,6 +729,23 @@ export const server = 'http://localhost:8000';
 - **Performance**: Minimize DOM manipulations
 - **Security**: Validate all inputs, sanitize HTML
 - **Accessibility**: Use semantic HTML, ARIA labels
+
+### New Features in v2.2.0
+
+- **Adviser Portal**: Complete adviser authentication and management system
+  - Adviser login with OTP-based authentication
+  - Adviser forgot password functionality with email verification
+  - Adviser dashboard and profile management
+  - Adviser event management and organization oversight
+- **Student Portal**: Complete student authentication and task management system
+  - Student login with OTP-based authentication
+  - Student forgot password functionality with email verification
+  - Student dashboard and profile management
+  - Student task tracking and daily schedule management
+- **Event Organizations**: New API module for managing event-organization relationships
+- **Task Management**: New task API module for student task assignments
+- **Middleware**: Added route middleware for authentication and authorization
+- **404 Page**: Added custom 404 error page for better UX
 
 ### Bug Fixes in v2.1.0
 
