@@ -29,18 +29,26 @@ class Database {
             $this->database = getenv('DEV_DB_DATABASE');
             $this->port = getenv('DEV_DB_PORT');
         }
+
+        // Log configuration for debugging
+        error_log("DB Connection Mode: " . ($connection ?: 'not set'));
+        error_log("DB Host: " . ($this->host ?: 'not set'));
+        error_log("DB Database: " . ($this->database ?: 'not set'));
+        error_log("DB Port: " . ($this->port ?: 'not set'));
     }
     public $conn;
 
     public function getConnection($withoutDatabase = false) {
         $this->conn = null;
-        
+
         try {
             $dsn = "mysql:host=" . $this->host . ";port=" . $this->port;
             if (!$withoutDatabase) {
                 $dsn .= ";dbname=" . $this->database;
             }
-            
+
+            error_log("Attempting connection with DSN: " . $dsn);
+
             $this->conn = new PDO(
                 $dsn,
                 $this->username,
@@ -48,10 +56,13 @@ class Database {
             );
             $this->conn->exec("set names utf8");
             $this->conn->setAttribute(PDO::ATTR_ERRMODE, PDO::ERRMODE_EXCEPTION);
+            error_log("Database connection successful");
         } catch(PDOException $exception) {
-            echo "Connection error: " . $exception->getMessage();
+            $errorMsg = "Connection error: " . $exception->getMessage();
+            error_log($errorMsg);
+            echo $errorMsg;
         }
-        
+
         return $this->conn;
     }
 
