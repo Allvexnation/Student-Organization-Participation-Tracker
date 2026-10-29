@@ -17,14 +17,12 @@ class Database {
         $connection = getenv('DB_CONNECTION');
 
         if ($connection === 'Production') {
-            // Production credentials
             $this->host = getenv('PROD_DB_HOST');
             $this->username = getenv('PROD_DB_USERNAME');
             $this->password = getenv('PROD_DB_PASSWORD');
             $this->database = getenv('PROD_DB_DATABASE');
             $this->port = getenv('PROD_DB_PORT');
         } else {
-            // Development credentials (default)
             $this->host = getenv('DEV_DB_HOST');
             $this->username = getenv('DEV_DB_USERNAME');
             $this->password = getenv('DEV_DB_PASSWORD');
@@ -41,7 +39,6 @@ class Database {
     }
 
     public function getConnection($withoutDatabase = false) {
-        // Reuse existing connection if available
         if ($this->conn !== null) {
             return $this->conn;
         }
