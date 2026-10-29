@@ -11,132 +11,52 @@ class EmailService {
 
     public function send($to, $subject, $message, $isHTML = true) {
         try {
-            $socket = $this->connectSMTP();
-            if (!$socket) {
+            $apiKey = $this->config['smtp_password'];
+            
+            $data = [
+                'sender' => [
+                    'name' => $this->config['from_name'],
+                    'email' => $this->config['from_email']
+                ],
+                'to' => [
+                    [
+                        'email' => $to
+                    ]
+                ],
+                'subject' => $subject,
+                'htmlContent' => $message
+            ];
+
+            $ch = curl_init('https://api.brevo.com/v3/smtp/email');
+            curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
+            curl_setopt($ch, CURLOPT_POST, true);
+            curl_setopt($ch, CURLOPT_POSTFIELDS, json_encode($data));
+            curl_setopt($ch, CURLOPT_HTTPHEADER, [
+                'Content-Type: application/json',
+                'api-key: ' . $apiKey
+            ]);
+            curl_setopt($ch, CURLOPT_TIMEOUT, 30);
+
+            $response = curl_exec($ch);
+            $httpCode = curl_getinfo($ch, CURLINFO_HTTP_CODE);
+            $error = curl_error($ch);
+            curl_close($ch);
+
+            if ($error) {
+                error_log('Brevo API Error: ' . $error);
                 return false;
             }
 
-            $this->readResponse($socket);
-
-            $this->sendCommand($socket, 'EHLO ' . gethostname());
-            $this->readResponse($socket);
-
-            if ($this->config['use_tls']) {
-                $this->sendCommand($socket, 'STARTTLS');
-                $this->readResponse($socket);
-
-                if (!stream_socket_enable_crypto($socket, true, STREAM_CRYPTO_METHOD_TLS_CLIENT)) {
-                    fclose($socket);
-                    return false;
-                }
-
-                $this->sendCommand($socket, 'EHLO ' . gethostname());
-                $this->readResponse($socket);
+            if ($httpCode >= 200 && $httpCode < 300) {
+                return true;
             }
 
-            if ($this->config['smtp_username'] && $this->config['smtp_password']) {
-                $this->authenticate($socket);
-            }
-
-            $this->sendCommand($socket, 'MAIL FROM: <' . $this->config['from_email'] . '>');
-            $this->readResponse($socket);
-
-            $this->sendCommand($socket, 'RCPT TO: <' . $to . '>');
-            $this->readResponse($socket);
-
-            $this->sendCommand($socket, 'DATA');
-            $this->readResponse($socket);
-
-            $headers = $this->buildHeaders($to, $subject, $isHTML);
-            $emailData = $headers . "\r\n\r\n" . $message;
-
-            $this->sendCommand($socket, $emailData . "\r\n.");
-            $response = $this->readResponse($socket);
-
-            $this->sendCommand($socket, 'QUIT');
-            fclose($socket);
-
-            return strpos($response, '250') === 0;
+            error_log('Brevo API Failed: HTTP ' . $httpCode . ' - ' . $response);
+            return false;
         } catch (Exception $e) {
-            error_log('SMTP Error: ' . $e->getMessage());
+            error_log('Email Service Error: ' . $e->getMessage());
             return false;
         }
-    }
-
-    private function connectSMTP() {
-        $context = stream_context_create([
-            'ssl' => [
-                'verify_peer' => false,
-                'verify_peer_name' => false,
-                'allow_self_signed' => true
-            ]
-        ]);
-
-        $useSSL = $this->config['smtp_port'] == 465;
-        $transport = $useSSL ? 'ssl' : 'tcp';
-
-        $socket = @stream_socket_client(
-            $transport . '://' . $this->config['smtp_host'] . ':' . $this->config['smtp_port'],
-            $errno,
-            $errstr,
-            10,
-            STREAM_CLIENT_CONNECT,
-            $context
-        );
-
-        if (!$socket) {
-            error_log('SMTP Connection failed: ' . $errstr . ' (' . $errno . ')');
-            error_log('SMTP Config: ' . json_encode($this->config));
-            return false;
-        }
-
-        return $socket;
-    }
-
-    private function authenticate($socket) {
-        $this->sendCommand($socket, 'AUTH LOGIN');
-        $this->readResponse($socket);
-
-        $this->sendCommand($socket, base64_encode($this->config['smtp_username']));
-        $this->readResponse($socket);
-
-        $this->sendCommand($socket, base64_encode($this->config['smtp_password']));
-        $this->readResponse($socket);
-    }
-
-    private function sendCommand($socket, $command) {
-        fwrite($socket, $command . "\r\n");
-    }
-
-    private function readResponse($socket) {
-        $response = '';
-        while ($line = fgets($socket, 515)) {
-            $response .= $line;
-            if (substr($line, 3, 1) == ' ') {
-                break;
-            }
-        }
-        return $response;
-    }
-
-    private function buildHeaders($to, $subject, $isHTML) {
-        $headers = [];
-        $headers[] = 'Date: ' . date('r');
-        $headers[] = 'To: ' . $to;
-        $headers[] = 'From: ' . $this->config['from_name'] . ' <' . $this->config['from_email'] . '>';
-        $headers[] = 'Subject: =?UTF-8?B?' . base64_encode($subject) . '?=';
-        $headers[] = 'Reply-To: ' . $this->config['from_email'];
-        $headers[] = 'MIME-Version: 1.0';
-
-        if ($isHTML) {
-            $headers[] = 'Content-Type: text/html; charset=UTF-8';
-        } else {
-            $headers[] = 'Content-Type: text/plain; charset=UTF-8';
-        }
-
-        $headers[] = 'X-Mailer: PHP/' . phpversion();
-
-        return implode("\r\n", $headers);
     }
 
 }
