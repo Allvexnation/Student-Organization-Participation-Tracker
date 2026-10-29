@@ -102,7 +102,6 @@ export async function initManageRoles() {
         const tbody = document.getElementById('roleTableBody');
         
         if (!tbody) {
-            console.error('roleTableBody element not found');
             return;
         }
         

@@ -188,7 +188,6 @@ function populateFormWithStudent(student) {
     document.getElementById('lastName').value = student.last_name;
     document.getElementById('program').value = student.program;
     document.getElementById('yearLevel').value = student.year_level;
-    document.getElementById('username').value = student.username;
     document.getElementById('email').value = student.email;
 
     if (student.profile_photo) {
