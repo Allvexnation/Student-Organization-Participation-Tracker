@@ -75,17 +75,18 @@ class EmailService {
         $useSSL = $this->config['smtp_port'] == 465;
         $transport = $useSSL ? 'ssl' : 'tcp';
 
-        $socket = stream_socket_client(
+        $socket = @stream_socket_client(
             $transport . '://' . $this->config['smtp_host'] . ':' . $this->config['smtp_port'],
             $errno,
             $errstr,
-            5,
+            10,
             STREAM_CLIENT_CONNECT,
             $context
         );
 
         if (!$socket) {
             error_log('SMTP Connection failed: ' . $errstr . ' (' . $errno . ')');
+            error_log('SMTP Config: ' . json_encode($this->config));
             return false;
         }
 
