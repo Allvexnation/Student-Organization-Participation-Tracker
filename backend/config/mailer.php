@@ -11,7 +11,7 @@ $connection = getenv('MAILER_CONNECTION');
 if ($connection === 'Production') {
     return [
         'smtp_host' => getenv('PROD_SMTP_HOST'),
-        'smtp_port' => getenv('PROD_SMTP_PORT'),
+        'smtp_port' => (int)getenv('PROD_SMTP_PORT'),
         'smtp_username' => getenv('PROD_SMTP_USERNAME'),
         'smtp_password' => getenv('PROD_SMTP_PASSWORD'),
         'from_email' => getenv('PROD_SMTP_FROM_EMAIL'),
@@ -21,7 +21,7 @@ if ($connection === 'Production') {
 } else {
     return [
         'smtp_host' => getenv('DEV_SMTP_HOST'),
-        'smtp_port' => getenv('DEV_SMTP_PORT'),
+        'smtp_port' => (int)getenv('DEV_SMTP_PORT'),
         'smtp_username' => getenv('DEV_SMTP_USERNAME'),
         'smtp_password' => getenv('DEV_SMTP_PASSWORD'),
         'from_email' => getenv('DEV_SMTP_FROM_EMAIL'),
