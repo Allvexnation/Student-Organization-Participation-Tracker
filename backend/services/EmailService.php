@@ -76,7 +76,7 @@ class EmailService {
             $this->config['smtp_host'] . ':' . $this->config['smtp_port'],
             $errno,
             $errstr,
-            30,
+            5,
             STREAM_CLIENT_CONNECT,
             $context
         );
