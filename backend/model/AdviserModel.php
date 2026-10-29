@@ -8,7 +8,7 @@ class AdviserModel {
     private $table_name = "advisers";
 
     public function __construct() {
-        $database = new Database();
+        $database = Database::getInstance();
         $this->conn = $database->getConnection();
         if (!$this->conn) {
             error_log("Failed to establish database connection in AdviserModel");

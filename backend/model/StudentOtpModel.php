@@ -7,7 +7,7 @@ class StudentOtpModel {
     private $table_name = "student_otps";
 
     public function __construct() {
-        $database = new Database();
+        $database = Database::getInstance();
         $this->conn = $database->getConnection();
         if (!$this->conn) {
             error_log("Failed to establish database connection in StudentOtpModel");

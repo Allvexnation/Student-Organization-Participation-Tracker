@@ -5,13 +5,15 @@ require_once __DIR__ . '/env.php';
 loadEnv(__DIR__ . '/../.env');
 
 class Database {
+    private static $instance = null;
     private $host;
     private $username;
     private $password;
     private $database;
     private $port;
+    public $conn;
 
-    public function __construct() {
+    private function __construct() {
         $connection = getenv('DB_CONNECTION');
 
         if ($connection === 'Production') {
@@ -29,17 +31,20 @@ class Database {
             $this->database = getenv('DEV_DB_DATABASE');
             $this->port = getenv('DEV_DB_PORT');
         }
-
-        // Log configuration for debugging
-        error_log("DB Connection Mode: " . ($connection ?: 'not set'));
-        error_log("DB Host: " . ($this->host ?: 'not set'));
-        error_log("DB Database: " . ($this->database ?: 'not set'));
-        error_log("DB Port: " . ($this->port ?: 'not set'));
     }
-    public $conn;
+
+    public static function getInstance() {
+        if (self::$instance === null) {
+            self::$instance = new self();
+        }
+        return self::$instance;
+    }
 
     public function getConnection($withoutDatabase = false) {
-        $this->conn = null;
+        // Reuse existing connection if available
+        if ($this->conn !== null) {
+            return $this->conn;
+        }
 
         try {
             $dsn = "mysql:host=" . $this->host . ";port=" . $this->port;
@@ -47,16 +52,17 @@ class Database {
                 $dsn .= ";dbname=" . $this->database;
             }
 
-            error_log("Attempting connection with DSN: " . $dsn);
-
             $this->conn = new PDO(
                 $dsn,
                 $this->username,
-                $this->password
+                $this->password,
+                [
+                    PDO::ATTR_PERSISTENT => true,
+                    PDO::ATTR_ERRMODE => PDO::ERRMODE_EXCEPTION,
+                    PDO::ATTR_DEFAULT_FETCH_MODE => PDO::FETCH_ASSOC
+                ]
             );
             $this->conn->exec("set names utf8");
-            $this->conn->setAttribute(PDO::ATTR_ERRMODE, PDO::ERRMODE_EXCEPTION);
-            error_log("Database connection successful");
         } catch(PDOException $exception) {
             $errorMsg = "Connection error: " . $exception->getMessage();
             error_log($errorMsg);
