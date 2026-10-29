@@ -72,8 +72,11 @@ class EmailService {
             ]
         ]);
 
+        $useSSL = $this->config['smtp_port'] == 465;
+        $transport = $useSSL ? 'ssl' : 'tcp';
+
         $socket = stream_socket_client(
-            $this->config['smtp_host'] . ':' . $this->config['smtp_port'],
+            $transport . '://' . $this->config['smtp_host'] . ':' . $this->config['smtp_port'],
             $errno,
             $errstr,
             5,
