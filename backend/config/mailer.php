@@ -1,7 +1,10 @@
 <?php
 
 require_once __DIR__ . '/env.php';
-loadEnv(__DIR__ . '/../.env');
+
+if (!getenv('MAILER_CONNECTION')) {
+    loadEnv(__DIR__ . '/../.env');
+}
 
 $connection = getenv('MAILER_CONNECTION');
 
