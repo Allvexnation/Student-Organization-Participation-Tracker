@@ -6,7 +6,7 @@ class EmailService {
     private $config;
 
     public function __construct() {
-        $this->config = require __DIR__ . '/../config/mailer.php';
+        $this->config = @require __DIR__ . '/../config/mailer.php';
     }
 
     public function send($to, $subject, $message, $isHTML = true) {
