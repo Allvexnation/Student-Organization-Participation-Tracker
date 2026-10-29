@@ -14,7 +14,6 @@ This is the frontend application for the Student Organization Participation Trac
 - **Styling**: TailwindCSS (via CDN)
 - **Icons**: Lucide Icons (via CDN)
 
-- **Development Server**: Live Server Extension (VS Code)
 - **Deployment**: Vercel
 
 ## Project Architecture
@@ -204,7 +203,6 @@ window.appNavigate('/');
 
 - Modern web browser (Chrome, Firefox, Edge, Safari)
 - VS Code (recommended)
-- Live Server Extension for VS Code
 - Node.js (required for running the project)
 
 #### Installing Node.js
@@ -223,13 +221,7 @@ If Node.js is not installed on your system:
 1. **Install VS Code**
    - Download from [https://code.visualstudio.com](https://code.visualstudio.com)
 
-2. **Install Live Server Extension**
-   - Open VS Code
-   - Go to Extensions (Ctrl+Shift+X)
-   - Search for "Live Server"
-   - Install the extension by Ritwick Dey
-
-3. **Clone the Repository**
+2. **Clone the Repository**
    ```bash
    git clone [repository-url]
    cd frontend
@@ -239,7 +231,7 @@ If Node.js is not installed on your system:
 
 #### Quick Start (Required)
 
-The project requires the custom script to run the development server. **Note: The project will not work with Live Server or by opening index.html directly from file explorer.**
+The project uses "Run Devs by Jhon Ladines" to run the development server.
 
 1. **Navigate to the frontend directory**
    ```bash
@@ -257,9 +249,8 @@ The project requires the custom script to run the development server. **Note: Th
    - Enable hot-reloading for code changes
 
 **Important Notes:**
-- Do not use Live Server extension - the project will not function correctly
 - Do not open `index.html` directly from file explorer - ES6 modules require a proper server
-- The `npx run-devs` command is the only supported way to run the application
+- The `npx run-devs` command (Run Devs by Jhon Ladines) is the only supported way to run the application
 
 ### Development Workflow
 
@@ -682,10 +673,6 @@ export const server = 'http://localhost:8000';
 
 ### Common Issues
 
-1. **Live Server Not Working**
-   - Ensure Live Server extension is installed
-   - Right-click on `index.html` to start
-   - Check VS Code output for errors
 
 2. **Module Import Errors**
    - Ensure all imports include `.js` extension

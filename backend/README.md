@@ -526,7 +526,7 @@ If Node.js is not installed on your system:
 
 #### Quick Start (Recommended)
 
-The project includes a custom script to run the PHP development server:
+The project uses "Run Devs by Jhon Ladines" to run the PHP development server:
 
 1. **Navigate to the backend directory**
    ```bash
