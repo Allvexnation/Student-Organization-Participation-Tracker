@@ -1,5 +1,6 @@
 import { AdviserNavbar, initAdviserNavbar } from '../../../components/Navbar/AdviserNavbar.js';
-import { isAuthenticated, navigate } from '../../../utils/jwt.js';
+import { isAuthenticated } from '../../../utils/jwt.js';
+import { navigate } from '../../../utils/navigation.js';
 import * as AdviserEventsAPI from '../../../api/adviser/Events/AdviserEvents.js';
 import * as AdviserOrganizationAPI from '../../../api/adviser/Organization/AdviserOrganization.js';
 import { openTaskModal } from '../../../components/Modal/Adviser/TaskModal.js';

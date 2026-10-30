@@ -1,5 +1,6 @@
 import { AdviserNavbar, initAdviserNavbar } from '../../../components/Navbar/AdviserNavbar.js';
-import { isAuthenticated, navigate } from '../../../utils/jwt.js';
+import { isAuthenticated } from '../../../utils/jwt.js';
+import { navigate } from '../../../utils/navigation.js';
 import * as AdviserOrganizationAPI from '../../../api/adviser/Organization/AdviserOrganization.js';
 import { openAdviserOrgMemModal, openViewAdviserOrgMemModal, openEditOrgModal, openSwitchOrgModal } from '../../../components/Modal/Adviser/AdviserOrganizationModal.js';
 import { showToast } from '../../../components/ToastMessage.js';
