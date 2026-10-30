@@ -3,6 +3,7 @@ import { getAdviserData, adviserLogout } from '../../api/adviser/AdviserAuth/Adv
 import { openConfirmDialog } from '../Dialog/ConfirmDialog.js';
 import { showToast, updateToast } from '../ToastMessage.js';
 import { navigate } from '../../utils/navigation.js';
+import { getToken } from '../../utils/jwt.js';
 
 export function AdviserNavbar() {
     return `
@@ -72,9 +73,9 @@ export function initAdviserNavbar() {
                 openConfirmDialog({
                     title: 'Confirm Logout',
                     message: 'Are you sure you want to logout?',
-                    onConfirm: () => {
+                    onConfirm: async () => {
                         showToast('Logging out...', 'loading');
-                        adviserLogout();
+                        await adviserLogout(getToken('adviser'));
                         updateToast('Logged out successfully!', 'success');
                         setTimeout(() => {
                             navigate('/auth/adviser/login');
@@ -91,9 +92,9 @@ export function initAdviserNavbar() {
                 openConfirmDialog({
                     title: 'Confirm Logout',
                     message: 'Are you sure you want to logout?',
-                    onConfirm: () => {
+                    onConfirm: async () => {
                         showToast('Logging out...', 'loading');
-                        adviserLogout();
+                        await adviserLogout(getToken('adviser'));
                         updateToast('Logged out successfully!', 'success');
                         setTimeout(() => {
                             navigate('/auth/adviser/login');

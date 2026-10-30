@@ -3,6 +3,7 @@ import { getStudentData, studentLogout } from '../../api/students/StudentAuth/St
 import { openConfirmDialog } from '../Dialog/ConfirmDialog.js';
 import { showToast, updateToast } from '../ToastMessage.js';
 import { navigate } from '../../utils/navigation.js';
+import { getToken } from '../../utils/jwt.js';
 
 export function StudentNavbar() {
     return `
@@ -72,9 +73,9 @@ export function initStudentNavbar() {
                 openConfirmDialog({
                     title: 'Confirm Logout',
                     message: 'Are you sure you want to logout?',
-                    onConfirm: () => {
+                    onConfirm: async () => {
                         showToast('Logging out...', 'loading');
-                        studentLogout();
+                        await studentLogout(getToken('student'));
                         updateToast('Logged out successfully!', 'success');
                         setTimeout(() => {
                             navigate('/auth/student/login');
@@ -91,9 +92,9 @@ export function initStudentNavbar() {
                 openConfirmDialog({
                     title: 'Confirm Logout',
                     message: 'Are you sure you want to logout?',
-                    onConfirm: () => {
+                    onConfirm: async () => {
                         showToast('Logging out...', 'loading');
-                        studentLogout();
+                        await studentLogout(getToken('student'));
                         updateToast('Logged out successfully!', 'success');
                         setTimeout(() => {
                             navigate('/auth/student/login');

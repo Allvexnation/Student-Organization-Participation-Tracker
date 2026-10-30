@@ -84,7 +84,7 @@ export function initAdminNavbar() {
                 openConfirmDialog({
                     title: 'Confirm Logout',
                     message: 'Are you sure you want to logout?',
-                    onConfirm: () => {
+                    onConfirm: async () => {
                         showToast('Logging out...', 'loading');
                         logout();
                         updateToast('Logged out successfully!', 'success');
@@ -103,7 +103,7 @@ export function initAdminNavbar() {
                 openConfirmDialog({
                     title: 'Confirm Logout',
                     message: 'Are you sure you want to logout?',
-                    onConfirm: () => {
+                    onConfirm: async () => {
                         showToast('Logging out...', 'loading');
                         logout();
                         updateToast('Logged out successfully!', 'success');
