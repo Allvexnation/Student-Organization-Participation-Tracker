@@ -1,7 +1,8 @@
 import { AdviserNavbar, initAdviserNavbar } from '../../components/Navbar/AdviserNavbar.js';
 import { getAdviserData } from '../../api/adviser/AdviserAuth/AdviserAuth.js';
 import { getAdviserProfile, updateAdviserProfile } from '../../api/adviser/AdviserProfile.js';
-import { isAuthenticated, navigate } from '../../utils/jwt.js';
+import { isAuthenticated } from '../../utils/jwt.js';
+import { navigate } from '../../utils/navigation.js';
 import { openConfirmDialog } from '../../components/Dialog/ConfirmDialog.js';
 import { showToast, updateToast } from '../../components/ToastMessage.js';
 
