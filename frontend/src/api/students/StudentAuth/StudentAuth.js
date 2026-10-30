@@ -41,7 +41,7 @@ export async function studentLogout(token) {
             }
         });
         
-        removeToken();
+        removeToken('student');
         localStorage.removeItem('studentData');
         localStorage.removeItem('studentVerified');
         
@@ -53,7 +53,7 @@ export async function studentLogout(token) {
         return { message: 'Logout completed' };
     } catch (error) {
         console.error('Logout error:', error);
-        removeToken();
+        removeToken('student');
         localStorage.removeItem('studentData');
         localStorage.removeItem('studentVerified');
         return { message: 'Logout completed (offline)' };
