@@ -98,6 +98,26 @@ class OrganizationsModel {
         }
     }
 
+    public function getByAdviserId($adviserId) {
+        $query = "SELECT o.id, o.org_code, o.name, o.description, o.adviser_id, a.name as adviser, o.status, o.updated_at, o.created_at
+                  FROM " . $this->table_name . " o
+                  LEFT JOIN advisers a ON o.adviser_id = a.id
+                  WHERE o.adviser_id = :adviser_id
+                  ORDER BY o.created_at DESC";
+
+        try {
+            $stmt = $this->conn->prepare($query);
+            $stmt->bindParam(':adviser_id', $adviserId);
+            $stmt->execute();
+            $results = $stmt->fetchAll(PDO::FETCH_ASSOC);
+
+            return $results;
+        } catch(PDOException $e) {
+            error_log("Error reading organizations by adviser: " . $e->getMessage());
+            return false;
+        }
+    }
+
     public function update($id, $data) {
         $query = "UPDATE " . $this->table_name . " 
                   SET org_code = :org_code, 

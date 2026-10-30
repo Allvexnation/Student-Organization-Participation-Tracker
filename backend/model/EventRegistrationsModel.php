@@ -123,4 +123,27 @@ class EventRegistrationsModel {
             return false;
         }
     }
+
+    public function getByEventId($eventId) {
+        $query = "SELECT er.id, er.event_id, er.student_id, er.registered_at, er.updated_at, er.created_at, 
+                         e.title as event_title, CONCAT(s.first_name, ' ', s.last_name) as student_name, o.name as organization_name
+                  FROM " . $this->table_name . " er
+                  LEFT JOIN events e ON er.event_id = e.id
+                  LEFT JOIN students s ON er.student_id = s.id
+                  LEFT JOIN organizations o ON e.organization_id = o.id
+                  WHERE er.event_id = :event_id
+                  ORDER BY er.registered_at DESC";
+
+        try {
+            $stmt = $this->conn->prepare($query);
+            $stmt->bindParam(':event_id', $eventId);
+            $stmt->execute();
+            $results = $stmt->fetchAll(PDO::FETCH_ASSOC);
+
+            return $results;
+        } catch(PDOException $e) {
+            error_log("Error reading event registrations by event: " . $e->getMessage());
+            return false;
+        }
+    }
 }

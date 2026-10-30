@@ -4,6 +4,7 @@ import { openConfirmDialog } from '../Dialog/ConfirmDialog.js';
 import { showToast, updateToast } from '../ToastMessage.js';
 import { navigate } from '../../utils/navigation.js';
 import { getToken, setUserData } from '../../utils/jwt.js';
+import { getDefaultProfileSVG } from '../../static/Profile/DefaultProfile.js';
 
 export function AdviserNavbar() {
     return `
@@ -83,9 +84,7 @@ export function updateNavbarProfile(adviserData) {
         navProfilePlaceholderMobile.classList.add('hidden');
 
         navProfilePhotoMobile.onerror = function() {
-            navProfilePhotoMobile.src = '';
-            navProfilePhotoMobile.classList.add('hidden');
-            navProfilePlaceholderMobile.classList.remove('hidden');
+            handleProfileImageError(this);
         };
     }
 }

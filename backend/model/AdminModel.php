@@ -125,8 +125,13 @@ class AdminModel {
             $stmt = $this->conn->prepare($query);
             
             $null = null;
-            if (isset($data['profile_photo']) && !empty($data['profile_photo'])) {
-                $stmt->bindParam(':profile_photo', $data['profile_photo'], PDO::PARAM_LOB);
+            if (isset($data['profile_photo'])) {
+                if (!empty($data['profile_photo'])) {
+                    $stmt->bindParam(':profile_photo', $data['profile_photo'], PDO::PARAM_LOB);
+                } else {
+                    // Empty string means remove the photo
+                    $stmt->bindParam(':profile_photo', $null, PDO::PARAM_NULL);
+                }
             } else {
                 $stmt->bindParam(':profile_photo', $null, PDO::PARAM_NULL);
             }

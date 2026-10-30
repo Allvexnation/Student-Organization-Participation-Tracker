@@ -8,6 +8,7 @@ import { openConfirmDialog } from '../../../components/Dialog/ConfirmDialog.js';
 import { showToast } from '../../../components/ToastMessage.js';
 import { CrudMenu } from '../../../components/CrudMenu.js';
 import { skeletonTableRows } from '../../../components/SkeletonLoading.js';
+import { getDefaultProfileSVG } from '../../../static/Profile/DefaultProfile.js';
 
 export function ManageAdviser() {
     return `
@@ -136,9 +137,9 @@ export async function initManageAdviser() {
                 </td>
                 <td class="px-3 sm:px-5 py-2 sm:py-3.5">
                     ${adviser.profile_photo ? 
-                        `<img src="${adviser.profile_photo}" alt="${adviser.name}" class="w-10 h-10 object-cover rounded-full">` : 
-                        `<div class="w-10 h-10 bg-gray-200 rounded-full flex items-center justify-center">
-                            <i data-lucide="user" class="w-5 h-5 text-gray-400"></i>
+                        `<img src="${adviser.profile_photo}" alt="${adviser.name}" class="w-10 h-10 object-cover rounded-full" onerror="handleProfileImageError(this)">` : 
+                        `<div class="w-10 h-10 rounded-full overflow-hidden">
+                            ${getDefaultProfileSVG('100%', '100%')}
                         </div>`
                     }
                 </td>

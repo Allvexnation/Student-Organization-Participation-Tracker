@@ -135,7 +135,6 @@ class StudentController {
             return;
         }
 
-        // Preserve existing username if not provided
         if (!isset($data['username']) || empty($data['username'])) {
             $existingStudent = $this->studentsModel->readOne($id);
             if ($existingStudent && isset($existingStudent['username'])) {
@@ -330,14 +329,19 @@ class StudentController {
         $existingStudent = $this->studentsModel->readOne($studentId);
         
         $profilePhoto = null;
-        if (isset($data['profile_photo']) && !empty($data['profile_photo'])) {
-            if (strpos($data['profile_photo'], 'data:image') === 0) {
-                $parts = explode(',', $data['profile_photo']);
-                if (isset($parts[1])) {
-                    $profilePhoto = base64_decode($parts[1]);
+        if (isset($data['profile_photo'])) {
+            if (!empty($data['profile_photo'])) {
+                if (strpos($data['profile_photo'], 'data:image') === 0) {
+                    $parts = explode(',', $data['profile_photo']);
+                    if (isset($parts[1])) {
+                        $profilePhoto = base64_decode($parts[1]);
+                    }
+                } else {
+                    $profilePhoto = base64_decode($data['profile_photo']);
                 }
             } else {
-                $profilePhoto = base64_decode($data['profile_photo']);
+                
+                $profilePhoto = '';
             }
         } elseif ($existingStudent && isset($existingStudent['profile_photo'])) {
             $profilePhoto = $existingStudent['profile_photo'];

@@ -3,6 +3,7 @@ import { getAdminData, logout, verifyAdminExists } from '../../api/admin/AdminLo
 import { openConfirmDialog } from '../Dialog/ConfirmDialog.js';
 import { showToast, updateToast } from '../ToastMessage.js';
 import { navigate } from '../../utils/navigation.js';
+import { getDefaultProfileSVG } from '../../static/Profile/DefaultProfile.js';
 
 export function AdminNavbar() {
     return `
@@ -91,8 +92,7 @@ export function initAdminNavbar() {
             navProfilePlaceholderMobile.classList.add('hidden');
             
             navProfilePhotoMobile.onerror = function() {
-                navProfilePhotoMobile.classList.add('hidden');
-                navProfilePlaceholderMobile.classList.remove('hidden');
+                handleProfileImageError(this);
             };
         }
 

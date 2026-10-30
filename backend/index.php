@@ -62,6 +62,8 @@ $orgMembershipsRoutes = new OrganizationMembershipsRoutes();
 
 if (strpos($uri, '/api/session') === 0) {
     $sessionRoutes->handle($method, $uri);
+} elseif (strpos($uri, '/api/adviser/dashboard') === 0) {
+    $adviserRoutes->handle($method, $uri);
 } elseif (strpos($uri, '/api/adviser/registered-events') === 0 || strpos($uri, '/api/adviser/organizations-by-event') === 0 || strpos($uri, '/api/adviser/tasks') === 0 || strpos($uri, '/api/adviser/schedule-status') === 0) {
     $adviserTasksRoutes->handle($method, $uri);
 } elseif (strpos($uri, '/api/adviser/organization') === 0 || strpos($uri, '/api/adviser/organizations') === 0 || strpos($uri, '/api/adviser/current-organization') === 0 || strpos($uri, '/api/adviser/organization-memberships') === 0) {

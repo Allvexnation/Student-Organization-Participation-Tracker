@@ -20,6 +20,8 @@ class AdminRoutes {
             $this->controller->getProfile();
         } elseif ($method === 'PUT' && $uri === '/api/admin/profile') {
             $this->controller->updateProfile();
+        } elseif ($method === 'GET' && $uri === '/api/admin/dashboard/counts') {
+            $this->controller->getDashboardCounts();
         } else {
             http_response_code(404);
             echo json_encode(['message' => 'Route not found']);

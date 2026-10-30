@@ -6,6 +6,7 @@ import { protectStudentRoute } from '../../middleware/StudentMiddleware.js';
 import { openConfirmDialog } from '../../components/Dialog/ConfirmDialog.js';
 import { showToast, updateToast } from '../../components/ToastMessage.js';
 import { ProfileValidator } from '../../validator/ProfileValidator.js';
+import { getDefaultProfileSVG } from '../../static/Profile/DefaultProfile.js';
 
 export function StudentProfile() {
     const studentData = getStudentData() || {};
@@ -71,6 +72,16 @@ export function StudentProfile() {
                                     name="profilePhoto" 
                                     accept="image/png,image/jpeg,image/webp" 
                                     class="hidden">
+
+                                <button 
+                                    type="button" 
+                                    id="removeProfilePhotoBtn" 
+                                    class="w-full mt-2 px-4 py-2 text-xs font-medium text-red-600 bg-red-50 hover:bg-red-100 border border-red-200 rounded-md transition flex items-center justify-center gap-2">
+                                    <svg xmlns="http://www.w3.org/2000/svg" class="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                                    </svg>
+                                    <span>Remove Profile Photo</span>
+                                </button>
 
                                 <p class="text-[11px] text-gray-400 mt-2">JPG, PNG, or WEBP up to 2MB</p>
                             </div>
@@ -360,6 +371,72 @@ export async function initStudentProfile() {
         });
     }
 
+    const removeProfilePhotoBtn = document.getElementById('removeProfilePhotoBtn');
+    if (removeProfilePhotoBtn) {
+        removeProfilePhotoBtn.addEventListener('click', () => {
+            openConfirmDialog({
+                title: 'Remove Profile Photo',
+                message: 'Are you sure you want to remove your profile photo? This action cannot be undone.',
+                confirmText: 'Remove Photo',
+                cancelText: 'Cancel',
+                type: 'danger',
+                onConfirm: async () => {
+                    showToast('Removing profile photo...', 'loading');
+                    try {
+                        const removeBtn = document.getElementById('removeProfilePhotoBtn');
+                        removeBtn.disabled = true;
+                        removeBtn.innerHTML = `
+                            <svg class="animate-spin h-3.5 w-3.5" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                                <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+                                <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                            </svg>
+                            <span>Removing...</span>
+                        `;
+
+                        const profileData = {
+                            first_name: studentData.first_name || '',
+                            last_name: studentData.last_name || '',
+                            username: studentData.username || '',
+                            email: studentData.email || '',
+                            student_number: studentData.student_number || '',
+                            program: studentData.program || '',
+                            year_level: studentData.year_level || '',
+                            profile_photo: ''
+                        };
+
+                        const result = await updateStudentProfile(profileData);
+                        const updatedStudent = result.student || {};
+
+                        studentData = { ...studentData, ...updatedStudent };
+                        setUserData(studentData, 'student');
+                        window.dispatchEvent(new CustomEvent('student-profile-updated', { detail: studentData }));
+
+                        const initials = getInitials(`${studentData.first_name || ''} ${studentData.last_name || ''}`.trim());
+                        if (profilePhotoPreview) {
+                            profilePhotoPreview.innerHTML = getPhotoPreview('', initials);
+                        }
+                        selectedPhoto = null;
+
+                        updateNavbarProfile(studentData);
+
+                        updateToast('Profile photo removed successfully!', 'success');
+                    } catch (error) {
+                        updateToast(error.message || 'Failed to remove profile photo. Please try again.', 'error');
+                    } finally {
+                        const removeBtn = document.getElementById('removeProfilePhotoBtn');
+                        removeBtn.disabled = false;
+                        removeBtn.innerHTML = `
+                            <svg xmlns="http://www.w3.org/2000/svg" class="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                            </svg>
+                            <span>Remove Profile Photo</span>
+                        `;
+                    }
+                }
+            });
+        });
+    }
+
     const form = document.getElementById('edit-profile-form');
     if (form) {
         form.addEventListener('submit', async (e) => {
@@ -537,19 +614,16 @@ function getPhotoPreview(profilePhoto, initials) {
                             profilePhoto.startsWith('http'));
         
         if (!isValidPhoto) {
-            return `<div id="profile-initials-fallback" class="w-full h-full rounded-full bg-blue-900 text-blue-100 flex items-center justify-center text-2xl font-bold">${initials}</div>`;
+            return `<div class="w-full h-full rounded-full overflow-hidden">${getDefaultProfileSVG('100%', '100%')}</div>`;
         }
         
         const photoUrl = profilePhoto.startsWith('data:') 
             ? profilePhoto 
             : `${profilePhoto}${profilePhoto.includes('?') ? '&' : '?'}_t=${Date.now()}`;
 
-        return `
-            <img id="profile-photo-img" src="${photoUrl}" alt="Profile" class="w-full h-full object-cover rounded-full" onerror="this.style.display='none'; if(this.nextElementSibling) this.nextElementSibling.style.display='flex';">
-            <div id="profile-initials-fallback" class="w-full h-full rounded-full bg-blue-900 text-blue-100 items-center justify-center text-2xl font-bold" style="display:none;">${initials}</div>
-        `;
+        return `<img id="profile-photo-img" src="${photoUrl}" alt="Profile" class="w-full h-full object-cover rounded-full" crossorigin="anonymous" onerror="handleProfileImageError(this)">`;
     }
-    return `<div id="profile-initials-fallback" class="w-full h-full rounded-full bg-blue-900 text-blue-100 flex items-center justify-center text-2xl font-bold">${initials}</div>`;
+    return `<div class="w-full h-full rounded-full overflow-hidden">${getDefaultProfileSVG('100%', '100%')}</div>`;
 }
 
 function togglePassword(inputId) {

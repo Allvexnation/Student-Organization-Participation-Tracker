@@ -22,6 +22,8 @@ class AdviserRoutes {
             $this->controller->update($matches[1]);
         } elseif ($method === 'DELETE' && preg_match('#^/api/admin/advisers/(\d+)$#', $uri, $matches)) {
             $this->controller->delete($matches[1]);
+        } elseif ($method === 'GET' && $uri === '/api/adviser/dashboard/counts') {
+            $this->controller->getDashboardCounts();
         } else {
             http_response_code(404);
             echo json_encode(['message' => 'Route not found']);

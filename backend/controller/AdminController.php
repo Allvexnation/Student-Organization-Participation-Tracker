@@ -3,14 +3,18 @@
 require_once __DIR__ . '/../model/AdminModel.php';
 require_once __DIR__ . '/../model/SessionModel.php';
 require_once __DIR__ . '/../config/jwt.php';
+require_once __DIR__ . '/../config/db.php';
 
 class AdminController {
     private $adminModel;
     private $sessionModel;
+    private $conn;
 
     public function __construct() {
         $this->adminModel = new AdminModel();
         $this->sessionModel = new SessionModel();
+        $database = Database::getInstance();
+        $this->conn = $database->getConnection();
     }
 
     public function login() {
@@ -154,14 +158,18 @@ class AdminController {
         }
 
         $profilePhoto = null;
-        if (isset($data['profile_photo']) && !empty($data['profile_photo'])) {
-            if (strpos($data['profile_photo'], 'data:image') === 0) {
-                $parts = explode(',', $data['profile_photo']);
-                if (isset($parts[1])) {
-                    $profilePhoto = base64_decode($parts[1]);
+        if (isset($data['profile_photo'])) {
+            if (!empty($data['profile_photo'])) {
+                if (strpos($data['profile_photo'], 'data:image') === 0) {
+                    $parts = explode(',', $data['profile_photo']);
+                    if (isset($parts[1])) {
+                        $profilePhoto = base64_decode($parts[1]);
+                    }
+                } else {
+                    $profilePhoto = base64_decode($data['profile_photo']);
                 }
             } else {
-                $profilePhoto = base64_decode($data['profile_photo']);
+                $profilePhoto = '';
             }
         }
 
@@ -220,5 +228,86 @@ class AdminController {
         
         http_response_code(200);
         echo json_encode(['message' => 'Logout successful']);
+    }
+
+    public function getDashboardCounts() {
+        header('Content-Type: application/json');
+        
+        $headers = getallheaders();
+        $token = isset($headers['Authorization']) ? str_replace('Bearer ', '', $headers['Authorization']) : null;
+        
+        if (!$token || !JWT::validate($token)) {
+            http_response_code(401);
+            echo json_encode(['message' => 'Unauthorized']);
+            return;
+        }
+
+        if (!$this->conn) {
+            error_log("Database connection is null in getDashboardCounts");
+            http_response_code(500);
+            echo json_encode(['message' => 'Database connection failed']);
+            return;
+        }
+
+        try {
+            $studentCount = 0;
+            $organizationCount = 0;
+            $activeEventCount = 0;
+            $eventRegistrationCount = 0;
+            $orgMembershipCount = 0;
+
+            $stmt = $this->conn->query("SELECT COUNT(*) as count FROM students");
+            if ($stmt) {
+                $result = $stmt->fetch(PDO::FETCH_ASSOC);
+                $studentCount = $result['count'] ?? 0;
+            }
+
+            $stmt = $this->conn->query("SELECT COUNT(*) as count FROM organizations");
+            if ($stmt) {
+                $result = $stmt->fetch(PDO::FETCH_ASSOC);
+                $organizationCount = $result['count'] ?? 0;
+            }
+
+            $stmt = $this->conn->query("SELECT COUNT(*) as count FROM events");
+            if ($stmt) {
+                $result = $stmt->fetch(PDO::FETCH_ASSOC);
+                $activeEventCount = $result['count'] ?? 0;
+            }
+
+            try {
+                $stmt = $this->conn->query("SELECT COUNT(*) as count FROM event_organizations");
+                if ($stmt) {
+                    $result = $stmt->fetch(PDO::FETCH_ASSOC);
+                    $eventRegistrationCount = $result['count'] ?? 0;
+                }
+            } catch (PDOException $e) {
+                error_log("Event organizations table error: " . $e->getMessage());
+                $eventRegistrationCount = 0;
+            }
+
+            try {
+                $stmt = $this->conn->query("SELECT COUNT(*) as count FROM organization_memberships");
+                if ($stmt) {
+                    $result = $stmt->fetch(PDO::FETCH_ASSOC);
+                    $orgMembershipCount = $result['count'] ?? 0;
+                }
+            } catch (PDOException $e) {
+                error_log("Organization memberships table error: " . $e->getMessage());
+                $orgMembershipCount = 0;
+            }
+            
+            http_response_code(200);
+            echo json_encode([
+                'totalStudents' => (int)$studentCount,
+                'totalOrganizations' => (int)$organizationCount,
+                'activeEvents' => (int)$activeEventCount,
+                'eventRegistrations' => (int)$eventRegistrationCount,
+                'orgMemberships' => (int)$orgMembershipCount
+            ]);
+        } catch (PDOException $e) {
+            error_log("Dashboard counts error: " . $e->getMessage());
+            http_response_code(500);
+            echo json_encode(['message' => 'Error fetching dashboard counts']);
+        }
     }
 }

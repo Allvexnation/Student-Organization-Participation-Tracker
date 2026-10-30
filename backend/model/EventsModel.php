@@ -214,4 +214,25 @@ class EventsModel {
             return false;
         }
     }
+
+    public function getByOrganizationId($organizationId) {
+        $query = "SELECT e.id, e.title, e.description, e.event_day_start, e.event_day_end, e.venue, e.event_category, e.organization_id, e.updated_at, e.created_at,
+                  o.name as organization_name
+                  FROM " . $this->table_name . " e
+                  LEFT JOIN organizations o ON e.organization_id = o.id
+                  WHERE e.organization_id = :organization_id
+                  ORDER BY e.event_day_start DESC";
+
+        try {
+            $stmt = $this->conn->prepare($query);
+            $stmt->bindParam(':organization_id', $organizationId);
+            $stmt->execute();
+            $results = $stmt->fetchAll(PDO::FETCH_ASSOC);
+
+            return $results;
+        } catch(PDOException $e) {
+            error_log("Error reading events by organization: " . $e->getMessage());
+            return false;
+        }
+    }
 }

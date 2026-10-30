@@ -1,4 +1,4 @@
-export const API_BASE_URL = 'https://crtsopt-dev-server.onrender.com';
+export const API_BASE_URL = 'http://localhost:8000';
 
 export const API_ROUTES = {
     ADMIN: {
@@ -43,6 +43,7 @@ export const API_ROUTES = {
         EVENT_REGISTRATION_CREATE: `${API_BASE_URL}/api/admin/event-registrations`,
         EVENT_REGISTRATION_UPDATE: (id) => `${API_BASE_URL}/api/admin/event-registrations/${id}`,
         EVENT_REGISTRATION_DELETE: (id) => `${API_BASE_URL}/api/admin/event-registrations/${id}`,
+        DASHBOARD_COUNTS: `${API_BASE_URL}/api/admin/dashboard/counts`,
         EVENT_ORGANIZATIONS: `${API_BASE_URL}/api/admin/event-organizations`,
         EVENT_ORGANIZATION_GET_ALL: `${API_BASE_URL}/api/admin/event-organizations`,
         EVENT_ORGANIZATION_GET_APPROVERS: `${API_BASE_URL}/api/admin/event-organizations/approvers`,
@@ -72,6 +73,7 @@ export const API_ROUTES = {
         FORGOT_PASSWORD: `${API_BASE_URL}/api/adviser/forgot-password`,
         VERIFY_OTP: `${API_BASE_URL}/api/adviser/verify-otp`,
         RESET_PASSWORD: `${API_BASE_URL}/api/adviser/reset-password`,
+        DASHBOARD_COUNTS: `${API_BASE_URL}/api/adviser/dashboard/counts`,
         ORGANIZATION_GET: `${API_BASE_URL}/api/adviser/organization`,
         ORGANIZATIONS_GET_ALL: `${API_BASE_URL}/api/adviser/organizations`,
         ORGANIZATION_UPDATE: `${API_BASE_URL}/api/adviser/organization`,

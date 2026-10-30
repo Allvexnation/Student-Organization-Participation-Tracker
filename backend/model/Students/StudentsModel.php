@@ -188,20 +188,25 @@ class StudentsModel {
             $stmt = $this->conn->prepare($query);
             
             $null = null;
-            if (isset($data['profile_photo']) && !empty($data['profile_photo'])) {
-                if (is_string($data['profile_photo']) && strpos($data['profile_photo'], 'data:image') === 0) {
-                    $parts = explode(',', $data['profile_photo']);
-                    if (isset($parts[1])) {
-                        $photoData = base64_decode($parts[1]);
+            if (isset($data['profile_photo'])) {
+                if (!empty($data['profile_photo'])) {
+                    if (is_string($data['profile_photo']) && strpos($data['profile_photo'], 'data:image') === 0) {
+                        $parts = explode(',', $data['profile_photo']);
+                        if (isset($parts[1])) {
+                            $photoData = base64_decode($parts[1]);
+                            $stmt->bindParam(':profile_photo', $photoData, PDO::PARAM_LOB);
+                        } else {
+                            $stmt->bindParam(':profile_photo', $null, PDO::PARAM_NULL);
+                        }
+                    } else if (is_string($data['profile_photo']) && preg_match('/^[a-zA-Z0-9\/\r\n+]*={0,2}$/', $data['profile_photo']) && base64_decode($data['profile_photo'], true) !== false) {
+                        $photoData = base64_decode($data['profile_photo']);
                         $stmt->bindParam(':profile_photo', $photoData, PDO::PARAM_LOB);
                     } else {
-                        $stmt->bindParam(':profile_photo', $null, PDO::PARAM_NULL);
+                        $stmt->bindParam(':profile_photo', $data['profile_photo'], PDO::PARAM_LOB);
                     }
-                } else if (is_string($data['profile_photo']) && preg_match('/^[a-zA-Z0-9\/\r\n+]*={0,2}$/', $data['profile_photo']) && base64_decode($data['profile_photo'], true) !== false) {
-                    $photoData = base64_decode($data['profile_photo']);
-                    $stmt->bindParam(':profile_photo', $photoData, PDO::PARAM_LOB);
                 } else {
-                    $stmt->bindParam(':profile_photo', $data['profile_photo'], PDO::PARAM_LOB);
+                    // Empty string means remove the photo
+                    $stmt->bindParam(':profile_photo', $null, PDO::PARAM_NULL);
                 }
             } elseif ($existingStudent && isset($existingStudent['profile_photo']) && !empty($existingStudent['profile_photo'])) {
                 if (is_string($existingStudent['profile_photo']) && strpos($existingStudent['profile_photo'], 'data:image') === 0) {

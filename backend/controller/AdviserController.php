@@ -406,8 +406,13 @@ class AdviserController {
         }
 
         $profilePhoto = null;
-        if (isset($data['profile_photo']) && !empty($data['profile_photo'])) {
-            $profilePhoto = $data['profile_photo'];
+        if (isset($data['profile_photo'])) {
+            if (!empty($data['profile_photo'])) {
+                $profilePhoto = $data['profile_photo'];
+            } else {
+
+                $profilePhoto = '';
+            }
         } elseif ($existingAdviser && isset($existingAdviser['profile_photo']) && !empty($existingAdviser['profile_photo'])) {
             $profilePhoto = $existingAdviser['profile_photo'];
         }
@@ -597,5 +602,90 @@ class AdviserController {
 
         http_response_code(200);
         echo json_encode(['message' => 'Token is valid']);
+    }
+
+    public function getDashboardCounts() {
+        header('Content-Type: application/json');
+        
+        $token = $this->getBearerToken();
+        
+        if (!$token || !JWT::validate($token)) {
+            http_response_code(401);
+            echo json_encode(['message' => 'Unauthorized']);
+            return;
+        }
+
+        $adviserId = JWT::getUserId($token);
+
+        try {
+            require_once __DIR__ . '/../config/db.php';
+            require_once __DIR__ . '/../model/OrganizationsModel.php';
+            require_once __DIR__ . '/../model/EventsModel.php';
+            require_once __DIR__ . '/../model/Students/StudentsModel.php';
+            require_once __DIR__ . '/../model/OrganizationMembershipsModel.php';
+            require_once __DIR__ . '/../model/EventRegistrationsModel.php';
+
+            $database = Database::getInstance();
+            $conn = $database->getConnection();
+
+            $organizationModel = new OrganizationsModel();
+            $eventModel = new EventsModel();
+            $studentModel = new StudentsModel();
+            $orgMembershipModel = new OrganizationMembershipsModel();
+            $eventRegistrationModel = new EventRegistrationsModel();
+
+            $organizations = $organizationModel->getByAdviserId($adviserId);
+            $totalOrganizations = is_array($organizations) ? count($organizations) : 0;
+
+            $activeEvents = 0;
+            $eventRegistrations = 0;
+            $totalStudents = 0;
+
+            if ($totalOrganizations > 0 && is_array($organizations)) {
+                $orgIds = array_column($organizations, 'id');
+                $orgIdsString = implode(',', array_fill(0, count($orgIds), '?'));
+
+                foreach ($orgIds as $orgId) {
+                    $orgEvents = $eventModel->getByOrganizationId($orgId);
+                    if (is_array($orgEvents)) {
+                        $activeEvents += count($orgEvents);
+                    }
+
+                    $members = $orgMembershipModel->readByOrganizationId($orgId);
+                    if (is_array($members)) {
+                        $totalStudents += count($members);
+                    }
+                }
+
+                $query = "SELECT COUNT(*) as total FROM event_organizations eo
+                          WHERE eo.organization_id IN ($orgIdsString)";
+                try {
+                    $stmt = $conn->prepare($query);
+                    $stmt->execute($orgIds);
+                    $result = $stmt->fetch(PDO::FETCH_ASSOC);
+                    $eventRegistrations = $result['total'] ?? 0;
+                } catch(PDOException $e) {
+                    error_log("Error counting event organizations: " . $e->getMessage());
+                    $eventRegistrations = 0;
+                }
+            }
+
+            $orgMemberships = $totalStudents;
+            $pendingRequests = 0;
+
+            http_response_code(200);
+            echo json_encode([
+                'totalStudents' => $totalStudents,
+                'totalOrganizations' => $totalOrganizations,
+                'activeEvents' => $activeEvents,
+                'eventRegistrations' => $eventRegistrations,
+                'orgMemberships' => $orgMemberships,
+                'pendingRequests' => $pendingRequests
+            ]);
+        } catch (Exception $e) {
+            error_log('Error fetching dashboard counts: ' . $e->getMessage());
+            http_response_code(500);
+            echo json_encode(['message' => 'Failed to fetch dashboard counts']);
+        }
     }
 }
