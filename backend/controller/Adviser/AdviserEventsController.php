@@ -60,20 +60,10 @@ class AdviserEventsController {
     public function getRegisteredEvents() {
         header('Content-Type: application/json');
         
-        $headers = getallheaders();
-        $token = isset($headers['Authorization']) ? str_replace('Bearer ', '', $headers['Authorization']) : null;
-        
-        if (!$token || !JWT::validate($token)) {
-            http_response_code(401);
-            echo json_encode(['message' => 'Unauthorized']);
-            return;
-        }
-
         $adviser_id = $this->getAdviserIdFromToken();
-        
         if (!$adviser_id) {
             http_response_code(401);
-            echo json_encode(['message' => 'Invalid token']);
+            echo json_encode(['message' => 'Unauthorized']);
             return;
         }
 
@@ -91,20 +81,10 @@ class AdviserEventsController {
     public function getOrganizationsByEvent($event_id) {
         header('Content-Type: application/json');
         
-        $headers = getallheaders();
-        $token = isset($headers['Authorization']) ? str_replace('Bearer ', '', $headers['Authorization']) : null;
-        
-        if (!$token || !JWT::validate($token)) {
-            http_response_code(401);
-            echo json_encode(['message' => 'Unauthorized']);
-            return;
-        }
-
         $adviser_id = $this->getAdviserIdFromToken();
-        
         if (!$adviser_id) {
             http_response_code(401);
-            echo json_encode(['message' => 'Invalid token']);
+            echo json_encode(['message' => 'Unauthorized']);
             return;
         }
 
@@ -122,20 +102,10 @@ class AdviserEventsController {
     public function getTasksByEvent($event_id) {
         header('Content-Type: application/json');
         
-        $headers = getallheaders();
-        $token = isset($headers['Authorization']) ? str_replace('Bearer ', '', $headers['Authorization']) : null;
-        
-        if (!$token || !JWT::validate($token)) {
-            http_response_code(401);
-            echo json_encode(['message' => 'Unauthorized']);
-            return;
-        }
-
         $adviser_id = $this->getAdviserIdFromToken();
-        
         if (!$adviser_id) {
             http_response_code(401);
-            echo json_encode(['message' => 'Invalid token']);
+            echo json_encode(['message' => 'Unauthorized']);
             return;
         }
 
@@ -153,20 +123,10 @@ class AdviserEventsController {
     public function getTasksByOrganization($organization_id) {
         header('Content-Type: application/json');
         
-        $headers = getallheaders();
-        $token = isset($headers['Authorization']) ? str_replace('Bearer ', '', $headers['Authorization']) : null;
-        
-        if (!$token || !JWT::validate($token)) {
-            http_response_code(401);
-            echo json_encode(['message' => 'Unauthorized']);
-            return;
-        }
-
         $adviser_id = $this->getAdviserIdFromToken();
-        
         if (!$adviser_id) {
             http_response_code(401);
-            echo json_encode(['message' => 'Invalid token']);
+            echo json_encode(['message' => 'Unauthorized']);
             return;
         }
 
@@ -184,20 +144,10 @@ class AdviserEventsController {
     public function getAllTasks() {
         header('Content-Type: application/json');
         
-        $headers = getallheaders();
-        $token = isset($headers['Authorization']) ? str_replace('Bearer ', '', $headers['Authorization']) : null;
-        
-        if (!$token || !JWT::validate($token)) {
-            http_response_code(401);
-            echo json_encode(['message' => 'Unauthorized']);
-            return;
-        }
-
         $adviser_id = $this->getAdviserIdFromToken();
-        
         if (!$adviser_id) {
             http_response_code(401);
-            echo json_encode(['message' => 'Invalid token']);
+            echo json_encode(['message' => 'Unauthorized']);
             return;
         }
 

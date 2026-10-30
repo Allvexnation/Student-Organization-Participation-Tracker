@@ -66,6 +66,7 @@ export async function initAdviserEvents() {
     }
     await initAdviserNavbar();
 
+    let adviserOrg = null;
     let events = [];
     let selectedEvent = null;
     let organizations = [];
@@ -74,22 +75,119 @@ export async function initAdviserEvents() {
     let memberships = [];
     let currentGroupedTasks = [];
 
+    function renderEmptyTable(type) {
+        const tbody = document.getElementById('tasksTableBody');
+        if (!tbody) return;
+
+        let icon = 'calendar';
+        let title = 'No data';
+        let subtitle = '';
+
+        switch (type) {
+            case 'no_organization':
+                icon = 'building-2';
+                title = 'No Organization Assigned';
+                subtitle = 'You do not have an organization assigned to your account yet.';
+                break;
+            case 'no_events':
+                icon = 'calendar-x';
+                title = 'No Events Registered';
+                subtitle = `There are no events registered for ${adviserOrg ? (adviserOrg.name || 'your organization') : 'your organization'}.`;
+                break;
+            case 'no_org_registered':
+                icon = 'building-2';
+                title = 'No Organization Registered for this Event';
+                subtitle = 'Your organization is not registered for this event.';
+                break;
+            case 'no_tasks':
+                icon = 'check-square';
+                title = 'No Tasks Found';
+                subtitle = 'Click "Add Task" to create tasks for event organization members.';
+                break;
+            case 'select_event':
+                icon = 'calendar';
+                title = 'Select an Event';
+                subtitle = 'Select an event from the dropdown to view tasks.';
+                break;
+            default:
+                icon = 'check-square';
+                title = 'No tasks found';
+                subtitle = 'Select an event to view tasks.';
+                break;
+        }
+
+        tbody.innerHTML = `
+            <tr>
+                <td colspan="7" class="px-5 py-12 text-center">
+                    <div class="flex flex-col items-center justify-center">
+                        <div class="w-12 h-12 bg-gray-100 rounded-full flex items-center justify-center mb-3">
+                            <i data-lucide="${icon}" class="w-6 h-6 text-gray-400"></i>
+                        </div>
+                        <p class="text-sm font-medium text-gray-900">${title}</p>
+                        <p class="text-xs text-gray-500 mt-1">${subtitle}</p>
+                    </div>
+                </td>
+            </tr>
+        `;
+
+        if (typeof lucide !== 'undefined') lucide.createIcons();
+    }
+
     async function loadEvents() {
         try {
-            events = await AdviserEventsAPI.getRegisteredEvents();
+            // Concurrent fetch to eliminate waterfall delays
+            const [org, regEvents] = await Promise.all([
+                AdviserOrganizationAPI.getAdviserOrganization().catch(err => {
+                    console.error('Error loading organization:', err);
+                    return null;
+                }),
+                AdviserEventsAPI.getRegisteredEvents().catch(err => {
+                    console.error('Error loading registered events:', err);
+                    return [];
+                })
+            ]);
+
+            adviserOrg = org;
+            events = regEvents || [];
             renderEventSelect();
         } catch (error) {
             console.error('Error loading events:', error);
             showToast('Failed to load events', 'error');
+            renderEmptyTable('no_events');
         }
     }
 
     function renderEventSelect() {
         const select = document.getElementById('eventSelect');
+        const addTaskBtn = document.getElementById('addTaskBtn');
         if (!select) return;
 
+        if (!adviserOrg) {
+            select.innerHTML = '<option value="">No Organization Assigned</option>';
+            select.disabled = true;
+            if (addTaskBtn) {
+                addTaskBtn.classList.add('opacity-50', 'cursor-not-allowed');
+            }
+            renderEmptyTable('no_organization');
+            return;
+        }
+
+        if (events.length === 0) {
+            select.innerHTML = '<option value="">No Events Registered</option>';
+            select.disabled = true;
+            if (addTaskBtn) {
+                addTaskBtn.classList.add('opacity-50', 'cursor-not-allowed');
+            }
+            renderEmptyTable('no_events');
+            return;
+        }
+
+        select.disabled = false;
+        if (addTaskBtn) {
+            addTaskBtn.classList.remove('opacity-50', 'cursor-not-allowed');
+        }
+
         select.innerHTML = '<option value="">Select Event</option>';
-        
         events.forEach(event => {
             const option = document.createElement('option');
             option.value = event.event_id;
@@ -97,10 +195,9 @@ export async function initAdviserEvents() {
             select.appendChild(option);
         });
 
-        if (events.length > 0) {
-            select.value = events[0].event_id;
-            handleEventChange();
-        }
+        // Automatically select the first event
+        select.value = events[0].event_id;
+        handleEventChange();
     }
 
     async function handleEventChange() {
@@ -111,6 +208,10 @@ export async function initAdviserEvents() {
         selectedEvent = events.find(e => e.event_id === eventId);
 
         if (selectedEvent) {
+            const tbody = document.getElementById('tasksTableBody');
+            if (tbody) {
+                tbody.innerHTML = skeletonTableRows(window.innerWidth < 640 ? 3 : 4, window.innerWidth < 640 ? 3 : 7, true);
+            }
             await Promise.all([
                 loadOrganizationsByEvent(eventId),
                 loadTasksByEvent(eventId)
@@ -121,7 +222,7 @@ export async function initAdviserEvents() {
             tasks = [];
             memberships = [];
             currentGroupedTasks = [];
-            renderTasks([]);
+            renderEmptyTable('select_event');
         }
     }
 
@@ -161,8 +262,6 @@ export async function initAdviserEvents() {
     async function loadTasksByEvent(eventId) {
         try {
             tasks = await AdviserEventsAPI.getTasksByEvent(eventId);
-            await checkOverdueTasks(tasks);
-            
             renderTasks(tasks);
         } catch (error) {
             console.error('Error loading tasks:', error);
@@ -175,26 +274,6 @@ export async function initAdviserEvents() {
                 `;
             }
             showToast('Failed to load tasks', 'error');
-        }
-    }
-
-    async function checkOverdueTasks(tasks) {
-        const today = new Date();
-        today.setHours(0, 0, 0, 0);
-        
-        for (const task of tasks) {
-            const endDate = new Date(task.student_end_date || task.end_date);
-            
-            if (endDate < today && task.status === 'pending') {
-                if (task.daily_schedules && task.daily_schedules.length > 0) {
-                    const allCompleted = task.daily_schedules.every(s => s.status === 'completed');
-                    if (!allCompleted) {
-                        await AdviserEventsAPI.updateTaskStatus(task.id, 'not_finished');
-                    }
-                } else {
-                    await AdviserEventsAPI.updateTaskStatus(task.id, 'not_finished');
-                }
-            }
         }
     }
 
@@ -225,16 +304,15 @@ export async function initAdviserEvents() {
         }
         
         if (!data || data.length === 0) {
-            tbody.innerHTML = `
-                <tr>
-                    <td colspan="7" class="px-5 py-12 text-center">
-                        <i data-lucide="check-square" class="w-10 h-10 text-gray-200 mx-auto mb-2"></i>
-                        <p class="text-sm text-gray-500 font-medium">No tasks found.</p>
-                        <p class="text-xs text-gray-400 mt-1">${selectedEvent ? 'Click "Add Task" to create tasks for event organization members.' : 'Select an event to view tasks.'}</p>
-                    </td>
-                </tr>
-            `;
-            if (typeof lucide !== 'undefined') lucide.createIcons();
+            if (selectedEvent && organizations.length === 0) {
+                renderEmptyTable('no_org_registered');
+            } else if (selectedEvent) {
+                renderEmptyTable('no_tasks');
+            } else if (!adviserOrg) {
+                renderEmptyTable('no_organization');
+            } else {
+                renderEmptyTable('select_event');
+            }
             currentGroupedTasks = [];
             return;
         }
@@ -425,6 +503,11 @@ export async function initAdviserEvents() {
     document.getElementById('eventSelect').addEventListener('change', handleEventChange);
 
     document.getElementById('addTaskBtn').addEventListener('click', () => {
+        if (!adviserOrg) {
+            showToast('No organization assigned to your account', 'error');
+            return;
+        }
+
         if (!selectedEvent) {
             showToast('Please select an event first', 'error');
             return;
@@ -472,7 +555,6 @@ export async function initAdviserEvents() {
     };
 
     window.editTask = (id) => {
-
         const numId = parseInt(id);
         if (currentGroupedTasks[numId]) {
             window.editTaskGroup(numId);

@@ -214,14 +214,12 @@ class EventOrganizationsModel {
     }
 
     public function getRegisteredEventsByAdviserId($adviser_id) {
-        $query = "SELECT DISTINCT eo.id as event_org_id, eo.event_id, eo.organization_id, eo.created_at,
-                         e.title as event_title, e.event_day_start, e.event_day_end, e.event_category,
-                         o.name as organization_name
-                  FROM " . $this->table_name . " eo
-                  LEFT JOIN events e ON eo.event_id = e.id
-                  LEFT JOIN organizations o ON eo.organization_id = o.id
+        $query = "SELECT DISTINCT e.id as event_id, e.title as event_title, e.event_day_start, e.event_day_end, e.event_category
+                  FROM events e
+                  INNER JOIN " . $this->table_name . " eo ON eo.event_id = e.id
+                  INNER JOIN organizations o ON eo.organization_id = o.id
                   WHERE o.adviser_id = :adviser_id
-                  ORDER BY e.event_day_start DESC";
+                  ORDER BY e.event_day_start DESC, e.id DESC";
 
         try {
             $stmt = $this->conn->prepare($query);

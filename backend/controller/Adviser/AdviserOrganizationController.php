@@ -68,8 +68,8 @@ class AdviserOrganizationController {
             http_response_code(200);
             echo json_encode(['organization' => $organization]);
         } else {
-            http_response_code(404);
-            echo json_encode(['message' => 'Organization not found']);
+            http_response_code(200);
+            echo json_encode(['organization' => null, 'message' => 'Organization not found']);
         }
     }
 
@@ -183,8 +183,8 @@ class AdviserOrganizationController {
         $organization = $this->adviserOrganizationModel->getCurrentOrganizationForAdviser($adviser_id);
         
         if (!$organization) {
-            http_response_code(404);
-            echo json_encode(['message' => 'Organization not found']);
+            http_response_code(200);
+            echo json_encode(['organization_memberships' => []]);
             return;
         }
 

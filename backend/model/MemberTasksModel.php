@@ -12,13 +12,6 @@ class MemberTasksModel {
         $this->conn = $database->getConnection();
         if (!$this->conn) {
             error_log("Failed to establish database connection in MemberTasksModel");
-        } else {
-            try {
-                $this->conn->exec("ALTER TABLE member_tasks MODIFY COLUMN status VARCHAR(50) NOT NULL DEFAULT 'pending'");
-                $this->conn->exec("ALTER TABLE task_daily_schedules MODIFY COLUMN status VARCHAR(50) DEFAULT 'pending'");
-            } catch (Exception $e) {
-
-            }
         }
     }
 
@@ -619,6 +612,11 @@ class MemberTasksModel {
 
     public function syncAllTasksStatus() {
         if (!$this->conn) return;
+
+        if (self::$lastSyncTime > 0 && (time() - self::$lastSyncTime) < 30) {
+            return;
+        }
+        self::$lastSyncTime = time();
 
         try {
 
