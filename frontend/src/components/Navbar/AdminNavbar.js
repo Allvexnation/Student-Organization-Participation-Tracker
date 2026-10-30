@@ -89,7 +89,7 @@ export function initAdminNavbar() {
                         logout();
                         updateToast('Logged out successfully!', 'success');
                         setTimeout(() => {
-                            navigate('/auth/admin/login');
+                            window.location.href = '/auth/admin/login';
                         }, 1500);
                     },
                     confirmText: 'Logout',
@@ -108,7 +108,7 @@ export function initAdminNavbar() {
                         logout();
                         updateToast('Logged out successfully!', 'success');
                         setTimeout(() => {
-                            navigate('/auth/admin/login');
+                            window.location.href = '/auth/admin/login';
                         }, 1500);
                     },
                     confirmText: 'Logout',

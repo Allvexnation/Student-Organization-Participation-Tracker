@@ -78,7 +78,7 @@ export function initAdviserNavbar() {
                         await adviserLogout(getToken('adviser'));
                         updateToast('Logged out successfully!', 'success');
                         setTimeout(() => {
-                            navigate('/auth/adviser/login');
+                            window.location.href = '/auth/adviser/login';
                         }, 1500);
                     },
                     confirmText: 'Logout',
@@ -97,7 +97,7 @@ export function initAdviserNavbar() {
                         await adviserLogout(getToken('adviser'));
                         updateToast('Logged out successfully!', 'success');
                         setTimeout(() => {
-                            navigate('/auth/adviser/login');
+                            window.location.href = '/auth/adviser/login';
                         }, 1500);
                     },
                     confirmText: 'Logout',

@@ -78,7 +78,7 @@ export function initStudentNavbar() {
                         await studentLogout(getToken('student'));
                         updateToast('Logged out successfully!', 'success');
                         setTimeout(() => {
-                            navigate('/auth/student/login');
+                            window.location.href = '/auth/student/login';
                         }, 1500);
                     },
                     confirmText: 'Logout',
@@ -97,7 +97,7 @@ export function initStudentNavbar() {
                         await studentLogout(getToken('student'));
                         updateToast('Logged out successfully!', 'success');
                         setTimeout(() => {
-                            navigate('/auth/student/login');
+                            window.location.href = '/auth/student/login';
                         }, 1500);
                     },
                     confirmText: 'Logout',
