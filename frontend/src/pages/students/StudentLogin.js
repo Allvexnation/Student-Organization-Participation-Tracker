@@ -117,6 +117,9 @@ export function initStudentLogin() {
         
         if (result.token) {
             setToken(result.token, 'student');
+            if (result.student) {
+                localStorage.setItem('studentData', JSON.stringify(result.student));
+            }
             updateToast('Login successful! Redirecting...', 'success');
             setTimeout(() => {
                 navigate('/student/dashboard');

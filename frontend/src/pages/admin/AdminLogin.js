@@ -113,6 +113,9 @@ export function initAdminLogin() {
         
         if (result.token) {
             setToken(result.token, 'admin');
+            if (result.admin) {
+                localStorage.setItem('adminData', JSON.stringify(result.admin));
+            }
             updateToast('Login successful! Redirecting...', 'success');
             setTimeout(() => {
                 navigate('/admin/dashboard');
