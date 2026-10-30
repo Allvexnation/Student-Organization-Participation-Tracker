@@ -72,6 +72,24 @@ class SessionModel {
         }
     }
 
+    public function deleteByToken($token) {
+        $query = "DELETE FROM " . $this->table_name . " 
+                  WHERE token = :token";
+
+        try {
+            $stmt = $this->conn->prepare($query);
+            $stmt->bindParam(':token', $token);
+            
+            if($stmt->execute()) {
+                return $stmt->rowCount() > 0;
+            }
+            return false;
+        } catch(PDOException $e) {
+            error_log("Error deleting token: " . $e->getMessage());
+            return false;
+        }
+    }
+
     public function deactivateAllUserSessions($userId, $userType) {
         $query = "UPDATE " . $this->table_name . " 
                   SET is_active = 0 
