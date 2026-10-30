@@ -249,7 +249,7 @@ export function initAdminProfile() {
     protectAdminRoute();
     initAdminNavbar();
 
-    const adminData = getAdminData() || {};
+    let adminData = getAdminData() || {};
     let selectedPhoto = null;
 
     const profilePhotoInput = document.getElementById('profilePhoto');
