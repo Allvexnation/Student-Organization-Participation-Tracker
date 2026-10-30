@@ -1,5 +1,5 @@
 import { AdviserNavbar, initAdviserNavbar } from '../../../components/Navbar/AdviserNavbar.js';
-import { protectAdviserRoute } from '../../../middleware/AdviserMiddleware.js';
+import { isAuthenticated, navigate } from '../../../utils/jwt.js';
 import * as AdviserOrganizationAPI from '../../../api/adviser/Organization/AdviserOrganization.js';
 import { openAdviserOrgMemModal, openViewAdviserOrgMemModal, openEditOrgModal, openSwitchOrgModal } from '../../../components/Modal/Adviser/AdviserOrganizationModal.js';
 import { showToast } from '../../../components/ToastMessage.js';
@@ -88,7 +88,10 @@ export function AdviserOrganization() {
 }
 
 export async function initAdviserOrganization() {
-    protectAdviserRoute();
+    if (!isAuthenticated('adviser')) {
+        navigate('/auth/adviser/login');
+        return;
+    }
     await initAdviserNavbar();
 
     let organization = null;

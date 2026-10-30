@@ -1,7 +1,7 @@
 import { AdviserNavbar, initAdviserNavbar } from '../../components/Navbar/AdviserNavbar.js';
 import { getAdviserData } from '../../api/adviser/AdviserAuth/AdviserAuth.js';
 import { getAdviserProfile, updateAdviserProfile } from '../../api/adviser/AdviserProfile.js';
-import { protectAdviserRoute } from '../../middleware/AdviserMiddleware.js';
+import { isAuthenticated, navigate } from '../../utils/jwt.js';
 import { openConfirmDialog } from '../../components/Dialog/ConfirmDialog.js';
 import { showToast, updateToast } from '../../components/ToastMessage.js';
 
@@ -233,7 +233,10 @@ export function AdviserProfile() {
 }
 
 export async function initAdviserProfile() {
-    protectAdviserRoute();
+    if (!isAuthenticated('adviser')) {
+        navigate('/auth/adviser/login');
+        return;
+    }
     await initAdviserNavbar();
 
     // Fetch fresh data from API

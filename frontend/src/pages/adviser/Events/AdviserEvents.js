@@ -1,5 +1,5 @@
 import { AdviserNavbar, initAdviserNavbar } from '../../../components/Navbar/AdviserNavbar.js';
-import { protectAdviserRoute } from '../../../middleware/AdviserMiddleware.js';
+import { isAuthenticated, navigate } from '../../../utils/jwt.js';
 import * as AdviserEventsAPI from '../../../api/adviser/Events/AdviserEvents.js';
 import * as AdviserOrganizationAPI from '../../../api/adviser/Organization/AdviserOrganization.js';
 import { openTaskModal } from '../../../components/Modal/Adviser/TaskModal.js';
@@ -58,7 +58,10 @@ export function AdviserEvents() {
 }
 
 export async function initAdviserEvents() {
-    protectAdviserRoute();
+    if (!isAuthenticated('adviser')) {
+        navigate('/auth/adviser/login');
+        return;
+    }
     await initAdviserNavbar();
 
     let events = [];
