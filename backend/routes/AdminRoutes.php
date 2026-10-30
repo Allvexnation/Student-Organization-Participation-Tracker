@@ -14,6 +14,8 @@ class AdminRoutes {
         
         if ($method === 'POST' && $uri === '/api/admin/login') {
             $this->controller->login();
+        } elseif ($method === 'POST' && $uri === '/api/admin/logout') {
+            $this->controller->logout();
         } elseif ($method === 'GET' && $uri === '/api/admin/profile') {
             $this->controller->getProfile();
         } elseif ($method === 'PUT' && $uri === '/api/admin/profile') {

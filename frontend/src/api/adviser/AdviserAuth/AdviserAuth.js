@@ -32,17 +32,32 @@ export async function adviserLogin(Email, Password) {
 }
 
 export async function adviserLogout(token) {
-    const response = await fetch(API_ROUTES.ADVISER.LOGOUT, {
-        method: 'POST',
-        headers: {
-            'Content-Type': 'application/json',
-            'Authorization': `Bearer ${token}`
+    try {
+        const response = await fetch(API_ROUTES.ADVISER.LOGOUT, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'Authorization': `Bearer ${token}`
+            }
+        });
+        
+        removeToken('adviser');
+        localStorage.removeItem('adviserData');
+        localStorage.removeItem('adviserVerified');
+        
+        const contentType = response.headers.get('content-type');
+        if (contentType && contentType.includes('application/json')) {
+            return await response.json();
         }
-    });
-    removeToken('adviser');
-    localStorage.removeItem('adviserData');
-    localStorage.removeItem('adviserVerified');
-    return response.json();
+        
+        return { message: 'Logout completed' };
+    } catch (error) {
+        console.error('Logout error:', error);
+        removeToken('adviser');
+        localStorage.removeItem('adviserData');
+        localStorage.removeItem('adviserVerified');
+        return { message: 'Logout completed (offline)' };
+    }
 }
 
 export function getAdviserData() {

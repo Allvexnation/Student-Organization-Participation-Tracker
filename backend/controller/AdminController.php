@@ -163,4 +163,27 @@ class AdminController {
             echo json_encode(['message' => 'Failed to update profile']);
         }
     }
+
+    public function logout() {
+        header('Content-Type: application/json');
+        
+        $headers = getallheaders();
+        $token = isset($headers['Authorization']) ? str_replace('Bearer ', '', $headers['Authorization']) : null;
+        
+        if (!$token || !JWT::validate($token)) {
+            http_response_code(401);
+            echo json_encode(['message' => 'Unauthorized']);
+            return;
+        }
+
+        $result = $this->sessionModel->deleteByToken($token);
+
+        if ($result) {
+            http_response_code(200);
+            echo json_encode(['message' => 'Logout successful']);
+        } else {
+            http_response_code(500);
+            echo json_encode(['message' => 'Failed to logout']);
+        }
+    }
 }

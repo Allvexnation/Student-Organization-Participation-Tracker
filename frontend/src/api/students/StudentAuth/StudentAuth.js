@@ -32,17 +32,32 @@ export async function studentLogin(Email, Password) {
 }
 
 export async function studentLogout(token) {
-    const response = await fetch(API_ROUTES.STUDENT.LOGOUT, {
-        method: 'POST',
-        headers: {
-            'Content-Type': 'application/json',
-            'Authorization': `Bearer ${token}`
+    try {
+        const response = await fetch(API_ROUTES.STUDENT.LOGOUT, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'Authorization': `Bearer ${token}`
+            }
+        });
+        
+        removeToken();
+        localStorage.removeItem('studentData');
+        localStorage.removeItem('studentVerified');
+        
+        const contentType = response.headers.get('content-type');
+        if (contentType && contentType.includes('application/json')) {
+            return await response.json();
         }
-    });
-    removeToken();
-    localStorage.removeItem('studentData');
-    localStorage.removeItem('studentVerified');
-    return response.json();
+        
+        return { message: 'Logout completed' };
+    } catch (error) {
+        console.error('Logout error:', error);
+        removeToken();
+        localStorage.removeItem('studentData');
+        localStorage.removeItem('studentVerified');
+        return { message: 'Logout completed (offline)' };
+    }
 }
 
 export function getStudentData() {
