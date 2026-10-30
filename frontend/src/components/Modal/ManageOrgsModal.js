@@ -5,6 +5,8 @@ import * as OrganizationsAPI from '../../api/admin/Organizations/ManageOrganizat
 import * as AdviserAPI from '../../api/admin/adviser/ManageAdviser.js';
 import { showToast } from '../ToastMessage.js';
 import { skeletonOrgForm, skeletonOrgView } from '../SkeletonLoading.js';
+import { AdviserValidator } from '../../validator/AdviserValidator.js';
+import { OrganizationCrudValidator } from '../../validator/OrganizationCrudValidator.js';
 
 export function openManageOrgsModal({ mode = 'add', organization = null, organizationId = null, onSubmit }) {
     const isEdit = mode === 'edit';
@@ -168,11 +170,16 @@ async function loadAdvisers(selectedAdviserId = null) {
         if (adviserSelect) {
             adviserSelect.innerHTML = '<option value="">Select Adviser</option>';
             advisers.forEach(adviser => {
+                const isInactive = AdviserValidator.isInactive(adviser);
+                const displayName = AdviserValidator.getDisplayName(adviser);
                 const option = document.createElement('option');
                 option.value = adviser.id;
-                option.textContent = adviser.name;
+                option.textContent = displayName;
                 if (selectedAdviserId && selectedAdviserId == adviser.id) {
                     option.selected = true;
+                }
+                if (isInactive) {
+                    option.disabled = true;
                 }
                 adviserSelect.appendChild(option);
             });
@@ -206,6 +213,19 @@ async function processOrgSubmit(id, buttonText, onSubmit) {
         adviser_id: document.getElementById('orgAdviser').value,
         status: document.getElementById('orgStatus').value
     };
+
+    // Validate organization code uniqueness
+    try {
+        const allOrganizations = await OrganizationsAPI.getAllOrganizations();
+        const validation = OrganizationCrudValidator.validateCodeUniqueness(formData.org_code, allOrganizations, id);
+        if (!validation.isValid) {
+            showFormError(validation.message);
+            showToast(validation.message, 'error');
+            return;
+        }
+    } catch (error) {
+        console.error('Error checking organization code:', error);
+    }
 
     const isEdit = id != null;
 

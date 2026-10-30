@@ -3,10 +3,13 @@ import { getToken } from '../../../utils/jwt.js';
 
 async function getHeaders() {
     const token = getToken('admin');
-    return {
-        'Content-Type': 'application/json',
-        'Authorization': `Bearer ${token}`
+    const headers = {
+        'Content-Type': 'application/json'
     };
+    if (token && token !== 'null' && token !== 'undefined') {
+        headers['Authorization'] = `Bearer ${token}`;
+    }
+    return headers;
 }
 
 export async function getAllOrgMemberships() {

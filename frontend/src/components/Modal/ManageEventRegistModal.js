@@ -7,6 +7,8 @@ import * as OrganizationsAPI from '../../api/admin/Organizations/ManageOrganizat
 import { getApprovers } from '../../api/admin/EventOrganizations/EventOrganizations.js';
 import { showToast } from '../ToastMessage.js';
 import { skeletonEventRegistForm, skeletonEventRegistView } from '../SkeletonLoading.js';
+import { OrganizationValidator } from '../../validator/OrganizationValidator.js';
+import { AdviserValidator } from '../../validator/AdviserValidator.js';
 
 export function openManageEventRegistModal({ mode = 'add', registration = null, registrationId = null, onSubmit }) {
     const isEdit = mode === 'edit';
@@ -202,11 +204,16 @@ async function loadOrganizations(selectedOrganizationId = null) {
         if (organizationSelect) {
             organizationSelect.innerHTML = '<option value="">Select Organization</option>';
             organizations.forEach(org => {
+                const isSuspended = OrganizationValidator.isSuspended(org);
+                const displayName = OrganizationValidator.getDisplayName(org);
                 const option = document.createElement('option');
                 option.value = org.id;
-                option.textContent = org.name;
+                option.textContent = displayName;
                 if (selectedOrganizationId && selectedOrganizationId == org.id) {
                     option.selected = true;
+                }
+                if (isSuspended) {
+                    option.disabled = true;
                 }
                 organizationSelect.appendChild(option);
             });
@@ -225,12 +232,17 @@ async function loadApprovers(selectedApproverId = null) {
         if (approverSelect) {
             approverSelect.innerHTML = '<option value="">Select Approver</option>';
             approvers.forEach(approver => {
+                const isInactive = approver.type === 'adviser' ? AdviserValidator.isInactive(approver) : false;
+                const displayName = isInactive ? AdviserValidator.getDisplayName(approver) : approver.name;
+                const typeLabel = approver.type === 'admin' ? 'Admin' : 'Adviser';
                 const option = document.createElement('option');
                 option.value = approver.id;
-                const typeLabel = approver.type === 'admin' ? 'Admin' : 'Adviser';
-                option.textContent = `${approver.name} (${typeLabel})`;
+                option.textContent = `${displayName} (${typeLabel})`;
                 if (selectedApproverId && selectedApproverId == approver.id) {
                     option.selected = true;
+                }
+                if (isInactive) {
+                    option.disabled = true;
                 }
                 approverSelect.appendChild(option);
             });

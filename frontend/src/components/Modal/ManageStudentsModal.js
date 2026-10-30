@@ -4,6 +4,7 @@ import { animateModalOpen, animateModalClose, clearModalAnimations, animateFormE
 import * as StudentsAPI from '../../api/admin/Students/ManageStudents.js';
 import { showToast } from '../ToastMessage.js';
 import { skeletonStudentForm, skeletonStudentView } from '../SkeletonLoading.js';
+import { StudentCrudValidator } from '../../validator/StudentCrudValidator.js';
 
 let croppedStudentImage = null;
 
@@ -292,6 +293,21 @@ async function processStudentSubmit(id, buttonText, onSubmit) {
         profile_photo: imageUrl
     };
 
+    // Fetch existing students for validation
+    try {
+        const existingStudents = await StudentsAPI.getAllStudents();
+        
+        // Validate form data
+        const validation = StudentCrudValidator.validate(formData, existingStudents, isEdit ? 'edit' : 'add', id);
+        
+        if (!validation.isValid) {
+            showFormError(validation.message);
+            return;
+        }
+    } catch (error) {
+        console.error('Error validating student:', error);
+        // Continue with submission if validation fetch fails
+    }
 
     if (isEdit) {
         openConfirmDialog({

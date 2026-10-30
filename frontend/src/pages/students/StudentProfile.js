@@ -5,6 +5,7 @@ import { getStudentProfile, updateStudentProfile } from '../../api/students/Stud
 import { protectStudentRoute } from '../../middleware/StudentMiddleware.js';
 import { openConfirmDialog } from '../../components/Dialog/ConfirmDialog.js';
 import { showToast, updateToast } from '../../components/ToastMessage.js';
+import { ProfileValidator } from '../../validator/ProfileValidator.js';
 
 export function StudentProfile() {
     const studentData = getStudentData() || {};
@@ -338,11 +339,6 @@ export async function initStudentProfile() {
             const password = document.getElementById('settingsPassword').value;
             const oldPassword = document.getElementById('settingsOldPassword').value;
 
-            if (password && !oldPassword) {
-                showToast('Please enter your current password to change your password.', 'error');
-                return;
-            }
-
             const profileData = {
                 first_name: firstName,
                 last_name: lastName,
@@ -356,6 +352,13 @@ export async function initStudentProfile() {
 
             if (password) {
                 profileData.password = password;
+                profileData.old_password = oldPassword;
+            }
+
+            const validation = ProfileValidator.validate(profileData, [studentData], 'student', studentData.id);
+            if (!validation.isValid) {
+                showToast(validation.message, 'error');
+                return;
             }
 
             openConfirmDialog({

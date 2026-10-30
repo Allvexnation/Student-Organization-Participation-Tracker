@@ -70,8 +70,7 @@ export async function initManageEvents() {
         const cachedData = localStorage.getItem('cachedEvents');
         const cachedTimestamp = localStorage.getItem('cachedEventsTimestamp');
         const cacheAge = cachedTimestamp ? Date.now() - parseInt(cachedTimestamp) : Infinity;
-        
-        // Force refresh if cache is older than 5 minutes or explicitly requested
+
         if (cachedData && !forceRefresh && cacheAge < 300000) {
             try {
                 events = JSON.parse(cachedData);

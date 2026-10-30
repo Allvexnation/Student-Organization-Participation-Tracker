@@ -6,6 +6,9 @@ import * as RolesAPI from '../../../api/admin/roles/ManageRoles.js';
 import * as StudentsAPI from '../../../api/admin/Students/ManageStudents.js';
 import { showToast } from '../../ToastMessage.js';
 import { skeletonOrgMemForm, skeletonOrgMemView } from '../../SkeletonLoading.js';
+import { OrganizationValidator } from '../../../validator/OrganizationValidator.js';
+import { OrganizationCrudValidator } from '../../../validator/OrganizationCrudValidator.js';
+import { OrganizationMembershipCrudValidator } from '../../../validator/OrganizationMembershipCrudValidator.js';
 
 export function openAdviserOrgMemModal({ mode = 'add', membership = null, membershipId = null, organizationId, existingMemberIds = [], onSubmit }) {
     const isEdit = mode === 'edit';
@@ -215,6 +218,10 @@ async function loadStudents(selectedStudentId = null, excludeIds = []) {
             localStorage.setItem('cachedStudentsTimestamp', Date.now().toString());
         }
 
+        // Get existing memberships to check which students already have organizations
+        const allMemberships = await AdviserOrganizationAPI.getAdviserOrgMemberships();
+        const studentWithOrgIds = allMemberships.map(m => m.student_id);
+
         const studentSelect = document.getElementById('studentId');
         if (studentSelect) {
             studentSelect.innerHTML = '<option value="">Select Student</option>';
@@ -222,11 +229,18 @@ async function loadStudents(selectedStudentId = null, excludeIds = []) {
                 if (excludeIds.map(String).includes(String(student.id))) {
                     return;
                 }
+                const hasOrg = studentWithOrgIds.includes(student.id);
+                const displayName = hasOrg ? 
+                    `${student.first_name} ${student.last_name} (Has Org)` : 
+                    `${student.first_name} ${student.last_name}`;
                 const option = document.createElement('option');
                 option.value = student.id;
-                option.textContent = `${student.first_name} ${student.last_name} (${student.student_number})`;
+                option.textContent = displayName;
                 if (selectedStudentId && selectedStudentId == student.id) {
                     option.selected = true;
+                }
+                if (hasOrg) {
+                    option.disabled = true;
                 }
                 studentSelect.appendChild(option);
             });
@@ -260,6 +274,19 @@ async function processOrgMemSubmit(id, buttonText, onSubmit) {
         role_id: document.getElementById('roleId').value,
         membership_status: document.getElementById('membershipStatus').value
     };
+
+    // Validate organization membership data
+    try {
+        const allMemberships = await AdviserOrganizationAPI.getAdviserOrgMemberships();
+        const validation = OrganizationMembershipCrudValidator.validate(formData, allMemberships, id);
+        if (!validation.isValid) {
+            showFormError(validation.message);
+            showToast(validation.message, 'error');
+            return;
+        }
+    } catch (error) {
+        console.error('Error validating membership:', error);
+    }
 
     const isEdit = id != null;
 
@@ -387,6 +414,18 @@ export function openEditOrgModal(organization, onSuccess) {
             status: document.getElementById('orgStatus').value
         };
 
+        // Validate organization code uniqueness
+        try {
+            const allOrganizations = await AdviserOrganizationAPI.getAdviserAllOrganizations();
+            const validation = OrganizationCrudValidator.validateCodeUniqueness(formData.org_code, allOrganizations, organization.id);
+            if (!validation.isValid) {
+                showToast(validation.message, 'error');
+                return;
+            }
+        } catch (error) {
+            console.error('Error checking organization code:', error);
+        }
+
         try {
             await AdviserOrganizationAPI.updateAdviserOrganization(formData);
             closeEditOrgModal();
@@ -420,21 +459,31 @@ async function closeEditOrgModal() {
 window.closeEditOrgModal = closeEditOrgModal;
 
 export function openSwitchOrgModal(organizations, onSwitch) {
-    const orgListContent = organizations.map(org => `
-        <div class="flex items-center justify-between p-4 border border-gray-200 rounded-lg hover:bg-gray-50 transition cursor-pointer ${org.isCurrent ? 'bg-blue-50 border-blue-200' : ''}"
-             onclick="selectOrganization(${org.id})">
+    const orgListContent = organizations.map(org => {
+        const isActive = OrganizationValidator.isActive(org);
+        const displayName = OrganizationValidator.getDisplayName(org);
+        const statusBadge = !isActive ? 
+            `<span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${org.status === 'Suspended' ? 'bg-red-50 text-red-700 border border-red-200' : 'bg-gray-50 text-gray-700 border border-gray-200'}">${org.status}</span>` : '';
+        
+        return `
+        <div class="flex items-center justify-between p-4 border border-gray-200 rounded-lg hover:bg-gray-50 transition cursor-pointer ${org.isCurrent ? 'bg-blue-50 border-blue-200' : ''} ${!isActive ? 'opacity-60 cursor-not-allowed' : ''}"
+             onclick="selectOrganization(${org.id})" ${!isActive ? 'onclick=""' : ''}>
             <div class="flex items-center gap-3">
                 <div class="w-10 h-10 rounded-full bg-blue-900 text-white flex items-center justify-center text-sm font-bold">
                     ${org.name.charAt(0).toUpperCase()}
                 </div>
                 <div>
-                    <h4 class="text-sm font-semibold text-gray-900">${org.name}</h4>
+                    <h4 class="text-sm font-semibold text-gray-900">${displayName}</h4>
                     <p class="text-xs text-gray-500">${org.code}</p>
                 </div>
             </div>
-            ${org.isCurrent ? '<span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-blue-100 text-blue-800">Current</span>' : ''}
+            <div class="flex items-center gap-2">
+                ${statusBadge}
+                ${org.isCurrent ? '<span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-blue-100 text-blue-800">Current</span>' : ''}
+            </div>
         </div>
-    `).join('');
+        `;
+    }).join('');
 
     const modalContent = `
         <div class="space-y-4">
@@ -463,8 +512,19 @@ export function openSwitchOrgModal(organizations, onSwitch) {
 
     window.selectOrganization = (orgId) => {
         const org = organizations.find(o => o.id === orgId);
-        if (org && org.isCurrent) {
+        if (!org) {
+            showToast('Organization not found', 'error');
+            return;
+        }
+
+        if (org.isCurrent) {
             showToast('This is already the current organization', 'info');
+            return;
+        }
+
+        // Check if organization is active
+        if (!OrganizationValidator.isActive(org.status)) {
+            showToast('Cannot switch to an inactive or suspended organization', 'error');
             return;
         }
 

@@ -3,6 +3,7 @@ import { animateModalOpen, animateModalClose, clearModalAnimations, animateFormE
 import { showToast } from '../../ToastMessage.js';
 import { API_ROUTES } from '../../../api/server/api.js';
 import { getToken } from '../../../utils/jwt.js';
+import { MembershipValidator } from '../../../validator/MembershipValidator.js';
 
 export function openTaskModal({ mode = 'add', task = null, taskId = null, taskGroup = null, eventId, eventTitle, organizationId, memberships = [], onSubmit }) {
     const isEdit = mode === 'edit';
@@ -77,11 +78,13 @@ export function openTaskModal({ mode = 'add', task = null, taskId = null, taskGr
                         <div id="studentsList" class="space-y-2 max-h-40 overflow-y-auto border border-gray-200 rounded-md p-3 bg-gray-50">
                             ${uniqueMemberships.map(m => {
                                 const isChecked = isEdit && assignedStudentIds.has(parseInt(m.student_id));
+                                const isInactive = MembershipValidator.isInactive(m);
+                                const displayName = MembershipValidator.getDisplayName(m);
                                 return `
-                                    <label class="flex items-center gap-2 cursor-pointer hover:bg-gray-100 p-1 rounded">
-                                        <input type="checkbox" name="studentSelect" value="${m.student_id}" ${isChecked ? 'checked' : ''} 
+                                    <label class="flex items-center gap-2 cursor-pointer hover:bg-gray-100 p-1 rounded ${isInactive ? 'opacity-60 cursor-not-allowed' : ''}">
+                                        <input type="checkbox" name="studentSelect" value="${m.student_id}" ${isChecked ? 'checked' : ''} ${isInactive ? 'disabled' : ''}
                                             class="w-4 h-4 text-blue-900 border-gray-300 rounded focus:ring-blue-500">
-                                        <span class="text-sm text-gray-700 flex-1">${m.student_name} (${m.student_number || 'N/A'})</span>
+                                        <span class="text-sm text-gray-700 flex-1">${displayName} (${m.student_number || 'N/A'})</span>
                                         <span class="text-xs text-gray-500 bg-gray-100 px-2 py-1 rounded">${m.role_name || m.position || 'Member'}</span>
                                     </label>
                                 `;

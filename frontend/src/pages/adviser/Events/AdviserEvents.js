@@ -8,6 +8,7 @@ import { showToast } from '../../../components/ToastMessage.js';
 import { CrudMenu } from '../../../components/CrudMenu.js';
 import { skeletonTableRows } from '../../../components/SkeletonLoading.js';
 import { openConfirmDialog } from '../../../components/Dialog/ConfirmDialog.js';
+import { MembershipValidator } from '../../../validator/MembershipValidator.js';
 
 export function AdviserEvents() {
     return `

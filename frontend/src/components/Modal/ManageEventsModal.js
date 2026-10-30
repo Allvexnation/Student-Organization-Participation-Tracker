@@ -5,6 +5,7 @@ import * as EventsAPI from '../../api/admin/Events/ManageEvents.js';
 import * as OrganizationsAPI from '../../api/admin/Organizations/ManageOrganizations.js';
 import { showToast } from '../ToastMessage.js';
 import { skeletonEventForm, skeletonEventView } from '../SkeletonLoading.js';
+import { OrganizationValidator } from '../../validator/OrganizationValidator.js';
 
 export function openManageEventsModal({ mode = 'add', event = null, eventId = null, onSubmit }) {
     const isEdit = mode === 'edit';
@@ -352,13 +353,19 @@ async function loadOrganizations(selectedOrgIds = []) {
         
         const orgContainer = document.getElementById('organizationCheckboxes');
         if (orgContainer) {
-            orgContainer.innerHTML = organizations.map(org => `
-                <label class="flex items-center space-x-2 cursor-pointer hover:bg-gray-100 p-1 rounded">
-                    <input type="checkbox" name="organizationIds" value="${org.id}" ${selectedOrgIds.includes(org.id) ? 'checked' : ''}
-                        class="w-4 h-4 text-blue-900 border-gray-300 rounded focus:ring-blue-500">
-                    <span class="text-sm text-gray-700">${org.name}</span>
+            orgContainer.innerHTML = organizations.map(org => {
+                const isSuspended = OrganizationValidator.isSuspended(org);
+                const displayName = OrganizationValidator.getDisplayName(org);
+                const isChecked = selectedOrgIds.includes(org.id);
+                
+                return `
+                <label class="flex items-center space-x-2 ${isSuspended ? 'cursor-not-allowed opacity-60' : 'cursor-pointer hover:bg-gray-100'} p-1 rounded">
+                    <input type="checkbox" name="organizationIds" value="${org.id}" ${isChecked ? 'checked' : ''} ${isSuspended ? 'disabled' : ''}
+                        class="w-4 h-4 text-blue-900 border-gray-300 rounded focus:ring-blue-500 ${isSuspended ? 'cursor-not-allowed' : ''}">
+                    <span class="text-sm ${isSuspended ? 'text-gray-500 italic' : 'text-gray-700'}">${displayName}</span>
                 </label>
-            `).join('');
+                `;
+            }).join('');
         }
     } catch (error) {
         console.error('Error loading organizations:', error);

@@ -68,12 +68,19 @@ export async function initManageOrgMemberships() {
 
     async function loadOrgMemberships(forceRefresh = false) {
         const cachedData = localStorage.getItem('cachedOrgMemberships');
-        if (cachedData && !forceRefresh) {
+        const cachedTimestamp = localStorage.getItem('cachedOrgMembershipsTimestamp');
+        const cacheMaxAge = 5 * 60 * 1000; // 5 minutes
+        const isCacheExpired = !cachedTimestamp || (Date.now() - parseInt(cachedTimestamp)) > cacheMaxAge;
+
+        if (cachedData && !forceRefresh && !isCacheExpired) {
             try {
-                orgMemberships = JSON.parse(cachedData);
-                renderOrgMemberships(orgMemberships);
-                hasLoaded = true;
-                return;
+                const parsed = JSON.parse(cachedData);
+                if (parsed && parsed.length > 0) {
+                    orgMemberships = parsed;
+                    renderOrgMemberships(orgMemberships);
+                    hasLoaded = true;
+                    return;
+                }
             } catch (e) {
                 console.error('Error parsing cached org memberships:', e);
             }

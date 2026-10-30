@@ -310,6 +310,7 @@ export async function initAdviserOrganization() {
                 id: org.id,
                 name: org.name,
                 code: org.org_code,
+                status: org.status,
                 isCurrent: org.id === currentOrgId
             }));
 

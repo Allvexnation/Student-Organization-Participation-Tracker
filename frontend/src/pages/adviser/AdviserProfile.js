@@ -5,6 +5,7 @@ import { isAuthenticated, setUserData } from '../../utils/jwt.js';
 import { navigate } from '../../utils/navigation.js';
 import { openConfirmDialog } from '../../components/Dialog/ConfirmDialog.js';
 import { showToast, updateToast } from '../../components/ToastMessage.js';
+import { ProfileValidator } from '../../validator/ProfileValidator.js';
 
 export function AdviserProfile() {
     const adviserData = getAdviserData() || {};
@@ -293,11 +294,6 @@ export async function initAdviserProfile() {
             const password = document.getElementById('settingsPassword').value;
             const oldPassword = document.getElementById('settingsOldPassword').value;
 
-            if (password && !oldPassword) {
-                showToast('Please enter your current password to change your password.', 'error');
-                return;
-            }
-
             const profileData = {
                 name,
                 username,
@@ -308,6 +304,13 @@ export async function initAdviserProfile() {
 
             if (password) {
                 profileData.password = password;
+                profileData.old_password = oldPassword;
+            }
+
+            const validation = ProfileValidator.validate(profileData, [adviserData], 'adviser', adviserData.id);
+            if (!validation.isValid) {
+                showToast(validation.message, 'error');
+                return;
             }
 
             openConfirmDialog({

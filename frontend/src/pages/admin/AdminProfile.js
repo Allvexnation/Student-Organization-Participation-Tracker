@@ -5,6 +5,7 @@ import { getAdminProfile, updateAdminProfile } from '../../api/admin/AdminProfil
 import { protectAdminRoute } from '../../middleware/AdminMiddleware.js';
 import { openConfirmDialog } from '../../components/Dialog/ConfirmDialog.js';
 import { showToast, updateToast } from '../../components/ToastMessage.js';
+import { ProfileValidator } from '../../validator/ProfileValidator.js';
 
 export function AdminProfile() {
     const adminData = getAdminData() || {};
@@ -268,11 +269,6 @@ export function initAdminProfile() {
             const password = document.getElementById('settingsPassword').value;
             const oldPassword = document.getElementById('settingsOldPassword').value;
 
-            if (password && !oldPassword) {
-                showToast('Please enter your current password to change your password.', 'error');
-                return;
-            }
-
             const profileData = {
                 name,
                 username,
@@ -283,6 +279,13 @@ export function initAdminProfile() {
 
             if (password) {
                 profileData.password = password;
+                profileData.old_password = oldPassword;
+            }
+
+            const validation = ProfileValidator.validate(profileData, [adminData], 'admin', adminData.id);
+            if (!validation.isValid) {
+                showToast(validation.message, 'error');
+                return;
             }
 
             openConfirmDialog({

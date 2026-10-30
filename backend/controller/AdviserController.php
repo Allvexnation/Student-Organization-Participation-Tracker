@@ -513,7 +513,11 @@ class AdviserController {
         $result = $this->adviserModel->resetPassword($adviserId, $newPassword);
 
         if ($result) {
-            $this->adviserOtpModel->deleteByAdviserId($adviserId);
+            try {
+                $this->adviserOtpModel->deleteByAdviserId($adviserId);
+            } catch (Exception $e) {
+                error_log("Failed to delete OTP: " . $e->getMessage());
+            }
             http_response_code(200);
             echo json_encode(['message' => 'Password reset successfully']);
         } else {

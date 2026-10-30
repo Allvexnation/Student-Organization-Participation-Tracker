@@ -122,7 +122,7 @@ async function getIpAndLocation() {
 
     locationFetchPromise = (async () => {
         const controller = new AbortController();
-        const timeout = setTimeout(() => controller.abort(), 1200); // 1.2s timeout max
+        const timeout = setTimeout(() => controller.abort(), 1200);
 
         try {
             const response = await fetch('https://ipapi.co/json/', { signal: controller.signal });

@@ -2,6 +2,7 @@ import { adviserForgotPassword, adviserVerifyOtp, adviserResetPassword } from '.
 import { initStepForm } from '../../utils/steps.js';
 import { showToast, updateToast } from '../../components/ToastMessage.js';
 import { navigate } from '../../utils/navigation.js';
+import { PasswordValidator } from '../../validator/PasswordValidator.js';
 
 export function AdviserForgotPassword() {
     return `
@@ -137,18 +138,10 @@ export function initAdviserForgotPassword() {
             const newPassword = document.getElementById('newPassword').value;
             const confirmPassword = document.getElementById('confirmPassword').value;
             
-            if (!newPassword || !confirmPassword) {
-                showToast('Please fill in all password fields', 'error');
-                return;
-            }
-            
-            if (newPassword !== confirmPassword) {
-                showToast('Passwords do not match', 'error');
-                return;
-            }
-
-            if (newPassword.length < 6) {
-                showToast('Password must be at least 6 characters', 'error');
+            // Validate password using PasswordValidator
+            const validation = PasswordValidator.validate(newPassword, confirmPassword);
+            if (!validation.isValid) {
+                showToast(validation.message, 'error');
                 return;
             }
             
@@ -226,13 +219,10 @@ export function initAdviserForgotPassword() {
         const confirmPassword = document.getElementById('confirmPassword').value;
         const resetButton = document.getElementById('resetPasswordButton');
         
-        if (newPassword !== confirmPassword) {
-            showToast('Passwords do not match', 'error');
-            return;
-        }
-
-        if (newPassword.length < 6) {
-            showToast('Password must be at least 6 characters', 'error');
+        // Validate password using PasswordValidator
+        const validation = PasswordValidator.validate(newPassword, confirmPassword);
+        if (!validation.isValid) {
+            showToast(validation.message, 'error');
             return;
         }
 

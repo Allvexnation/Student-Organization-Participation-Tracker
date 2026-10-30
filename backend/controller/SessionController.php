@@ -92,7 +92,7 @@ class SessionController {
                 'user' => $user
             ]);
         } else {
-            http_response_code(404);
+            http_response_code(200);
             echo json_encode(['message' => 'No active session found for this device', 'valid' => false]);
         }
     }

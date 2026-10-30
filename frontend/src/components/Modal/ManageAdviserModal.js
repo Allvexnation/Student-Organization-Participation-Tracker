@@ -4,6 +4,7 @@ import { animateModalOpen, animateModalClose, clearModalAnimations, animateFormE
 import * as AdviserAPI from '../../api/admin/adviser/ManageAdviser.js';
 import { showToast } from '../ToastMessage.js';
 import { skeletonAdviserForm, skeletonAdviserView } from '../SkeletonLoading.js';
+import { AdviserCrudValidator } from '../../validator/AdviserCrudValidator.js';
 
 let croppedAdviserImage = null;
 
@@ -283,13 +284,28 @@ async function processAdviserSubmit(id, buttonText, onSubmit) {
 
     const formData = {
         name: document.getElementById('adviserName').value.trim(),
-        username: document.getElementById('adviserUsername').value.trim(),
+        username: document.getElementById('adviserUsername')?.value.trim() || '',
         email: document.getElementById('adviserEmail').value.trim(),
         role: document.getElementById('adviserRole').value,
         status: document.getElementById('adviserStatus').value,
         profile_photo: imageUrl
     };
 
+    // Fetch existing advisers for validation
+    try {
+        const existingAdvisers = await AdviserAPI.getAllAdvisers();
+        
+        // Validate form data
+        const validation = AdviserCrudValidator.validate(formData, existingAdvisers, isEdit ? 'edit' : 'add', id);
+        
+        if (!validation.isValid) {
+            showFormError(validation.message);
+            return;
+        }
+    } catch (error) {
+        console.error('Error validating adviser:', error);
+        // Continue with submission if validation fetch fails
+    }
 
     if (isEdit) {
         openConfirmDialog({

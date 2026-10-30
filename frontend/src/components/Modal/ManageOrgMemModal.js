@@ -7,6 +7,8 @@ import * as OrganizationsAPI from '../../api/admin/Organizations/ManageOrganizat
 import * as RolesAPI from '../../api/admin/roles/ManageRoles.js';
 import { showToast } from '../ToastMessage.js';
 import { skeletonOrgMemForm, skeletonOrgMemView } from '../SkeletonLoading.js';
+import { OrganizationValidator } from '../../validator/OrganizationValidator.js';
+import { OrganizationMembershipCrudValidator } from '../../validator/OrganizationMembershipCrudValidator.js';
 
 export function openManageOrgMemModal({ mode = 'add', membership = null, membershipId = null, onSubmit }) {
     const isEdit = mode === 'edit';
@@ -181,16 +183,27 @@ async function loadStudents(selectedStudentId = null) {
             localStorage.setItem('cachedStudents', JSON.stringify(students));
             localStorage.setItem('cachedStudentsTimestamp', Date.now().toString());
         }
+
+        // Get existing memberships to check which students already have organizations
+        const allMemberships = await OrgMembershipsAPI.getAllOrgMemberships();
+        const studentWithOrgIds = allMemberships.map(m => m.student_id);
         
         const studentSelect = document.getElementById('studentId');
         if (studentSelect) {
             studentSelect.innerHTML = '<option value="">Select Student</option>';
             students.forEach(student => {
+                const hasOrg = studentWithOrgIds.includes(student.id);
+                const displayName = hasOrg ? 
+                    `${student.first_name} ${student.last_name} (Has Org)` : 
+                    `${student.first_name} ${student.last_name}`;
                 const option = document.createElement('option');
                 option.value = student.id;
-                option.textContent = `${student.first_name} ${student.last_name}`;
+                option.textContent = displayName;
                 if (selectedStudentId && selectedStudentId == student.id) {
                     option.selected = true;
+                }
+                if (hasOrg) {
+                    option.disabled = true;
                 }
                 studentSelect.appendChild(option);
             });
@@ -225,11 +238,16 @@ async function loadOrganizations(selectedOrgId = null) {
         if (orgSelect) {
             orgSelect.innerHTML = '<option value="">Select Organization</option>';
             organizations.forEach(org => {
+                const isSuspended = OrganizationValidator.isSuspended(org);
+                const displayName = OrganizationValidator.getDisplayName(org);
                 const option = document.createElement('option');
                 option.value = org.id;
-                option.textContent = org.name;
+                option.textContent = displayName;
                 if (selectedOrgId && selectedOrgId == org.id) {
                     option.selected = true;
+                }
+                if (isSuspended) {
+                    option.disabled = true;
                 }
                 orgSelect.appendChild(option);
             });
@@ -302,6 +320,19 @@ async function processOrgMemSubmit(id, buttonText, onSubmit) {
         role_id: document.getElementById('roleId').value,
         membership_status: document.getElementById('membershipStatus').value
     };
+
+    // Validate organization membership data
+    try {
+        const allMemberships = await OrgMembershipsAPI.getAllOrgMemberships();
+        const validation = OrganizationMembershipCrudValidator.validate(formData, allMemberships, id);
+        if (!validation.isValid) {
+            showFormError(validation.message);
+            showToast(validation.message, 'error');
+            return;
+        }
+    } catch (error) {
+        console.error('Error validating membership:', error);
+    }
 
     const isEdit = id != null;
 

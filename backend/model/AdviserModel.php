@@ -112,7 +112,7 @@ class AdviserModel {
 
     public function readByUsername($username) {
         $query = "SELECT * FROM " . $this->table_name . " 
-                  WHERE username = :username 
+                  WHERE LOWER(TRIM(username)) = LOWER(TRIM(:username)) 
                   LIMIT 0,1";
 
         try {
@@ -345,17 +345,17 @@ class AdviserModel {
     }
 
     public function resetPassword($adviserId, $newPassword) {
-        $query = "UPDATE " . $this->table_name . " 
-                  SET password = :password, otp_code = NULL, otp_expiry = NULL 
+        $query = "UPDATE " . $this->table_name . "
+                  SET password = :password
                   WHERE id = :id";
 
         try {
             $stmt = $this->conn->prepare($query);
-            
+
             $hashedPassword = password_hash($newPassword, PASSWORD_DEFAULT);
             $stmt->bindParam(':password', $hashedPassword);
             $stmt->bindParam(':id', $adviserId);
-            
+
             if($stmt->execute()) {
                 return true;
             }
