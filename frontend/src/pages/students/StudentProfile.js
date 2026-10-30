@@ -1,5 +1,6 @@
 import { StudentNavbar, initStudentNavbar } from '../../components/Navbar/StudentNavbar.js';
 import { getStudentData } from '../../api/students/StudentAuth/StudentAuth.js';
+import { setUserData } from '../../utils/jwt.js';
 import { getStudentProfile, updateStudentProfile } from '../../api/students/StudentProfile.js';
 import { protectStudentRoute } from '../../middleware/StudentMiddleware.js';
 import { openConfirmDialog } from '../../components/Dialog/ConfirmDialog.js';
@@ -296,7 +297,7 @@ export async function initStudentProfile() {
     try {
         const freshData = await getStudentProfile();
         if (freshData) {
-            localStorage.setItem('studentData', JSON.stringify(freshData));
+            setUserData(freshData, 'student');
         }
     } catch (error) {
         console.error('Failed to fetch fresh profile data:', error);

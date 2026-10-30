@@ -2,7 +2,7 @@ import { API_ROUTES } from '../../server/api.js';
 import { getToken } from '../../../utils/jwt.js';
 
 async function getHeaders() {
-    const token = getToken('adviser') || getToken('admin') || localStorage.getItem('adviserToken') || localStorage.getItem('adminToken') || localStorage.getItem('token');
+    const token = getToken('adviser');
     const headers = {
         'Content-Type': 'application/json'
     };

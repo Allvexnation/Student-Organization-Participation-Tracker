@@ -1,8 +1,9 @@
 import { API_ROUTES } from '../server/api.js';
+import { getToken } from '../../utils/jwt.js';
 
 export async function getAdminProfile() {
     try {
-        const token = localStorage.getItem('adminToken');
+        const token = getToken('admin');
         
         const response = await fetch(API_ROUTES.ADMIN.PROFILE, {
             method: 'GET',
@@ -27,7 +28,7 @@ export async function getAdminProfile() {
 
 export async function updateAdminProfile(profileData) {
     try {
-        const token = localStorage.getItem('adminToken');
+        const token = getToken('admin');
         
         const response = await fetch(API_ROUTES.ADMIN.PROFILE, {
             method: 'PUT',
@@ -45,7 +46,7 @@ export async function updateAdminProfile(profileData) {
         }
 
         if (data.admin) {
-            localStorage.setItem('adminData', JSON.stringify(data.admin));
+            sessionStorage.setItem('adminData', JSON.stringify(data.admin));
         }
 
         return data;

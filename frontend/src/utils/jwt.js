@@ -1,32 +1,97 @@
 import { navigate } from './navigation.js';
 import { API_ROUTES } from '../api/server/api.js';
+import {
+    setStoredToken,
+    getStoredToken,
+    removeStoredToken,
+    setStoredUser,
+    getStoredUser,
+    removeStoredUser,
+    getTokenKey,
+    getUserKey
+} from './TokenStore.js';
+import { getDeviceInfo, getDeviceFingerprint } from './DeviceInfo.js';
 
-function getTokenKey(role) {
-    const roleKeys = {
-        'admin': 'adminToken',
-        'adviser': 'adviserToken',
-        'student': 'studentToken'
-    };
-    return roleKeys[role] || 'adminToken';
-}
+export { getTokenKey, getUserKey };
+
+const validationCache = {
+    admin: { token: null, timestamp: 0, valid: false },
+    adviser: { token: null, timestamp: 0, valid: false },
+    student: { token: null, timestamp: 0, valid: false }
+};
+
+const inFlightValidation = {
+    admin: null,
+    adviser: null,
+    student: null
+};
+
+const VALIDATION_CACHE_TTL_MS = 30000;
 
 export function getToken(role = 'admin') {
-    return localStorage.getItem(getTokenKey(role));
+    return getStoredToken(role);
 }
 
 export function setToken(token, role = 'admin') {
-    localStorage.setItem(getTokenKey(role), token);
+    setStoredToken(token, role);
+    if (validationCache[role]) {
+        validationCache[role] = { token: token, timestamp: Date.now(), valid: true };
+    }
+}
+
+export async function logoutSession(role = 'admin') {
+    const token = getToken(role);
+    let deviceInfo = {};
+    try {
+        deviceInfo = await getDeviceInfo();
+    } catch (e) { }
+
+    try {
+        await fetch(API_ROUTES.SESSION.LOGOUT, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'Authorization': token ? `Bearer ${token}` : ''
+            },
+            body: JSON.stringify({
+                token: token || '',
+                role: role,
+                user_type: role,
+                device_fingerprint: deviceInfo.device_fingerprint || getDeviceFingerprint() || '',
+                ...deviceInfo
+            })
+        });
+    } catch (e) {
+        console.warn('Backend logout failed:', e);
+    } finally {
+        removeToken(role);
+    }
 }
 
 export function removeToken(role = 'admin') {
-    localStorage.removeItem(getTokenKey(role));
+    removeStoredToken(role);
+    removeStoredUser(role);
+    if (validationCache[role]) {
+        validationCache[role] = { token: null, timestamp: 0, valid: false };
+    }
+}
+
+export function getUserData(role = 'admin') {
+    return getStoredUser(role);
+}
+
+export function setUserData(user, role = 'admin') {
+    setStoredUser(user, role);
 }
 
 export function decodeToken(token) {
+    if (!token || typeof token !== 'string') return null;
     try {
-        const base64Url = token.split('.')[1];
+        const parts = token.split('.');
+        if (parts.length !== 3) return null;
+        const base64Url = parts[1];
         const base64 = base64Url.replace(/-/g, '+').replace(/_/g, '/');
-        const jsonPayload = decodeURIComponent(atob(base64).split('').map(function(c) {
+        const jsonPayload = decodeURIComponent(atob(base64).split('').map(function (c) {
             return '%' + ('00' + c.charCodeAt(0).toString(16)).slice(-2);
         }).join(''));
         return JSON.parse(jsonPayload);
@@ -37,38 +102,103 @@ export function decodeToken(token) {
 
 export function isTokenExpired(token) {
     const decoded = decodeToken(token);
-    if (!decoded || !decoded.exp) {
+    if (!decoded) {
         return true;
+    }
+
+    if (!decoded.exp) {
+        return false;
     }
     const currentTime = Math.floor(Date.now() / 1000);
     return decoded.exp < currentTime;
 }
 
-async function validateTokenWithDatabase(token) {
+export async function restoreSessionFromDevice(role = 'admin') {
     try {
-        const response = await fetch(API_ROUTES.SESSION.VALIDATE, {
-            method: 'GET',
+        const deviceInfo = await getDeviceInfo();
+        const response = await fetch(API_ROUTES.SESSION.RESTORE, {
+            method: 'POST',
             headers: {
-                'Authorization': `Bearer ${token}`
-            }
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({
+                role: role,
+                user_type: role,
+                device_fingerprint: deviceInfo.device_fingerprint || getDeviceFingerprint() || '',
+                ...deviceInfo
+            })
         });
-        
-        const data = await response.json();
-        if (response.ok && data.valid === true) {
-            return { valid: true, networkError: false };
-        }
-        return { valid: false, networkError: false };
-    } catch (error) {
-        console.error('Token validation error:', error);
 
-        return { valid: false, networkError: true };
+        if (!response.ok) {
+            return null;
+        }
+
+        const data = await response.json();
+        if (data.valid && data.token) {
+            setToken(data.token, role);
+            if (data.user) {
+                setUserData(data.user, role);
+            }
+            return data;
+        }
+        return null;
+    } catch (error) {
+        console.warn('Session restoration failed:', error);
+        return null;
     }
 }
 
+export async function validateTokenWithDatabase(token, role = 'admin') {
+
+    if (inFlightValidation[role]) {
+        return inFlightValidation[role];
+    }
+
+    inFlightValidation[role] = (async () => {
+        try {
+            const fingerprint = getDeviceFingerprint() || '';
+            const url = fingerprint
+                ? `${API_ROUTES.SESSION.VALIDATE}?fingerprint=${encodeURIComponent(fingerprint)}`
+                : API_ROUTES.SESSION.VALIDATE;
+
+            const headers = {
+                'Authorization': `Bearer ${token}`
+            };
+
+            const response = await fetch(url, {
+                method: 'GET',
+                headers: headers
+            });
+
+            const data = await response.json();
+            if (response.ok && data.valid === true) {
+                if (data.user) {
+                    setUserData(data.user, role);
+                }
+                return { valid: true, networkError: false, user: data.user };
+            }
+            return { valid: false, networkError: false };
+        } catch (error) {
+            console.error('Token validation error:', error);
+            return { valid: false, networkError: true };
+        } finally {
+            inFlightValidation[role] = null;
+        }
+    })();
+
+    return inFlightValidation[role];
+}
+
 export async function isAuthenticated(role = 'admin') {
-    const token = getToken(role);
+    let token = getToken(role);
+
     if (!token) {
-        return false;
+        const restored = await restoreSessionFromDevice(role);
+        if (restored && restored.token) {
+            token = restored.token;
+        } else {
+            return false;
+        }
     }
 
     if (isTokenExpired(token)) {
@@ -76,9 +206,16 @@ export async function isAuthenticated(role = 'admin') {
         return false;
     }
 
-    const { valid, networkError } = await validateTokenWithDatabase(token);
+    const cache = validationCache[role];
+    const now = Date.now();
+    if (cache && cache.token === token && cache.valid && (now - cache.timestamp < VALIDATION_CACHE_TTL_MS)) {
+        return true;
+    }
+
+    const { valid, networkError } = await validateTokenWithDatabase(token, role);
 
     if (networkError) {
+
         return true;
     }
 
@@ -86,7 +223,11 @@ export async function isAuthenticated(role = 'admin') {
         removeToken(role);
         return false;
     }
-    
+
+    if (validationCache[role]) {
+        validationCache[role] = { token: token, timestamp: now, valid: true };
+    }
+
     return true;
 }
 
@@ -126,35 +267,28 @@ export function initNetworkListener() {
     if (networkListenerInitialized) {
         return;
     }
-    
+
     networkListenerInitialized = true;
-    
+
     window.addEventListener('online', async () => {
-        console.log('Network connection restored. Re-validating session...');
- 
         const roles = ['admin', 'adviser', 'student'];
-        
+
         for (const role of roles) {
             const token = getToken(role);
-            
+
             if (token && !isTokenExpired(token)) {
                 try {
-                    const { valid, networkError } = await validateTokenWithDatabase(token);
-                    
+                    const { valid, networkError } = await validateTokenWithDatabase(token, role);
+
                     if (!networkError && !valid) {
-
                         removeToken(role);
-                        console.log(`Session invalid for ${role} after re-validation. Logging out...`);
-
                         const currentPath = window.location.pathname;
                         if (currentPath.includes(`/${role}`)) {
                             navigate(`/auth/${role}/login`);
                         }
-                    } else if (!networkError && valid) {
-                        console.log(`Session validated successfully for ${role} after network restoration.`);
                     }
                 } catch (error) {
-                    console.error(`Error re-validating ${role} session after network restoration:`, error);
+                    console.error(`Error re-validating ${role} session:`, error);
                 }
             }
         }

@@ -1,7 +1,7 @@
 import { AdviserNavbar, initAdviserNavbar } from '../../components/Navbar/AdviserNavbar.js';
 import { getAdviserData } from '../../api/adviser/AdviserAuth/AdviserAuth.js';
 import { getAdviserProfile, updateAdviserProfile } from '../../api/adviser/AdviserProfile.js';
-import { isAuthenticated } from '../../utils/jwt.js';
+import { isAuthenticated, setUserData } from '../../utils/jwt.js';
 import { navigate } from '../../utils/navigation.js';
 import { openConfirmDialog } from '../../components/Dialog/ConfirmDialog.js';
 import { showToast, updateToast } from '../../components/ToastMessage.js';
@@ -234,23 +234,35 @@ export function AdviserProfile() {
 }
 
 export async function initAdviserProfile() {
-    if (!isAuthenticated('adviser')) {
+    if (!(await isAuthenticated('adviser'))) {
         navigate('/auth/adviser/login');
         return;
     }
     await initAdviserNavbar();
 
-    // Fetch fresh data from API
+    let adviserData = getAdviserData() || {};
     try {
         const freshData = await getAdviserProfile();
         if (freshData) {
-            localStorage.setItem('adviserData', JSON.stringify(freshData));
+            setUserData(freshData, 'adviser');
+            adviserData = freshData;
+
+            const navUsername = document.getElementById('navUsername');
+            const navProfilePhotoMobile = document.getElementById('navProfilePhotoMobile');
+            const navProfilePlaceholderMobile = document.getElementById('navProfilePlaceholderMobile');
+
+            if (navUsername) navUsername.textContent = `Welcome, ${adviserData.name || 'Adviser'}`;
+
+            if (adviserData.profile_photo && navProfilePhotoMobile && navProfilePlaceholderMobile) {
+                navProfilePhotoMobile.src = adviserData.profile_photo;
+                navProfilePhotoMobile.classList.remove('hidden');
+                navProfilePlaceholderMobile.classList.add('hidden');
+            }
         }
     } catch (error) {
         console.error('Failed to fetch fresh profile data:', error);
     }
 
-    const adviserData = getAdviserData() || {};
     let selectedPhoto = null;
 
     const profilePhotoInput = document.getElementById('profilePhoto');

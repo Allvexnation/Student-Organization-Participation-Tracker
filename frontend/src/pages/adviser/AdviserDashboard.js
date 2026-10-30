@@ -32,7 +32,8 @@ export function AdviserDashboard() {
 }
 
 export async function initAdviserDashboard() {
-    if (!isAuthenticated('adviser') || getUserRole('adviser') !== 'adviser') {
+    const auth = await isAuthenticated('adviser');
+    if (!auth || getUserRole('adviser') !== 'adviser') {
         navigate('/auth/adviser/login');
         return;
     }

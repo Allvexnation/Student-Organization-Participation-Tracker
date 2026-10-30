@@ -32,7 +32,7 @@ export function StudentDashboard() {
 }
 
 export async function initStudentDashboard() {
-    if (!isAuthenticated() || getUserRole() !== 'student') {
+    if (!(await isAuthenticated('student')) || getUserRole('student') !== 'student') {
         navigate('/auth/student/login');
         return;
     }

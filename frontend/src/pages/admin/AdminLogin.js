@@ -1,6 +1,6 @@
 import { adminLogin } from '../../api/admin/AdminAuth/AdminAuth.js';
 import { initStepForm } from '../../utils/steps.js';
-import { setToken, isAuthenticated, initNetworkListener, removeToken } from '../../../src/utils/jwt.js';
+import { setToken, isAuthenticated, initNetworkListener, removeToken, setUserData, getUserRole } from '../../utils/jwt.js';
 import { showToast, updateToast } from '../../components/ToastMessage.js';
 import { navigate } from '../../utils/navigation.js';
 
@@ -66,15 +66,11 @@ export function AdminLogin() {
 }
 
 export function initAdminLogin() {
-
-    removeToken('adviser');
-    removeToken('student');
-
     initNetworkListener();
 
     (async () => {
         const authenticated = await isAuthenticated('admin');
-        if (authenticated) {
+        if (authenticated && getUserRole('admin') === 'admin') {
             navigate('/admin/dashboard');
             return;
         }
@@ -114,14 +110,14 @@ export function initAdminLogin() {
         if (result.token) {
             setToken(result.token, 'admin');
             if (result.admin) {
-                localStorage.setItem('adminData', JSON.stringify(result.admin));
+                setUserData(result.admin, 'admin');
             }
             updateToast('Login successful! Redirecting...', 'success');
             setTimeout(() => {
                 navigate('/admin/dashboard');
-            }, 2000);
+            }, 1000);
         } else {
-            updateToast(result.message, 'error');
+            updateToast(result.message || 'Login failed', 'error');
             loginButton.disabled = false;
             loginButton.textContent = 'Login';
         }

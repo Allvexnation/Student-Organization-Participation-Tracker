@@ -35,7 +35,6 @@ class EventOrganizationsModel {
         } catch(PDOException $e) {
             error_log("Error creating event organization: " . $e->getMessage());
             error_log("Data: " . json_encode($data));
-            // Check if it's a duplicate entry error
             if (strpos($e->getMessage(), 'Duplicate entry') !== false || strpos($e->getMessage(), 'unique_event_organization') !== false) {
                 echo "Error: This organization is already registered for this event";
             } else {

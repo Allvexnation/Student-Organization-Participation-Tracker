@@ -161,7 +161,7 @@ class StudentsModel {
     }
 
     public function update($id, $data) {
-        // Get existing student to preserve profile photo if not being updated
+
         $existingStudent = $this->readOne($id);
         
         $query = "UPDATE " . $this->table_name . " 
@@ -198,7 +198,7 @@ class StudentsModel {
                     $stmt->bindParam(':profile_photo', $photoData, PDO::PARAM_LOB);
                 }
             } elseif ($existingStudent && isset($existingStudent['profile_photo'])) {
-                // Keep existing photo if no new photo provided
+
                 $stmt->bindParam(':profile_photo', $existingStudent['profile_photo'], PDO::PARAM_LOB);
             } else {
                 $stmt->bindParam(':profile_photo', $null, PDO::PARAM_NULL);

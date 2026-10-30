@@ -47,8 +47,6 @@ class MemberTasksController {
 
         $adviserId = JWT::getUserId($token);
         
-        $this->memberTasksModel->updateOverdueTasks();
-        
         $tasks = $this->memberTasksModel->readByAdviserId($adviserId);
 
         if ($tasks !== false) {
@@ -71,8 +69,6 @@ class MemberTasksController {
             echo json_encode(['message' => 'Unauthorized']);
             return;
         }
-
-        $this->memberTasksModel->updateOverdueTasks();
         
         $tasks = $this->memberTasksModel->readByOrganizationId($organization_id);
 

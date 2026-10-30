@@ -1,9 +1,32 @@
-import { getToken, removeToken, isAuthenticated, decodeToken } from '../utils/jwt.js';
+import { getToken, removeToken, isAuthenticated, decodeToken, isTokenExpired } from '../utils/jwt.js';
 import { navigate } from '../utils/navigation.js';
 import { showToast } from '../components/ToastMessage.js';
 
 export function protectAdviserRoute(redirectPath = '/auth/adviser/login') {
-    if (!isAuthenticated('adviser')) {
+    const token = getToken('adviser');
+    if (!token) {
+        isAuthenticated('adviser').then((auth) => {
+            if (!auth) {
+                showToast('Please login to access this page', 'error');
+                navigate(redirectPath);
+            }
+        });
+        return true;
+    }
+
+    if (isTokenExpired(token)) {
+        removeToken('adviser');
+        showToast('Session expired. Please login again', 'error');
+        navigate(redirectPath);
+        return false;
+    }
+
+    return true;
+}
+
+export async function protectAdviserRouteAsync(redirectPath = '/auth/adviser/login') {
+    const auth = await isAuthenticated('adviser');
+    if (!auth) {
         showToast('Please login to access this page', 'error');
         navigate(redirectPath);
         return false;
@@ -24,8 +47,7 @@ export function validateTokenForApi(options = {}) {
         throw new Error('Invalid token');
     }
 
-    const currentTime = Math.floor(Date.now() / 1000);
-    if (decoded.exp && decoded.exp < currentTime) {
+    if (isTokenExpired(token)) {
         removeToken('adviser');
         throw new Error('Token has expired');
     }
@@ -75,10 +97,9 @@ export function isAdviserUser() {
 }
 
 export function withAdviserAuth(callback) {
-    return function() {
-        if (!protectAdviserRoute()) {
-            return;
-        }
+    return async function() {
+        const ok = await protectAdviserRouteAsync();
+        if (!ok) return;
         
         if (!isAdviserUser()) {
             showToast('Access denied. Adviser privileges required', 'error');
@@ -92,30 +113,6 @@ export function withAdviserAuth(callback) {
 
 export function adviserLogout() {
     removeToken('adviser');
-    localStorage.removeItem('adviserData');
     showToast('Logged out successfully', 'success');
     navigate('/auth/adviser/login');
-}
-
-export async function refreshAuthToken(refreshToken) {
-    try {
-        const response = await fetch('/api/adviser/refresh', {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/json'
-            },
-            body: JSON.stringify({ refresh_token: refreshToken })
-        });
-        
-        if (!response.ok) {
-            throw new Error('Failed to refresh token');
-        }
-        
-        const data = await response.json();
-        setToken(data.token, 'adviser');
-        return data;
-    } catch (error) {
-        removeToken('adviser');
-        throw error;
-    }
 }

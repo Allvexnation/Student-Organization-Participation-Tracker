@@ -96,23 +96,31 @@ export class App {
         this.render();
     }
 
-    render() {
+    async render() {
         let route = this.getCurrentRoute();
-        const userRole = getUserRole();
 
-        if (route === '/auth/admin/login' && isAuthenticated() && userRole === 'admin') {
-            route = '/admin/dashboard';
-            this.navigate('/admin/dashboard');
+        if (route === '/auth/admin/login') {
+            const authAdmin = await isAuthenticated('admin');
+            if (authAdmin && getUserRole('admin') === 'admin') {
+                this.navigate('/admin/dashboard');
+                return;
+            }
         }
 
-        if (route === '/auth/adviser/login' && isAuthenticated() && userRole === 'adviser') {
-            route = '/adviser/dashboard';
-            this.navigate('/adviser/dashboard');
+        if (route === '/auth/adviser/login') {
+            const authAdviser = await isAuthenticated('adviser');
+            if (authAdviser && getUserRole('adviser') === 'adviser') {
+                this.navigate('/adviser/dashboard');
+                return;
+            }
         }
 
-        if (route === '/auth/student/login' && isAuthenticated() && userRole === 'student') {
-            route = '/student/dashboard';
-            this.navigate('/student/dashboard');
+        if (route === '/auth/student/login') {
+            const authStudent = await isAuthenticated('student');
+            if (authStudent && getUserRole('student') === 'student') {
+                this.navigate('/student/dashboard');
+                return;
+            }
         }
 
         const pageComponent = this.routes[route] || this.routes['404'];

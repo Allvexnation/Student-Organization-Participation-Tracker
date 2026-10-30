@@ -1,6 +1,6 @@
 import { adviserLogin } from '../../api/adviser/AdviserAuth/AdviserAuth.js';
 import { initStepForm } from '../../utils/steps.js';
-import { setToken, isAuthenticated, initNetworkListener, removeToken } from '../../../src/utils/jwt.js';
+import { setToken, isAuthenticated, initNetworkListener, removeToken, setUserData, getUserRole } from '../../utils/jwt.js';
 import { showToast, updateToast } from '../../components/ToastMessage.js';
 import { navigate } from '../../utils/navigation.js';
 
@@ -69,15 +69,11 @@ export function AdviserLogin() {
 }
 
 export function initAdviserLogin() {
-
-    removeToken('admin');
-    removeToken('student');
-
     initNetworkListener();
  
     (async () => {
         const authenticated = await isAuthenticated('adviser');
-        if (authenticated) {
+        if (authenticated && getUserRole('adviser') === 'adviser') {
             navigate('/adviser/dashboard');
             return;
         }
@@ -117,14 +113,14 @@ export function initAdviserLogin() {
         if (result.token) {
             setToken(result.token, 'adviser');
             if (result.adviser) {
-                localStorage.setItem('adviserData', JSON.stringify(result.adviser));
+                setUserData(result.adviser, 'adviser');
             }
             updateToast('Login successful! Redirecting...', 'success');
             setTimeout(() => {
                 navigate('/adviser/dashboard');
-            }, 2000);
+            }, 1000);
         } else {
-            updateToast(result.message, 'error');
+            updateToast(result.message || 'Login failed', 'error');
             loginButton.disabled = false;
             loginButton.textContent = 'Login';
         }

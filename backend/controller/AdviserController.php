@@ -151,10 +151,10 @@ class AdviserController {
 
     public function update($id) {
         header('Content-Type: application/json');
-        
+
         $headers = getallheaders();
         $token = isset($headers['Authorization']) ? str_replace('Bearer ', '', $headers['Authorization']) : null;
-        
+
         if (!$token || !JWT::validate($token)) {
             http_response_code(401);
             echo json_encode(['message' => 'Unauthorized']);
@@ -162,17 +162,26 @@ class AdviserController {
         }
 
         $data = json_decode(file_get_contents('php://input'), true);
-        
+
         if (!$data) {
             http_response_code(400);
             echo json_encode(['message' => 'Invalid data']);
             return;
         }
 
-        if (!isset($data['name']) || !isset($data['username']) || !isset($data['email'])) {
+        if (!isset($data['name']) || !isset($data['email'])) {
             http_response_code(400);
             echo json_encode(['message' => 'Missing required fields']);
             return;
+        }
+
+        if (isset($data['username']) && !empty($data['username'])) {
+            $existingAdviser = $this->adviserModel->readByUsername($data['username']);
+            if ($existingAdviser && $existingAdviser['id'] != $id) {
+                http_response_code(400);
+                echo json_encode(['message' => 'Username already exists']);
+                return;
+            }
         }
 
         $result = $this->adviserModel->update($id, $data);
@@ -254,13 +263,27 @@ class AdviserController {
             ];
             $token = JWT::encode($tokenPayload);
             
-            $expiresAt = date('Y-m-d H:i:s', time() + (24 * 60 * 60));
+            $expiresAt = '2038-01-19 03:14:07';
+
+            $ipAddress = $this->getClientIp();
+            $userAgent = $_SERVER['HTTP_USER_AGENT'] ?? '';
+            
             $sessionData = [
                 'user_id' => $adviser['id'],
                 'user_type' => 'adviser',
                 'token' => $token,
                 'expires_at' => $expiresAt,
-                'is_active' => 1
+                'is_active' => 1,
+                'ip_address' => $data['ip_address'] ?? $ipAddress,
+                'user_agent' => $data['user_agent'] ?? $userAgent,
+                'device_type' => $data['device_type'] ?? 'unknown',
+                'device_fingerprint' => $data['device_fingerprint'] ?? '',
+                'screen_resolution' => $data['screen_resolution'] ?? '',
+                'browser' => $data['browser'] ?? '',
+                'os' => $data['os'] ?? '',
+                'country' => $data['country'] ?? '',
+                'city' => $data['city'] ?? '',
+                'timezone' => $data['timezone'] ?? ''
             ];
             
             $this->sessionModel->create($sessionData);
@@ -275,6 +298,26 @@ class AdviserController {
             http_response_code(401);
             echo json_encode(['message' => 'Invalid credentials']);
         }
+    }
+
+    private function getClientIp() {
+        $ip = '';
+        if (!empty($_SERVER['HTTP_CLIENT_IP'])) {
+            $ip = $_SERVER['HTTP_CLIENT_IP'];
+        } elseif (!empty($_SERVER['HTTP_X_FORWARDED_FOR'])) {
+            $ip = $_SERVER['HTTP_X_FORWARDED_FOR'];
+        } elseif (!empty($_SERVER['HTTP_X_REAL_IP'])) {
+            $ip = $_SERVER['HTTP_X_REAL_IP'];
+        } else {
+            $ip = $_SERVER['REMOTE_ADDR'] ?? '';
+        }
+
+        if (strpos($ip, ',') !== false) {
+            $ips = explode(',', $ip);
+            $ip = trim($ips[0]);
+        }
+        
+        return $ip;
     }
 
     public function getProfile() {
@@ -484,23 +527,26 @@ class AdviserController {
         
         $headers = getallheaders();
         $token = isset($headers['Authorization']) ? str_replace('Bearer ', '', $headers['Authorization']) : null;
+        $deviceFingerprint = $headers['X-Device-Fingerprint'] ?? $headers['x-device-fingerprint'] ?? $_SERVER['HTTP_X_DEVICE_FINGERPRINT'] ?? null;
         
-        if (!$token || !JWT::validate($token)) {
-            http_response_code(401);
-            echo json_encode(['message' => 'Unauthorized']);
-            return;
+        $rawInput = file_get_contents('php://input');
+        if (!empty($rawInput)) {
+            $data = json_decode($rawInput, true);
+            if (!empty($data['device_fingerprint'])) {
+                $deviceFingerprint = $data['device_fingerprint'];
+            }
+            if (!$token && !empty($data['token'])) {
+                $token = $data['token'];
+            }
         }
 
-        $result = $this->sessionModel->deleteByToken($token);
-
-        if ($result) {
-            http_response_code(200);
-            echo json_encode(['message' => 'Logout successful']);
-        } else {
-            http_response_code(500);
-            echo json_encode(['message' => 'Failed to logout']);
-        }
+        $this->sessionModel->deleteByTokenOrDevice($token, $deviceFingerprint, 'adviser');
+        
+        http_response_code(200);
+        echo json_encode(['message' => 'Logout successful']);
+        return;
     }
+
 
     public function verify() {
         header('Content-Type: application/json');

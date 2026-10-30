@@ -84,7 +84,6 @@ switch ($command) {
 
 function showInteractiveMenu($backendDir) {
     while (true) {
-        // Clear the screen
         if (strtoupper(substr(PHP_OS, 0, 3)) === 'WIN') {
             system('cls');
         } else {

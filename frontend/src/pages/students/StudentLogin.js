@@ -1,6 +1,6 @@
 import { studentLogin } from '../../api/students/StudentAuth/StudentAuth.js';
 import { initStepForm } from '../../utils/steps.js';
-import { setToken, isAuthenticated, initNetworkListener, removeToken } from '../../../src/utils/jwt.js';
+import { setToken, isAuthenticated, initNetworkListener, removeToken, setUserData, getUserRole } from '../../utils/jwt.js';
 import { showToast, updateToast } from '../../components/ToastMessage.js';
 import { navigate } from '../../utils/navigation.js';
 
@@ -69,15 +69,11 @@ export function StudentLogin() {
 }
 
 export function initStudentLogin() {
-
-    removeToken('admin');
-    removeToken('adviser');
-    
     initNetworkListener();
  
     (async () => {
         const authenticated = await isAuthenticated('student');
-        if (authenticated) {
+        if (authenticated && getUserRole('student') === 'student') {
             navigate('/student/dashboard');
             return;
         }
@@ -118,14 +114,14 @@ export function initStudentLogin() {
         if (result.token) {
             setToken(result.token, 'student');
             if (result.student) {
-                localStorage.setItem('studentData', JSON.stringify(result.student));
+                setUserData(result.student, 'student');
             }
             updateToast('Login successful! Redirecting...', 'success');
             setTimeout(() => {
                 navigate('/student/dashboard');
-            }, 2000);
+            }, 1000);
         } else {
-            updateToast(result.message, 'error');
+            updateToast(result.message || 'Login failed', 'error');
             loginButton.disabled = false;
             loginButton.textContent = 'Login';
         }

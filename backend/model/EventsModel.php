@@ -35,8 +35,7 @@ class EventsModel {
             
             if($stmt->execute()) {
                 $eventId = $this->conn->lastInsertId();
-                
-                // Insert daily schedules
+
                 if (isset($data['daily_schedules']) && is_array($data['daily_schedules'])) {
                     foreach ($data['daily_schedules'] as $schedule) {
                         $scheduleQuery = "INSERT INTO event_daily_schedules (event_id, schedule_date, start_time, end_time) VALUES (:event_id, :schedule_date, :start_time, :end_time)";
@@ -78,13 +77,24 @@ class EventsModel {
             $stmt->execute();
             $results = $stmt->fetchAll(PDO::FETCH_ASSOC);
 
-            // Add daily schedules to each event
-            foreach ($results as &$event) {
-                $scheduleQuery = "SELECT schedule_date, start_time, end_time FROM event_daily_schedules WHERE event_id = :event_id ORDER BY schedule_date";
+            if (!empty($results)) {
+                $eventIds = array_column($results, 'id');
+                $placeholders = implode(',', array_fill(0, count($eventIds), '?'));
+                $scheduleQuery = "SELECT event_id, schedule_date, start_time, end_time FROM event_daily_schedules WHERE event_id IN ($placeholders) ORDER BY schedule_date";
                 $scheduleStmt = $this->conn->prepare($scheduleQuery);
-                $scheduleStmt->bindParam(':event_id', $event['id']);
-                $scheduleStmt->execute();
-                $event['daily_schedules'] = $scheduleStmt->fetchAll(PDO::FETCH_ASSOC);
+                $scheduleStmt->execute($eventIds);
+                $schedules = $scheduleStmt->fetchAll(PDO::FETCH_ASSOC);
+
+                $schedulesByEvent = [];
+                foreach ($schedules as $sched) {
+                    $eid = $sched['event_id'];
+                    unset($sched['event_id']);
+                    $schedulesByEvent[$eid][] = $sched;
+                }
+
+                foreach ($results as &$event) {
+                    $event['daily_schedules'] = $schedulesByEvent[$event['id']] ?? [];
+                }
             }
 
             return $results;
@@ -109,7 +119,6 @@ class EventsModel {
             $result = $stmt->fetch(PDO::FETCH_ASSOC);
             
             if ($result) {
-                // Get daily schedules
                 $scheduleQuery = "SELECT schedule_date, start_time, end_time FROM event_daily_schedules WHERE event_id = :event_id ORDER BY schedule_date";
                 $scheduleStmt = $this->conn->prepare($scheduleQuery);
                 $scheduleStmt->bindParam(':event_id', $id);
@@ -151,16 +160,14 @@ class EventsModel {
             $stmt->bindParam(':id', $id);
             
             if($stmt->execute()) {
-                // Delete existing daily schedules
                 $deleteScheduleQuery = "DELETE FROM event_daily_schedules WHERE event_id = :event_id";
                 $deleteScheduleStmt = $this->conn->prepare($deleteScheduleQuery);
                 $deleteScheduleStmt->bindParam(':event_id', $id);
                 $deleteScheduleStmt->execute();
-                
-                // Insert new daily schedules
+
                 if (isset($data['daily_schedules']) && is_array($data['daily_schedules'])) {
                     foreach ($data['daily_schedules'] as $schedule) {
-                        // Skip invalid dates
+                        
                         if (!isset($schedule['date']) || $schedule['date'] === '0000-00-00' || $schedule['date'] === '' || empty($schedule['date'])) {
                             continue;
                         }

@@ -1,8 +1,14 @@
 import { API_ROUTES } from '../server/api.js';
-import { setToken, removeToken, isAuthenticated as checkAuth } from '../../../src/utils/jwt.js';
+import { setToken, removeToken, getToken, isAuthenticated as checkAuth, getUserData, setUserData } from '../../../src/utils/jwt.js';
+import { getDeviceInfo } from '../../../src/utils/DeviceInfo.js';
 
 export async function adminLogin(usernameOrEmail, password) {
     try {
+        let deviceInfo = {};
+        try {
+            deviceInfo = await getDeviceInfo();
+        } catch (e) {}
+
         const response = await fetch(API_ROUTES.ADMIN.LOGIN, {
             method: 'POST',
             headers: {
@@ -10,7 +16,8 @@ export async function adminLogin(usernameOrEmail, password) {
             },
             body: JSON.stringify({
                 username_or_email: usernameOrEmail,
-                password: password
+                password: password,
+                ...deviceInfo
             })
         });
 
@@ -21,8 +28,10 @@ export async function adminLogin(usernameOrEmail, password) {
         }
 
         if (data.token) {
-            setToken(data.token);
-            localStorage.setItem('adminData', JSON.stringify(data.admin));
+            setToken(data.token, 'admin');
+            if (data.admin) {
+                setUserData(data.admin, 'admin');
+            }
         }
 
         return data;
@@ -32,39 +41,61 @@ export async function adminLogin(usernameOrEmail, password) {
     }
 }
 
-export function logout() {
-    removeToken();
-    localStorage.removeItem('adminData');
-    localStorage.removeItem('adminVerified');
-    
-    localStorage.removeItem('cachedAdvisers');
-    localStorage.removeItem('cachedAdvisersTimestamp');
-    localStorage.removeItem('cachedStudents');
-    localStorage.removeItem('cachedStudentsTimestamp');
-    localStorage.removeItem('cachedOrganizations');
-    localStorage.removeItem('cachedOrganizationsTimestamp');
-    localStorage.removeItem('cachedEvents');
-    localStorage.removeItem('cachedEventsTimestamp');
-    localStorage.removeItem('cachedRoles');
-    localStorage.removeItem('cachedRolesTimestamp');
-    localStorage.removeItem('cachedEventRegistrations');
-    localStorage.removeItem('cachedEventRegistrationsTimestamp');
-    localStorage.removeItem('cachedOrgMemberships');
-    localStorage.removeItem('cachedOrgMembershipsTimestamp');
+export async function logout() {
+    try {
+        const token = getToken('admin');
+        let deviceInfo = {};
+        try {
+            deviceInfo = await getDeviceInfo();
+        } catch (e) {}
+
+        await fetch(API_ROUTES.ADMIN.LOGOUT, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'Authorization': token ? `Bearer ${token}` : ''
+            },
+            body: JSON.stringify({
+                token: token || '',
+                device_fingerprint: deviceInfo.device_fingerprint || '',
+                ...deviceInfo
+            })
+        });
+    } catch (error) {
+        console.error('Logout error:', error);
+    } finally {
+        removeToken('admin');
+        sessionStorage.removeItem('adminData');
+        sessionStorage.removeItem('adminVerified');
+        
+        localStorage.removeItem('cachedAdvisers');
+        localStorage.removeItem('cachedAdvisersTimestamp');
+        localStorage.removeItem('cachedStudents');
+        localStorage.removeItem('cachedStudentsTimestamp');
+        localStorage.removeItem('cachedOrganizations');
+        localStorage.removeItem('cachedOrganizationsTimestamp');
+        localStorage.removeItem('cachedEvents');
+        localStorage.removeItem('cachedEventsTimestamp');
+        localStorage.removeItem('cachedRoles');
+        localStorage.removeItem('cachedRolesTimestamp');
+        localStorage.removeItem('cachedEventRegistrations');
+        localStorage.removeItem('cachedEventRegistrationsTimestamp');
+        localStorage.removeItem('cachedOrgMemberships');
+        localStorage.removeItem('cachedOrgMembershipsTimestamp');
+    }
 }
 
 export function isAuthenticated() {
-    return checkAuth();
+    return checkAuth('admin');
 }
 
 export function getAdminData() {
-    const adminData = localStorage.getItem('adminData');
-    return adminData ? JSON.parse(adminData) : null;
+    return getUserData('admin');
 }
 
 export async function verifyAdminExists() {
     try {
-        const token = localStorage.getItem('adminToken');
+        const token = getToken('admin');
         if (!token) {
             return false;
         }
@@ -78,7 +109,7 @@ export async function verifyAdminExists() {
         });
 
         if (response.status === 404) {
-            logout();
+            await logout();
             return false;
         }
 
@@ -95,7 +126,7 @@ export async function verifyAdminExists() {
             const hasChanges = JSON.stringify(currentAdminData) !== JSON.stringify(dbAdminData);
             
             if (hasChanges) {
-                localStorage.setItem('adminData', JSON.stringify(dbAdminData));
+                setUserData(dbAdminData, 'admin');
             }
             
             return true;

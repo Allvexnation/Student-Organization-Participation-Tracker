@@ -89,7 +89,7 @@ export function AdviserOrganization() {
 }
 
 export async function initAdviserOrganization() {
-    if (!isAuthenticated('adviser')) {
+    if (!(await isAuthenticated('adviser'))) {
         navigate('/auth/adviser/login');
         return;
     }

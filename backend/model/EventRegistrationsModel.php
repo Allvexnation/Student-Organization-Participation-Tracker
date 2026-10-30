@@ -46,8 +46,7 @@ class EventRegistrationsModel {
                   FROM " . $this->table_name . " er
                   LEFT JOIN events e ON er.event_id = e.id
                   LEFT JOIN students s ON er.student_id = s.id
-                  LEFT JOIN organization_memberships om ON s.id = om.student_id
-                  LEFT JOIN organizations o ON om.organization_id = o.id
+                  LEFT JOIN organizations o ON e.organization_id = o.id
                   ORDER BY er.registered_at DESC";
 
         try {
@@ -68,8 +67,7 @@ class EventRegistrationsModel {
                   FROM " . $this->table_name . " er
                   LEFT JOIN events e ON er.event_id = e.id
                   LEFT JOIN students s ON er.student_id = s.id
-                  LEFT JOIN organization_memberships om ON s.id = om.student_id
-                  LEFT JOIN organizations o ON om.organization_id = o.id
+                  LEFT JOIN organizations o ON e.organization_id = o.id
                   WHERE er.id = :id 
                   LIMIT 0,1";
 

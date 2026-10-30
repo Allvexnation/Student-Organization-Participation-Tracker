@@ -3,6 +3,7 @@
 require_once __DIR__ . '/../config/db.php';
 
 class MemberTasksModel {
+    private static $lastSyncTime = 0;
     private $conn;
     private $table_name = "member_tasks";
 
@@ -123,8 +124,6 @@ class MemberTasksModel {
             error_log("Database connection is null");
             return false;
         }
-
-        $this->cleanupDuplicatesByEvent($event_id);
         $this->syncAllTasksStatus();
 
         $query = "SELECT mt.id, mt.event_id, mt.organization_id, mt.student_id, mt.task_title, mt.task_description, mt.start_date, mt.end_date, mt.student_start_date, mt.student_end_date, mt.status, mt.completed_at, mt.updated_at, mt.created_at,
@@ -200,8 +199,6 @@ class MemberTasksModel {
             error_log("Database connection is null");
             return false;
         }
-
-        $this->cleanupDuplicatesByOrganization($organization_id);
         $this->syncAllTasksStatus();
 
         $query = "SELECT mt.id, mt.event_id, mt.organization_id, mt.student_id, mt.task_title, mt.task_description, mt.start_date, mt.end_date, mt.student_start_date, mt.student_end_date, mt.status, mt.completed_at, mt.updated_at, mt.created_at,

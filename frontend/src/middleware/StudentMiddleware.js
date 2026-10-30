@@ -1,9 +1,32 @@
-import { getToken, removeToken, isAuthenticated, decodeToken } from '../utils/jwt.js';
+import { getToken, removeToken, isAuthenticated, decodeToken, isTokenExpired } from '../utils/jwt.js';
 import { navigate } from '../utils/navigation.js';
 import { showToast } from '../components/ToastMessage.js';
 
 export function protectStudentRoute(redirectPath = '/auth/student/login') {
-    if (!isAuthenticated()) {
+    const token = getToken('student');
+    if (!token) {
+        isAuthenticated('student').then((auth) => {
+            if (!auth) {
+                showToast('Please login to access this page', 'error');
+                navigate(redirectPath);
+            }
+        });
+        return true;
+    }
+
+    if (isTokenExpired(token)) {
+        removeToken('student');
+        showToast('Session expired. Please login again', 'error');
+        navigate(redirectPath);
+        return false;
+    }
+
+    return true;
+}
+
+export async function protectStudentRouteAsync(redirectPath = '/auth/student/login') {
+    const auth = await isAuthenticated('student');
+    if (!auth) {
         showToast('Please login to access this page', 'error');
         navigate(redirectPath);
         return false;
@@ -12,7 +35,7 @@ export function protectStudentRoute(redirectPath = '/auth/student/login') {
 }
 
 export function validateTokenForApi(options = {}) {
-    const token = getToken();
+    const token = getToken('student');
     
     if (!token) {
         throw new Error('No authentication token found');
@@ -20,13 +43,12 @@ export function validateTokenForApi(options = {}) {
 
     const decoded = decodeToken(token);
     if (!decoded) {
-        removeToken();
+        removeToken('student');
         throw new Error('Invalid token');
     }
 
-    const currentTime = Math.floor(Date.now() / 1000);
-    if (decoded.exp && decoded.exp < currentTime) {
-        removeToken();
+    if (isTokenExpired(token)) {
+        removeToken('student');
         throw new Error('Token has expired');
     }
 
@@ -46,7 +68,7 @@ export async function authenticatedFetch(url, options = {}) {
         const response = await fetch(url, validatedOptions);
         
         if (response.status === 401) {
-            removeToken();
+            removeToken('student');
             showToast('Session expired. Please login again', 'error');
             navigate('/auth/student/login');
             throw new Error('Unauthorized');
@@ -65,7 +87,7 @@ export async function authenticatedFetch(url, options = {}) {
 }
 
 export function isStudentUser() {
-    const token = getToken();
+    const token = getToken('student');
     if (!token) return false;
     
     const decoded = decodeToken(token);
@@ -75,10 +97,9 @@ export function isStudentUser() {
 }
 
 export function withStudentAuth(callback) {
-    return function() {
-        if (!protectStudentRoute()) {
-            return;
-        }
+    return async function() {
+        const ok = await protectStudentRouteAsync();
+        if (!ok) return;
         
         if (!isStudentUser()) {
             showToast('Access denied. Student privileges required', 'error');
@@ -91,31 +112,7 @@ export function withStudentAuth(callback) {
 }
 
 export function studentLogout() {
-    removeToken();
-    localStorage.removeItem('studentData');
+    removeToken('student');
     showToast('Logged out successfully', 'success');
     navigate('/auth/student/login');
-}
-
-export async function refreshAuthToken(refreshToken) {
-    try {
-        const response = await fetch('/api/student/refresh', {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/json'
-            },
-            body: JSON.stringify({ refresh_token: refreshToken })
-        });
-        
-        if (!response.ok) {
-            throw new Error('Failed to refresh token');
-        }
-        
-        const data = await response.json();
-        setToken(data.token);
-        return data;
-    } catch (error) {
-        removeToken();
-        throw error;
-    }
 }

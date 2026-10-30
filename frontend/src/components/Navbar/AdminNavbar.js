@@ -50,18 +50,18 @@ export function AdminNavbar() {
 
 export function initAdminNavbar() {
     const adminData = getAdminData() || {};
-    const isVerified = localStorage.getItem('adminVerified');
+    const isVerified = sessionStorage.getItem('adminVerified');
     
     const verifyPromise = isVerified ? Promise.resolve(true) : verifyAdminExists();
     
-    verifyPromise.then(exists => {
-        if (!exists) {
-            navigate('/auth/admin/login');
+    verifyPromise.then((verified) => {
+        if (!verified) {
+            window.location.href = '/auth/admin/login';
             return;
         }
 
         if (!isVerified) {
-            localStorage.setItem('adminVerified', 'true');
+            sessionStorage.setItem('adminVerified', 'true');
         }
 
         const navUsername = document.getElementById('navUsername');
@@ -86,7 +86,7 @@ export function initAdminNavbar() {
                     message: 'Are you sure you want to logout?',
                     onConfirm: async () => {
                         showToast('Logging out...', 'loading');
-                        logout();
+                        await logout();
                         updateToast('Logged out successfully!', 'success');
                         setTimeout(() => {
                             window.location.href = '/auth/admin/login';
@@ -105,7 +105,7 @@ export function initAdminNavbar() {
                     message: 'Are you sure you want to logout?',
                     onConfirm: async () => {
                         showToast('Logging out...', 'loading');
-                        logout();
+                        await logout();
                         updateToast('Logged out successfully!', 'success');
                         setTimeout(() => {
                             window.location.href = '/auth/admin/login';

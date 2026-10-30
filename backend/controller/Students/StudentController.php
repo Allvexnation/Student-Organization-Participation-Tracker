@@ -199,15 +199,28 @@ class StudentController {
                 'role' => 'student'
             ];
             $token = JWT::encode($tokenPayload);
+
+            $expiresAt = '2038-01-19 03:14:07';
+
+            $ipAddress = $this->getClientIp();
+            $userAgent = $_SERVER['HTTP_USER_AGENT'] ?? '';
             
-            // Store token in database
-            $expiresAt = date('Y-m-d H:i:s', time() + (24 * 60 * 60)); // 24 hours from now
             $sessionData = [
                 'user_id' => $student['id'],
                 'user_type' => 'student',
                 'token' => $token,
                 'expires_at' => $expiresAt,
-                'is_active' => 1
+                'is_active' => 1,
+                'ip_address' => $data['ip_address'] ?? $ipAddress,
+                'user_agent' => $data['user_agent'] ?? $userAgent,
+                'device_type' => $data['device_type'] ?? 'unknown',
+                'device_fingerprint' => $data['device_fingerprint'] ?? '',
+                'screen_resolution' => $data['screen_resolution'] ?? '',
+                'browser' => $data['browser'] ?? '',
+                'os' => $data['os'] ?? '',
+                'country' => $data['country'] ?? '',
+                'city' => $data['city'] ?? '',
+                'timezone' => $data['timezone'] ?? ''
             ];
             
             $this->sessionModel->create($sessionData);
@@ -222,6 +235,26 @@ class StudentController {
             http_response_code(401);
             echo json_encode(['message' => 'Invalid credentials']);
         }
+    }
+
+    private function getClientIp() {
+        $ip = '';
+        if (!empty($_SERVER['HTTP_CLIENT_IP'])) {
+            $ip = $_SERVER['HTTP_CLIENT_IP'];
+        } elseif (!empty($_SERVER['HTTP_X_FORWARDED_FOR'])) {
+            $ip = $_SERVER['HTTP_X_FORWARDED_FOR'];
+        } elseif (!empty($_SERVER['HTTP_X_REAL_IP'])) {
+            $ip = $_SERVER['HTTP_X_REAL_IP'];
+        } else {
+            $ip = $_SERVER['REMOTE_ADDR'] ?? '';
+        }
+
+        if (strpos($ip, ',') !== false) {
+            $ips = explode(',', $ip);
+            $ip = trim($ips[0]);
+        }
+        
+        return $ip;
     }
 
     public function getProfile() {
@@ -277,7 +310,6 @@ class StudentController {
             return;
         }
 
-        // Get existing student to preserve profile photo if not being updated
         $existingStudent = $this->studentsModel->readOne($studentId);
         
         $profilePhoto = null;
@@ -437,22 +469,23 @@ class StudentController {
         
         $headers = getallheaders();
         $token = isset($headers['Authorization']) ? str_replace('Bearer ', '', $headers['Authorization']) : null;
+        $deviceFingerprint = $headers['X-Device-Fingerprint'] ?? $headers['x-device-fingerprint'] ?? $_SERVER['HTTP_X_DEVICE_FINGERPRINT'] ?? null;
         
-        if (!$token || !JWT::validate($token)) {
-            http_response_code(401);
-            echo json_encode(['message' => 'Unauthorized']);
-            return;
+        $rawInput = file_get_contents('php://input');
+        if (!empty($rawInput)) {
+            $data = json_decode($rawInput, true);
+            if (!empty($data['device_fingerprint'])) {
+                $deviceFingerprint = $data['device_fingerprint'];
+            }
+            if (!$token && !empty($data['token'])) {
+                $token = $data['token'];
+            }
         }
 
-        $result = $this->sessionModel->deleteByToken($token);
-
-        if ($result) {
-            http_response_code(200);
-            echo json_encode(['message' => 'Logout successful']);
-        } else {
-            http_response_code(500);
-            echo json_encode(['message' => 'Failed to logout']);
-        }
+        $this->sessionModel->deleteByTokenOrDevice($token, $deviceFingerprint, 'student');
+        
+        http_response_code(200);
+        echo json_encode(['message' => 'Logout successful']);
     }
 
     public function verify() {

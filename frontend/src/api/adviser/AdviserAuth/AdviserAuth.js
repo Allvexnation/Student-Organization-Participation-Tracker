@@ -1,14 +1,21 @@
 import { API_ROUTES } from '../../server/api.js';
-import { setToken, removeToken, isAuthenticated as checkAuth } from '../../../utils/jwt.js';
+import { setToken, removeToken, getToken, isAuthenticated as checkAuth, getUserData, setUserData } from '../../../utils/jwt.js';
+import { getDeviceInfo } from '../../../utils/DeviceInfo.js';
 
 export async function adviserLogin(Email, Password) {
     try {
+        const deviceInfo = await getDeviceInfo();
+        
         const response = await fetch(API_ROUTES.ADVISER.LOGIN, {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json'
             },
-            body: JSON.stringify({ username_or_email: Email, password: Password })
+            body: JSON.stringify({ 
+                username_or_email: Email, 
+                password: Password,
+                ...deviceInfo
+            })
         });
 
         const contentType = response.headers.get('content-type');
@@ -22,6 +29,9 @@ export async function adviserLogin(Email, Password) {
         
         if (data.token) {
             setToken(data.token, 'adviser');
+            if (data.adviser) {
+                setUserData(data.adviser, 'adviser');
+            }
         }
         
         return data;
@@ -33,34 +43,33 @@ export async function adviserLogin(Email, Password) {
 
 export async function adviserLogout(token) {
     try {
-        const response = await fetch(API_ROUTES.ADVISER.LOGOUT, {
+        const authToken = token || getToken('adviser');
+        let deviceInfo = {};
+        try {
+            deviceInfo = await getDeviceInfo();
+        } catch (e) {}
+
+        await fetch(API_ROUTES.ADVISER.LOGOUT, {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json',
-                'Authorization': `Bearer ${token}`
-            }
+                'Authorization': authToken ? `Bearer ${authToken}` : ''
+            },
+            body: JSON.stringify({
+                token: authToken || '',
+                device_fingerprint: deviceInfo.device_fingerprint || '',
+                ...deviceInfo
+            })
         });
-        
-        removeToken('adviser');
-        localStorage.removeItem('adviserData');
-        localStorage.removeItem('adviserVerified');
-        
-        const contentType = response.headers.get('content-type');
-        if (contentType && contentType.includes('application/json')) {
-            return await response.json();
-        }
-        
-        return { message: 'Logout completed' };
     } catch (error) {
         console.error('Logout error:', error);
+    } finally {
         removeToken('adviser');
-        localStorage.removeItem('adviserData');
-        localStorage.removeItem('adviserVerified');
-        return { message: 'Logout completed (offline)' };
+        sessionStorage.removeItem('adviserData');
+        sessionStorage.removeItem('adviserVerified');
     }
 }
 
 export function getAdviserData() {
-    const adviserData = localStorage.getItem('adviserData');
-    return adviserData ? JSON.parse(adviserData) : null;
+    return getUserData('adviser');
 }

@@ -59,6 +59,7 @@ export const API_ROUTES = {
     },
     SESSION: {
         VALIDATE: `${API_BASE_URL}/api/session/validate`,
+        RESTORE: `${API_BASE_URL}/api/session/restore`,
         LOGOUT: `${API_BASE_URL}/api/session/logout`,
         LOGOUT_ALL: `${API_BASE_URL}/api/session/logout-all`,
     },

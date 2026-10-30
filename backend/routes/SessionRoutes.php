@@ -14,6 +14,8 @@ class SessionRoutes {
         
         if ($method === 'GET' && $uri === '/api/session/validate') {
             $this->controller->validate();
+        } elseif ($method === 'POST' && $uri === '/api/session/restore') {
+            $this->controller->restore();
         } elseif ($method === 'POST' && $uri === '/api/session/logout') {
             $this->controller->logout();
         } elseif ($method === 'POST' && $uri === '/api/session/logout-all') {

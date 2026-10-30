@@ -1,9 +1,32 @@
-import { getToken, removeToken, isAuthenticated, decodeToken } from '../utils/jwt.js';
+import { getToken, removeToken, isAuthenticated, decodeToken, isTokenExpired } from '../utils/jwt.js';
 import { navigate } from '../utils/navigation.js';
 import { showToast } from '../components/ToastMessage.js';
 
 export function protectAdminRoute(redirectPath = '/auth/admin/login') {
-    if (!isAuthenticated()) {
+    const token = getToken('admin');
+    if (!token) {
+        isAuthenticated('admin').then((auth) => {
+            if (!auth) {
+                showToast('Please login to access this page', 'error');
+                navigate(redirectPath);
+            }
+        });
+        return true;
+    }
+
+    if (isTokenExpired(token)) {
+        removeToken('admin');
+        showToast('Session expired. Please login again', 'error');
+        navigate(redirectPath);
+        return false;
+    }
+
+    return true;
+}
+
+export async function protectAdminRouteAsync(redirectPath = '/auth/admin/login') {
+    const auth = await isAuthenticated('admin');
+    if (!auth) {
         showToast('Please login to access this page', 'error');
         navigate(redirectPath);
         return false;
@@ -12,7 +35,7 @@ export function protectAdminRoute(redirectPath = '/auth/admin/login') {
 }
 
 export function validateTokenForApi(options = {}) {
-    const token = getToken();
+    const token = getToken('admin');
     
     if (!token) {
         throw new Error('No authentication token found');
@@ -20,13 +43,12 @@ export function validateTokenForApi(options = {}) {
 
     const decoded = decodeToken(token);
     if (!decoded) {
-        removeToken();
+        removeToken('admin');
         throw new Error('Invalid token');
     }
 
-    const currentTime = Math.floor(Date.now() / 1000);
-    if (decoded.exp && decoded.exp < currentTime) {
-        removeToken();
+    if (isTokenExpired(token)) {
+        removeToken('admin');
         throw new Error('Token has expired');
     }
 
@@ -46,7 +68,7 @@ export async function authenticatedFetch(url, options = {}) {
         const response = await fetch(url, validatedOptions);
         
         if (response.status === 401) {
-            removeToken();
+            removeToken('admin');
             showToast('Session expired. Please login again', 'error');
             navigate('/auth/admin/login');
             throw new Error('Unauthorized');
@@ -65,7 +87,7 @@ export async function authenticatedFetch(url, options = {}) {
 }
 
 export function isAdminUser() {
-    const token = getToken();
+    const token = getToken('admin');
     if (!token) return false;
     
     const decoded = decodeToken(token);
@@ -75,10 +97,9 @@ export function isAdminUser() {
 }
 
 export function withAdminAuth(callback) {
-    return function() {
-        if (!protectAdminRoute()) {
-            return;
-        }
+    return async function() {
+        const ok = await protectAdminRouteAsync();
+        if (!ok) return;
         
         if (!isAdminUser()) {
             showToast('Access denied. Admin privileges required', 'error');
@@ -91,31 +112,7 @@ export function withAdminAuth(callback) {
 }
 
 export function adminLogout() {
-    removeToken();
-    localStorage.removeItem('adminData');
+    removeToken('admin');
     showToast('Logged out successfully', 'success');
     navigate('/auth/admin/login');
-}
-
-export async function refreshAuthToken(refreshToken) {
-    try {
-        const response = await fetch('/api/admin/refresh', {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/json'
-            },
-            body: JSON.stringify({ refresh_token: refreshToken })
-        });
-        
-        if (!response.ok) {
-            throw new Error('Failed to refresh token');
-        }
-        
-        const data = await response.json();
-        setToken(data.token);
-        return data;
-    } catch (error) {
-        removeToken();
-        throw error;
-    }
 }

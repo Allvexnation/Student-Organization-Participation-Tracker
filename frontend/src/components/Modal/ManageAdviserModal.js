@@ -17,7 +17,7 @@ export function openManageAdviserModal({ mode = 'add', adviser = null, adviserId
     const formContent = `
         <form id="adviserForm" class="space-y-5">
             ${isEdit ? `<input type="hidden" id="adviserId" value="${adviser?.id || adviserId || ''}">` : ''}
-            ${isEdit && existingImageUrl ? `<input type="hidden" id="existingImageUrl" value="${existingImageUrl}">` : ''}
+            ${isEdit ? `<input type="hidden" id="existingImageUrl" value="${existingImageUrl}">` : ''}
 
             <fieldset>
                 <legend class="text-xs font-semibold text-gray-500 uppercase tracking-wider mb-3">Photo</legend>
@@ -51,6 +51,14 @@ export function openManageAdviserModal({ mode = 'add', adviser = null, adviserId
                             placeholder="e.g. Juan Dela Cruz"
                             class="w-full px-3 py-2 text-sm border border-gray-200 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-transparent transition">
                     </div>
+                    ${isEdit ? `
+                    <div>
+                        <label for="adviserUsername" class="block text-sm font-medium text-gray-700 mb-1">Username <span class="text-red-500">*</span></label>
+                        <input type="text" id="adviserUsername" name="adviserUsername" value="${adviser ? adviser.username : ''}" required
+                            placeholder="e.g. juandelacruz"
+                            class="w-full px-3 py-2 text-sm border border-gray-200 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-transparent transition">
+                    </div>
+                    ` : ''}
                     <div>
                         <label for="adviserEmail" class="block text-sm font-medium text-gray-700 mb-1">Email <span class="text-red-500">*</span></label>
                         <input type="email" id="adviserEmail" name="adviserEmail" value="${isEdit && adviser ? adviser.email : ''}" required
@@ -158,17 +166,33 @@ function populateFormWithAdviser(adviser) {
     const form = document.getElementById('adviserForm');
     if (!form) return;
 
-    document.getElementById('adviserId').value = adviser.id;
-    document.getElementById('adviserName').value = adviser.name;
-    document.getElementById('adviserUsername').value = adviser.username;
-    document.getElementById('adviserEmail').value = adviser.email;
-    document.getElementById('adviserRole').value = adviser.role;
-    document.getElementById('adviserStatus').value = adviser.status;
+    const adviserIdInput = document.getElementById('adviserId');
+    if (adviserIdInput) adviserIdInput.value = adviser.id;
+
+    const adviserNameInput = document.getElementById('adviserName');
+    if (adviserNameInput) adviserNameInput.value = adviser.name;
+
+    const adviserUsernameInput = document.getElementById('adviserUsername');
+    if (adviserUsernameInput) adviserUsernameInput.value = adviser.username;
+
+    const adviserEmailInput = document.getElementById('adviserEmail');
+    if (adviserEmailInput) adviserEmailInput.value = adviser.email;
+
+    const adviserRoleInput = document.getElementById('adviserRole');
+    if (adviserRoleInput) adviserRoleInput.value = adviser.role;
+
+    const adviserStatusInput = document.getElementById('adviserStatus');
+    if (adviserStatusInput) adviserStatusInput.value = adviser.status;
 
     if (adviser.profile_photo) {
-        document.getElementById('existingImageUrl').value = adviser.profile_photo;
-        document.getElementById('imageUrl').value = adviser.profile_photo;
-        document.getElementById('imagePreviewContainer').innerHTML = `<img src="${adviser.profile_photo}" alt="Preview" class="w-full h-full object-cover" id="imagePreview">`;
+        const existingImageUrlInput = document.getElementById('existingImageUrl');
+        const imageUrlInput = document.getElementById('imageUrl');
+        if (existingImageUrlInput) existingImageUrlInput.value = adviser.profile_photo;
+        if (imageUrlInput) imageUrlInput.value = adviser.profile_photo;
+        const imagePreviewContainer = document.getElementById('imagePreviewContainer');
+        if (imagePreviewContainer) {
+            imagePreviewContainer.innerHTML = `<img src="${adviser.profile_photo}" alt="Preview" class="w-full h-full object-cover" id="imagePreview">`;
+        }
     }
 
     setTimeout(() => {
@@ -259,6 +283,7 @@ async function processAdviserSubmit(id, buttonText, onSubmit) {
 
     const formData = {
         name: document.getElementById('adviserName').value.trim(),
+        username: document.getElementById('adviserUsername').value.trim(),
         email: document.getElementById('adviserEmail').value.trim(),
         role: document.getElementById('adviserRole').value,
         status: document.getElementById('adviserStatus').value,

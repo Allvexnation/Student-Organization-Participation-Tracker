@@ -1,6 +1,8 @@
 import { logout, getAdminData } from '../../api/admin/AdminLogin.js';
 import { AdminNavbar, initAdminNavbar } from '../../components/Navbar/AdminNavbar.js';
 import { protectAdminRoute } from '../../middleware/AdminMiddleware.js';
+import { isAuthenticated, getUserRole } from '../../utils/jwt.js';
+import { navigate } from '../../utils/navigation.js';
 
 export function AdminDashboard() {
     const adminData = getAdminData();
@@ -30,7 +32,12 @@ export function AdminDashboard() {
     `;
 }
 
-export function initAdminDashboard() {
+export async function initAdminDashboard() {
+    const auth = await isAuthenticated('admin');
+    if (!auth || getUserRole('admin') !== 'admin') {
+        navigate('/auth/admin/login');
+        return;
+    }
     protectAdminRoute();
-    initAdminNavbar();
+    await initAdminNavbar();
 }

@@ -146,10 +146,13 @@ class AdviserModel {
         $query = "UPDATE " . $this->table_name . " 
                   SET profile_photo = :profile_photo, 
                       name = :name, 
-                      username = :username, 
                       email = :email, 
                       role = :role,
                       status = :status";
+
+        if(isset($data['username']) && !empty($data['username'])) {
+            $query .= ", username = :username";
+        }
         
         if(isset($data['password']) && !empty($data['password'])) {
             $query .= ", password = :password";
@@ -178,11 +181,14 @@ class AdviserModel {
                 $stmt->bindParam(':profile_photo', $null, PDO::PARAM_NULL);
             }
             $stmt->bindParam(':name', $data['name']);
-            $stmt->bindParam(':username', $data['username']);
             $stmt->bindParam(':email', $data['email']);
             $stmt->bindParam(':role', $data['role']);
             $stmt->bindParam(':status', $data['status']);
             $stmt->bindParam(':id', $id);
+            
+            if(isset($data['username']) && !empty($data['username'])) {
+                $stmt->bindParam(':username', $data['username']);
+            }
             
             if(isset($data['password']) && !empty($data['password'])) {
                 $hashedPassword = password_hash($data['password'], PASSWORD_DEFAULT);

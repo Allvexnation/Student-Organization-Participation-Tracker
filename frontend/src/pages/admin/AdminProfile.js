@@ -1,5 +1,6 @@
 import { AdminNavbar, initAdminNavbar } from '../../components/Navbar/AdminNavbar.js';
 import { getAdminData } from '../../api/admin/AdminLogin.js';
+import { setUserData } from '../../utils/jwt.js';
 import { getAdminProfile, updateAdminProfile } from '../../api/admin/AdminProfile.js';
 import { protectAdminRoute } from '../../middleware/AdminMiddleware.js';
 import { openConfirmDialog } from '../../components/Dialog/ConfirmDialog.js';
@@ -304,6 +305,9 @@ export function initAdminProfile() {
                         `;
 
                         const result = await updateAdminProfile(profileData);
+                        if (result.admin) {
+                            setUserData(result.admin, 'admin');
+                        }
 
                         const navUsername = document.getElementById('navUsername');
                         if (navUsername) {
