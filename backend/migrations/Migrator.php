@@ -10,14 +10,15 @@ class Migrator {
     private $migrationsTable = "migrations";
 
     public function __construct($migrationsPath = null) {
-        $db = new Database();
+        $db = Database::getInstance();
         $this->database = $db->getDatabaseName();
         $this->migrationsPath = $migrationsPath ?: __DIR__;
-        
+
         $this->conn = $db->getConnection(true);
         $this->createDatabase();
-        
-        $this->conn = $db->getConnection(false);
+
+        $this->conn->exec("USE " . $this->database);
+
         $this->createMigrationsTable();
     }
 
@@ -48,7 +49,7 @@ class Migrator {
     private function getMigrations() {
         $migrations = [];
         $files = glob($this->migrationsPath . '/*.php');
-        
+
         foreach ($files as $file) {
             $filename = basename($file, '.php');
             if ($filename !== 'Migration' && $filename !== 'Migrator') {
@@ -56,7 +57,7 @@ class Migrator {
                 $migrations[$filename] = ['file' => $file, 'class' => $className];
             }
         }
-        
+
         ksort($migrations);
         return $migrations;
     }
@@ -65,12 +66,12 @@ class Migrator {
         $sql = "SELECT migration FROM {$this->migrationsTable} ORDER BY batch, migration";
         $stmt = $this->conn->prepare($sql);
         $stmt->execute();
-        
+
         $ran = [];
         while ($row = $stmt->fetch(PDO::FETCH_ASSOC)) {
             $ran[] = $row['migration'];
         }
-        
+
         return $ran;
     }
 
@@ -79,7 +80,7 @@ class Migrator {
         $stmt = $this->conn->prepare($sql);
         $stmt->execute();
         $result = $stmt->fetch(PDO::FETCH_ASSOC);
-        
+
         return $result['batch'] ? $result['batch'] + 1 : 1;
     }
 
@@ -88,7 +89,7 @@ class Migrator {
         $stmt = $this->conn->prepare($sql);
         $stmt->bindParam(':migration', $migrationName);
         $stmt->bindParam(':batch', $batch);
-        
+
         try {
             $stmt->execute();
         } catch(PDOException $e) {
@@ -100,28 +101,28 @@ class Migrator {
         $migrations = $this->getMigrations();
         $ran = $this->getRanMigrations();
         $batch = $this->getBatchNumber();
-        
+
         $pending = array_diff(array_keys($migrations), $ran);
-        
+
         if (empty($pending)) {
             echo "Nothing to migrate.\n";
             return;
         }
 
         echo "Running migrations...\n";
-        
+
         foreach ($pending as $migrationName) {
             $migrationData = $migrations[$migrationName];
             $file = $migrationData['file'];
             $className = $migrationData['class'];
-            
+
             require_once $file;
-            
+
             if (class_exists($className)) {
                 $migration = new $className($this->conn);
-                
+
                 echo "Migrating: {$migrationName}\n";
-                
+
                 try {
                     $migration->up();
                     $this->logMigration($migrationName, $batch);
@@ -132,14 +133,14 @@ class Migrator {
                 }
             }
         }
-        
+
         echo "\nMigration completed successfully!\n";
     }
 
     public function rollback($steps = 1) {
         $ran = $this->getRanMigrations();
         $batch = $this->getBatchNumber() - 1;
-        
+
         if ($batch < 1) {
             echo "Nothing to rollback.\n";
             return;
@@ -149,39 +150,39 @@ class Migrator {
         $stmt = $this->conn->prepare($sql);
         $stmt->bindParam(':batch', $batch);
         $stmt->execute();
-        
+
         $toRollback = [];
         while ($row = $stmt->fetch(PDO::FETCH_ASSOC)) {
             $toRollback[] = $row['migration'];
         }
-        
+
         if (empty($toRollback)) {
             echo "Nothing to rollback.\n";
             return;
         }
 
         echo "Rolling back migrations...\n";
-        
+
         foreach ($toRollback as $migrationName) {
             $file = $this->migrationsPath . '/' . $migrationName . '.php';
-            
+
             if (file_exists($file)) {
                 require_once $file;
                 $className = preg_replace('/^\d+_\d+_\d+_\d+_/', '', $migrationName);
-                
+
                 if (class_exists($className)) {
                     $migration = new $className($this->conn);
-                    
+
                     echo "Rolling back: {$migrationName}\n";
-                    
+
                     try {
                         $migration->down();
-                        
+
                         $deleteSql = "DELETE FROM {$this->migrationsTable} WHERE migration = :migration";
                         $deleteStmt = $this->conn->prepare($deleteSql);
                         $deleteStmt->bindParam(':migration', $migrationName);
                         $deleteStmt->execute();
-                        
+
                         echo "Rolled back: {$migrationName}\n";
                     } catch(Exception $e) {
                         echo "Error rolling back {$migrationName}: " . $e->getMessage() . "\n";
@@ -190,23 +191,23 @@ class Migrator {
                 }
             }
         }
-        
+
         echo "\nRollback completed successfully!\n";
     }
 
     public function reset() {
         $ran = $this->getRanMigrations();
-        
+
         if (empty($ran)) {
             echo "Nothing to reset.\n";
             return;
         }
 
         echo "Resetting database...\n";
-        
+
         foreach (array_reverse($ran) as $migrationName) {
             $file = $this->migrationsPath . '/' . $migrationName . '.php';
-            
+
             if (file_exists($file)) {
                 require_once $file;
                 $className = preg_replace('/^\d+_\d+_\d+_\d+_/', '', $migrationName);
@@ -226,24 +227,52 @@ class Migrator {
                 }
             }
         }
-        
+
         $this->conn->exec("TRUNCATE TABLE {$this->migrationsTable}");
-        
+
         echo "\nDatabase reset completed successfully!\n";
     }
 
     public function status() {
+        require_once __DIR__ . '/../commands/components/loading.php';
         $migrations = $this->getMigrations();
-        $ran = $this->getRanMigrations();
-        
-        echo "\nMigration Status:\n";
-        echo str_repeat("-", 50) . "\n";
-        
+        $ran = $this->getRanMigrationsWithDetails();
+
+        echo "\n";
+        echo "\033[1;34mMigration Status:\033[0m\n";
+        echo "\033[1;34m" . str_repeat("-", 80) . "\033[0m\n";
+        echo "\033[1;34m" . sprintf("%-5s %-40s %-10s %-20s", "Status", "Migration", "Batch", "Executed At") . "\033[0m\n";
+        echo "\033[1;34m" . str_repeat("-", 80) . "\033[0m\n";
+
         foreach ($migrations as $name => $data) {
-            $status = in_array($name, $ran) ? "[X]" : "[ ]";
-            echo "{$status} {$name}\n";
+            if (isset($ran[$name])) {
+                $status = "\033[0;32m[X]\033[0m";
+                $batch = "\033[0;33m" . $ran[$name]['batch'] . "\033[0m";
+                $executedAt = "\033[0;34m" . $ran[$name]['executed_at'] . "\033[0m";
+            } else {
+                $status = "\033[0;31m[ ]\033[0m";
+                $batch = "\033[0;90m-\033[0m";
+                $executedAt = "\033[0;90m-\033[0m";
+            }
+            echo sprintf("%-5s \033[0;37m%-40s\033[0m %-10s %-20s\n", $status, $name, $batch, $executedAt);
         }
-        
-        echo str_repeat("-", 50) . "\n";
+
+        echo "\033[1;34m" . str_repeat("-", 80) . "\033[0m\n";
+    }
+
+    private function getRanMigrationsWithDetails() {
+        $sql = "SELECT migration, batch, executed_at FROM {$this->migrationsTable} ORDER BY batch, migration";
+        $stmt = $this->conn->prepare($sql);
+        $stmt->execute();
+
+        $ran = [];
+        while ($row = $stmt->fetch(PDO::FETCH_ASSOC)) {
+            $ran[$row['migration']] = [
+                'batch' => $row['batch'],
+                'executed_at' => $row['executed_at']
+            ];
+        }
+
+        return $ran;
     }
 }

@@ -72,4 +72,46 @@ class Database {
     public function getDatabaseName() {
         return $this->database;
     }
+
+    public function getHealthStatus() {
+        try {
+            $conn = $this->getConnection();
+            if ($conn === null) {
+                return [
+                    'status' => 'unhealthy',
+                    'message' => 'Connection failed'
+                ];
+            }
+
+            $stmt = $conn->query("SELECT 1");
+            if ($stmt) {
+                $sizeStmt = $conn->query("SELECT ROUND(SUM(data_length + index_length) / 1024 / 1024, 2) AS size FROM information_schema.tables WHERE table_schema = '{$this->database}'");
+                $sizeResult = $sizeStmt->fetch(PDO::FETCH_ASSOC);
+                $size = $sizeResult['size'] ?? 0;
+
+                $versionStmt = $conn->query("SELECT VERSION() as version");
+                $versionResult = $versionStmt->fetch(PDO::FETCH_ASSOC);
+                $version = $versionResult['version'] ?? 'unknown';
+
+                return [
+                    'status' => 'healthy',
+                    'message' => 'Connected',
+                    'size_mb' => $size,
+                    'version' => $version,
+                    'host' => $this->host,
+                    'port' => $this->port
+                ];
+            }
+
+            return [
+                'status' => 'unhealthy',
+                'message' => 'Query failed'
+            ];
+        } catch (Exception $e) {
+            return [
+                'status' => 'unhealthy',
+                'message' => $e->getMessage()
+            ];
+        }
+    }
 }

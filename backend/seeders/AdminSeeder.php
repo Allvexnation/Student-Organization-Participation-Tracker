@@ -1,7 +1,7 @@
 <?php
 
-require_once __DIR__ . '/config/db.php';
-require_once __DIR__ . '/migrations/Migrator.php';
+require_once __DIR__ . '/../config/db.php';
+require_once __DIR__ . '/../migrations/Migrator.php';
 
 class AdminSeeder {
     private $conn;
@@ -12,7 +12,7 @@ class AdminSeeder {
 
     private function getConnection() {
         if (!$this->conn) {
-            $db = new Database();
+            $db = Database::getInstance();
             $this->conn = $db->getConnection();
         }
         return $this->conn;
@@ -32,7 +32,7 @@ class AdminSeeder {
             ],
         ];
 
-        $query = "INSERT INTO admins (profile_photo, name, username, email, password, role) 
+        $query = "INSERT IGNORE INTO admins (profile_photo, name, username, email, password, role) 
                   VALUES (:profile_photo, :name, :username, :email, :password, :role)";
 
         try {
@@ -49,7 +49,11 @@ class AdminSeeder {
                 $stmt->bindParam(':role', $admin['role']);
                 
                 $stmt->execute();
-                echo "Admin created: " . $admin['username'] . " (Password: " . $admin['password'] . ")\n";
+                if ($stmt->rowCount() > 0) {
+                    echo "Admin created: " . $admin['username'] . " (Password: " . $admin['password'] . ")\n";
+                } else {
+                    echo "Admin already exists: " . $admin['username'] . "\n";
+                }
             }
             
             echo "\nAdmin seeding completed successfully!\n";
@@ -62,7 +66,7 @@ class AdminSeeder {
         echo "Starting admin seeder...\n\n";
         
         echo "Running migrations...\n";
-        $migrator = new Migrator(__DIR__ . '/migrations');
+        $migrator = new Migrator(__DIR__ . '/../migrations');
         $migrator->migrate();
         
         $this->seedAdmins();
