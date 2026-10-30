@@ -3,7 +3,7 @@ import { getStudentData, studentLogout } from '../../api/students/StudentAuth/St
 import { openConfirmDialog } from '../Dialog/ConfirmDialog.js';
 import { showToast, updateToast } from '../ToastMessage.js';
 import { navigate } from '../../utils/navigation.js';
-import { getToken } from '../../utils/jwt.js';
+import { getToken, setUserData } from '../../utils/jwt.js';
 
 export function StudentNavbar() {
     return `
@@ -49,20 +49,69 @@ export function StudentNavbar() {
     `;
 }
 
+export function updateNavbarProfile(studentData) {
+    if (!studentData) return;
+    const navUsername = document.getElementById('navUsername');
+    const navProfilePhotoMobile = document.getElementById('navProfilePhotoMobile');
+    const navProfilePlaceholderMobile = document.getElementById('navProfilePlaceholderMobile');
+
+    if (navUsername && (studentData.first_name || studentData.name)) {
+        navUsername.textContent = `Welcome, ${studentData.first_name || studentData.name}`;
+    }
+
+    if (navProfilePhotoMobile && navProfilePlaceholderMobile) {
+        const photo = studentData.profile_photo;
+        const isValidPhoto = photo && 
+                           photo.length > 0 &&
+                           (photo.startsWith('data:image/') || photo.startsWith('http'));
+
+        if (!isValidPhoto) {
+            navProfilePhotoMobile.src = '';
+            navProfilePhotoMobile.classList.add('hidden');
+            navProfilePlaceholderMobile.classList.remove('hidden');
+            return;
+        }
+
+        const photoUrl = photo.startsWith('data:') 
+            ? photo 
+            : `${photo}${photo.includes('?') ? '&' : '?'}_t=${Date.now()}`;
+
+        navProfilePhotoMobile.src = photoUrl;
+        navProfilePhotoMobile.classList.remove('hidden');
+        navProfilePlaceholderMobile.classList.add('hidden');
+
+        navProfilePhotoMobile.onerror = function() {
+            navProfilePhotoMobile.src = '';
+            navProfilePhotoMobile.classList.add('hidden');
+            navProfilePlaceholderMobile.classList.remove('hidden');
+        };
+    }
+}
+
 export function initStudentNavbar() {
-    const studentData = getStudentData() || {};
+    let studentData = getStudentData() || {};
     
     return Promise.resolve().then(() => {
-        const navUsername = document.getElementById('navUsername');
-        const navProfilePhotoMobile = document.getElementById('navProfilePhotoMobile');
-        const navProfilePlaceholderMobile = document.getElementById('navProfilePlaceholderMobile');
-        
-        if (navUsername) navUsername.textContent = `Welcome, ${studentData.first_name || 'Student'}`;
+        updateNavbarProfile(studentData);
 
-        if (studentData.profile_photo && navProfilePhotoMobile && navProfilePlaceholderMobile) {
-            navProfilePhotoMobile.src = studentData.profile_photo;
-            navProfilePhotoMobile.classList.remove('hidden');
-            navProfilePlaceholderMobile.classList.add('hidden');
+        if (!window._studentProfileListenerRegistered) {
+            window._studentProfileListenerRegistered = true;
+            window.addEventListener('student-profile-updated', (event) => {
+                if (event.detail) {
+                    updateNavbarProfile(event.detail);
+                }
+            });
+        }
+
+        if (!studentData.profile_photo && getToken('student')) {
+            import('../../api/students/StudentProfile.js').then(({ getStudentProfile }) => {
+                getStudentProfile().then((fresh) => {
+                    if (fresh) {
+                        setUserData(fresh, 'student');
+                        updateNavbarProfile(fresh);
+                    }
+                }).catch(() => {});
+            }).catch(() => {});
         }
 
         const logoutBtn = document.getElementById('logoutBtn');

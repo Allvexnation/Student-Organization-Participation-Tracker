@@ -8,6 +8,7 @@ import { getApprovers } from '../../api/admin/EventOrganizations/EventOrganizati
 import { showToast } from '../ToastMessage.js';
 import { skeletonEventRegistForm, skeletonEventRegistView } from '../SkeletonLoading.js';
 import { OrganizationValidator } from '../../validator/OrganizationValidator.js';
+import { CacheService } from '../../../cache/CacheService.js';
 import { AdviserValidator } from '../../validator/AdviserValidator.js';
 
 export function openManageEventRegistModal({ mode = 'add', registration = null, registrationId = null, onSubmit }) {
@@ -143,22 +144,12 @@ function setupFormHandlers(registId, buttonText, onSubmit) {
 
 async function loadEvents(selectedEventId = null) {
     try {
-        const cachedData = localStorage.getItem('cachedEvents');
-        let events;
-        
-        if (cachedData) {
-            try {
-                events = JSON.parse(cachedData);
-            } catch (e) {
-                console.error('Error parsing cached events:', e);
-                events = await EventsAPI.getAllEvents();
-                localStorage.setItem('cachedEvents', JSON.stringify(events));
-                localStorage.setItem('cachedEventsTimestamp', Date.now().toString());
-            }
-        } else {
+        let events = await CacheService.get('cachedEvents');
+        if (!events || !Array.isArray(events) || events.length === 0) {
             events = await EventsAPI.getAllEvents();
-            localStorage.setItem('cachedEvents', JSON.stringify(events));
-            localStorage.setItem('cachedEventsTimestamp', Date.now().toString());
+            if (events) {
+                await CacheService.set('cachedEvents', events);
+            }
         }
         
         const eventSelect = document.getElementById('eventId');
@@ -182,22 +173,12 @@ async function loadEvents(selectedEventId = null) {
 
 async function loadOrganizations(selectedOrganizationId = null) {
     try {
-        const cachedData = localStorage.getItem('cachedOrganizations');
-        let organizations;
-        
-        if (cachedData) {
-            try {
-                organizations = JSON.parse(cachedData);
-            } catch (e) {
-                console.error('Error parsing cached organizations:', e);
-                organizations = await OrganizationsAPI.getAllOrganizations();
-                localStorage.setItem('cachedOrganizations', JSON.stringify(organizations));
-                localStorage.setItem('cachedOrganizationsTimestamp', Date.now().toString());
-            }
-        } else {
+        let organizations = await CacheService.get('cachedOrganizations');
+        if (!organizations || !Array.isArray(organizations) || organizations.length === 0) {
             organizations = await OrganizationsAPI.getAllOrganizations();
-            localStorage.setItem('cachedOrganizations', JSON.stringify(organizations));
-            localStorage.setItem('cachedOrganizationsTimestamp', Date.now().toString());
+            if (organizations) {
+                await CacheService.set('cachedOrganizations', organizations);
+            }
         }
         
         const organizationSelect = document.getElementById('organizationId');

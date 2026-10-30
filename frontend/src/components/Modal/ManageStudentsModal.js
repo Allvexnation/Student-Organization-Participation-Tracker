@@ -100,6 +100,14 @@ export function openManageStudentsModal({ mode = 'add', student = null, studentI
             <fieldset>
                 <legend class="text-xs font-semibold text-gray-500 uppercase tracking-wider mb-3">Account Information</legend>
                 <div class="space-y-3">
+                    ${isEdit ? `
+                    <div>
+                        <label for="username" class="block text-sm font-medium text-gray-700 mb-1">Username <span class="text-red-500">*</span></label>
+                        <input type="text" id="username" name="username" value="${isEdit && student ? student.username : ''}" required
+                            placeholder="e.g. juandelacruz"
+                            class="w-full px-3 py-2 text-sm border border-gray-200 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-transparent transition">
+                    </div>
+                    ` : ``}
                     <div>
                         <label for="email" class="block text-sm font-medium text-gray-700 mb-1">Email <span class="text-red-500">*</span></label>
                         <input type="email" id="email" name="email" value="${isEdit && student ? student.email : ''}" required
@@ -183,18 +191,49 @@ function populateFormWithStudent(student) {
     const form = document.getElementById('studentForm');
     if (!form) return;
 
-    document.getElementById('studentId').value = student.id;
-    document.getElementById('studentNumber').value = student.student_number;
-    document.getElementById('firstName').value = student.first_name;
-    document.getElementById('lastName').value = student.last_name;
-    document.getElementById('program').value = student.program;
-    document.getElementById('yearLevel').value = student.year_level;
-    document.getElementById('email').value = student.email;
+    // Safely set values - create hidden inputs if they don't exist yet
+    const setVal = (id, value) => {
+        const el = document.getElementById(id);
+        if (el) {
+            el.value = value || '';
+        }
+    };
+
+    // Ensure studentId hidden input exists
+    let studentIdEl = document.getElementById('studentId');
+    if (!studentIdEl) {
+        studentIdEl = document.createElement('input');
+        studentIdEl.type = 'hidden';
+        studentIdEl.id = 'studentId';
+        form.prepend(studentIdEl);
+    }
+    studentIdEl.value = student.id;
+
+    setVal('studentNumber', student.student_number);
+    setVal('firstName', student.first_name);
+    setVal('lastName', student.last_name);
+    setVal('program', student.program);
+    setVal('yearLevel', student.year_level);
+    setVal('username', student.username);
+    setVal('email', student.email);
 
     if (student.profile_photo) {
-        document.getElementById('existingImageUrl').value = student.profile_photo;
-        document.getElementById('imageUrl').value = student.profile_photo;
-        document.getElementById('imagePreviewContainer').innerHTML = `<img src="${student.profile_photo}" alt="Preview" class="w-full h-full object-cover" id="imagePreview">`;
+        // Ensure existingImageUrl hidden input exists
+        let existingImgEl = document.getElementById('existingImageUrl');
+        if (!existingImgEl) {
+            existingImgEl = document.createElement('input');
+            existingImgEl.type = 'hidden';
+            existingImgEl.id = 'existingImageUrl';
+            form.prepend(existingImgEl);
+        }
+        existingImgEl.value = student.profile_photo;
+
+        setVal('imageUrl', student.profile_photo);
+
+        const previewContainer = document.getElementById('imagePreviewContainer');
+        if (previewContainer) {
+            previewContainer.innerHTML = `<img src="${student.profile_photo}" alt="Preview" class="w-full h-full object-cover" id="imagePreview">`;
+        }
     }
 
     setTimeout(() => {
@@ -292,6 +331,13 @@ async function processStudentSubmit(id, buttonText, onSubmit) {
         email: document.getElementById('email').value.trim(),
         profile_photo: imageUrl
     };
+
+    if (isEdit) {
+        const usernameEl = document.getElementById('username');
+        if (usernameEl) {
+            formData.username = usernameEl.value.trim();
+        }
+    }
 
     // Fetch existing students for validation
     try {

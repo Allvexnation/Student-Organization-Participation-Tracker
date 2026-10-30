@@ -6,6 +6,7 @@ import * as OrganizationsAPI from '../../api/admin/Organizations/ManageOrganizat
 import { showToast } from '../ToastMessage.js';
 import { skeletonEventForm, skeletonEventView } from '../SkeletonLoading.js';
 import { OrganizationValidator } from '../../validator/OrganizationValidator.js';
+import { CacheService } from '../../../cache/CacheService.js';
 
 export function openManageEventsModal({ mode = 'add', event = null, eventId = null, onSubmit }) {
     const isEdit = mode === 'edit';
@@ -333,22 +334,12 @@ function renderDailySchedules(schedules) {
 
 async function loadOrganizations(selectedOrgIds = []) {
     try {
-        const cachedData = localStorage.getItem('cachedOrganizations');
-        let organizations;
-        
-        if (cachedData) {
-            try {
-                organizations = JSON.parse(cachedData);
-            } catch (e) {
-                console.error('Error parsing cached organizations:', e);
-                organizations = await OrganizationsAPI.getAllOrganizations();
-                localStorage.setItem('cachedOrganizations', JSON.stringify(organizations));
-                localStorage.setItem('cachedOrganizationsTimestamp', Date.now().toString());
-            }
-        } else {
+        let organizations = await CacheService.get('cachedOrganizations');
+        if (!organizations || !Array.isArray(organizations) || organizations.length === 0) {
             organizations = await OrganizationsAPI.getAllOrganizations();
-            localStorage.setItem('cachedOrganizations', JSON.stringify(organizations));
-            localStorage.setItem('cachedOrganizationsTimestamp', Date.now().toString());
+            if (organizations) {
+                await CacheService.set('cachedOrganizations', organizations);
+            }
         }
         
         const orgContainer = document.getElementById('organizationCheckboxes');

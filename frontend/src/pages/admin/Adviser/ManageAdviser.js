@@ -1,6 +1,7 @@
 import { AdminNavbar, initAdminNavbar } from '../../../components/Navbar/AdminNavbar.js';
 import { protectAdminRoute } from '../../../middleware/AdminMiddleware.js';
 import * as AdviserAPI from '../../../api/admin/adviser/ManageAdviser.js';
+import { CacheService } from '../../../../cache/CacheService.js';
 import { initManageAdviserAnimations, animateTableRows } from '../../../provider/Animation/ManageAdviserAnimation.js';
 import { openManageAdviserModal, openViewAdviserModal } from '../../../components/Modal/ManageAdviserModal.js';
 import { openConfirmDialog } from '../../../components/Dialog/ConfirmDialog.js';
@@ -67,37 +68,41 @@ export async function initManageAdviser() {
 
     let advisers = [];
     let hasLoaded = false;
-
     async function loadAdvisers(forceRefresh = false) {
-        const cachedData = localStorage.getItem('cachedAdvisers');
-        if (cachedData && !forceRefresh) {
+        if (!forceRefresh) {
             try {
-                advisers = JSON.parse(cachedData);
-                renderAdvisers(advisers);
-                hasLoaded = true;
-                return;
+                const cachedData = await CacheService.get('cachedAdvisers');
+                if (cachedData && Array.isArray(cachedData) && cachedData.length > 0) {
+                    advisers = cachedData;
+                    renderAdvisers(advisers);
+                    hasLoaded = true;
+                }
             } catch (e) {
-                console.error('Error parsing cached advisers:', e);
+                console.error('Error reading cached advisers:', e);
             }
         }
 
         try {
-            advisers = await AdviserAPI.getAllAdvisers();
-            localStorage.setItem('cachedAdvisers', JSON.stringify(advisers));
-            localStorage.setItem('cachedAdvisersTimestamp', Date.now().toString());
-            renderAdvisers(advisers);
-            hasLoaded = true;
+            const freshData = await AdviserAPI.getAllAdvisers();
+            if (freshData) {
+                advisers = freshData;
+                await CacheService.set('cachedAdvisers', advisers);
+                renderAdvisers(advisers);
+                hasLoaded = true;
+            }
         } catch (error) {
             console.error('Error loading advisers:', error);
-            const tbody = document.getElementById('adviserTableBody');
-            if (tbody) {
-                tbody.innerHTML = `
-                    <tr>
-                        <td colspan="9" class="px-5 py-12 text-center text-red-500">Failed to load advisers</td>
-                    </tr>
-                `;
+            if (!hasLoaded) {
+                const tbody = document.getElementById('adviserTableBody');
+                if (tbody) {
+                    tbody.innerHTML = `
+                        <tr>
+                            <td colspan="9" class="px-5 py-12 text-center text-red-500">Failed to load advisers</td>
+                        </tr>
+                    `;
+                }
+                showToast('Failed to load advisers', 'error');
             }
-            showToast('Failed to load advisers', 'error');
         }
     }
 

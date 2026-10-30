@@ -2,6 +2,7 @@
 
 require_once __DIR__ . '/../../model/Adviser/AdviserOrganizationModel.php';
 require_once __DIR__ . '/../../config/jwt.php';
+require_once __DIR__ . '/../../cache/CacheService.php';
 
 class AdviserOrganizationController {
     private $adviserOrganizationModel;
@@ -155,6 +156,9 @@ class AdviserOrganizationController {
         }
 
         $result = $this->adviserOrganizationModel->updateOrganization($adviser_id, $data);
+        if ($result) {
+            CacheService::forget('organizations_all');
+        }
 
         if ($result) {
             $organization = $this->adviserOrganizationModel->getCurrentOrganizationForAdviser($adviser_id);
@@ -278,6 +282,9 @@ class AdviserOrganizationController {
 
         $data['organization_id'] = $organization['id'];
         $result = $this->adviserOrganizationModel->createMembership($data);
+        if ($result) {
+            CacheService::forget('org_memberships_all');
+        }
 
         if ($result) {
             http_response_code(201);
@@ -323,6 +330,10 @@ class AdviserOrganizationController {
 
         $data['organization_id'] = $organization['id'];
         $result = $this->adviserOrganizationModel->updateMembership($id, $data);
+        if ($result) {
+            CacheService::forget('org_memberships_all');
+            CacheService::forget('org_membership_' . $id);
+        }
 
         if ($result) {
             $membership = $this->adviserOrganizationModel->getMembershipsByOrganizationId($organization['id']);
@@ -364,6 +375,10 @@ class AdviserOrganizationController {
         }
 
         $result = $this->adviserOrganizationModel->deleteMembership($id);
+        if ($result) {
+            CacheService::forget('org_memberships_all');
+            CacheService::forget('org_membership_' . $id);
+        }
 
         if ($result) {
             http_response_code(200);

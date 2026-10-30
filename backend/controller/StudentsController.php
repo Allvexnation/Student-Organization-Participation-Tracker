@@ -4,6 +4,7 @@ require_once __DIR__ . '/../model/Students/StudentsModel.php';
 require_once __DIR__ . '/../model/StudentOtpModel.php';
 require_once __DIR__ . '/../config/jwt.php';
 require_once __DIR__ . '/../template/StudentEmail.php';
+require_once __DIR__ . '/../cache/CacheService.php';
 
 class StudentsController {
     private $studentsModel;
@@ -26,7 +27,9 @@ class StudentsController {
             return;
         }
 
-        $students = $this->studentsModel->readAll();
+        $students = CacheService::remember('students_all', 300, function() {
+            return $this->studentsModel->readAll();
+        });
 
         if ($students !== false) {
             http_response_code(200);
@@ -93,6 +96,9 @@ class StudentsController {
         $data['password'] = $password;
 
         $result = $this->studentsModel->create($data);
+        if ($result) {
+            CacheService::forget('students_all');
+        }
 
         if ($result) {
             $studentEmail = new StudentEmail();
@@ -144,6 +150,10 @@ class StudentsController {
         }
 
         $result = $this->studentsModel->update($id, $data);
+        if ($result) {
+            CacheService::forget('students_all');
+            CacheService::forget('student_' . $id);
+        }
 
         if ($result) {
             $student = $this->studentsModel->readOne($id);
@@ -177,6 +187,10 @@ class StudentsController {
         $adminName = JWT::getPayload($token)['name'] ?? 'Admin';
 
         $result = $this->studentsModel->delete($id);
+        if ($result) {
+            CacheService::forget('students_all');
+            CacheService::forget('student_' . $id);
+        }
 
         if ($result) {
             if ($student && $student['email']) {

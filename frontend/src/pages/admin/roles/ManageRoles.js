@@ -1,6 +1,7 @@
 import { AdminNavbar, initAdminNavbar } from '../../../components/Navbar/AdminNavbar.js';
 import { protectAdminRoute } from '../../../middleware/AdminMiddleware.js';
 import * as RolesAPI from '../../../api/admin/roles/ManageRoles.js';
+import { CacheService } from '../../../../cache/CacheService.js';
 import { initManageRolesAnimations, animateTableRows } from '../../../provider/Animation/ManageRolesAnimation.js';
 import { openManageRolesModal, openViewRolesModal } from '../../../components/Modal/ManageRolesModal.js';
 import { openConfirmDialog } from '../../../components/Dialog/ConfirmDialog.js';
@@ -64,37 +65,41 @@ export async function initManageRoles() {
 
     let roles = [];
     let hasLoaded = false;
-
     async function loadRoles(forceRefresh = false) {
-        const cachedData = localStorage.getItem('cachedRoles');
-        if (cachedData && !forceRefresh) {
+        if (!forceRefresh) {
             try {
-                roles = JSON.parse(cachedData);
-                renderRoles(roles);
-                hasLoaded = true;
-                return;
+                const cachedData = await CacheService.get('cachedRoles');
+                if (cachedData && Array.isArray(cachedData) && cachedData.length > 0) {
+                    roles = cachedData;
+                    renderRoles(roles);
+                    hasLoaded = true;
+                }
             } catch (e) {
-                console.error('Error parsing cached roles:', e);
+                console.error('Error reading cached roles:', e);
             }
         }
 
         try {
-            roles = await RolesAPI.getAllRoles();
-            localStorage.setItem('cachedRoles', JSON.stringify(roles));
-            localStorage.setItem('cachedRolesTimestamp', Date.now().toString());
-            renderRoles(roles);
-            hasLoaded = true;
+            const freshData = await RolesAPI.getAllRoles();
+            if (freshData) {
+                roles = freshData;
+                await CacheService.set('cachedRoles', roles);
+                renderRoles(roles);
+                hasLoaded = true;
+            }
         } catch (error) {
             console.error('Error loading roles:', error);
-            const tbody = document.getElementById('roleTableBody');
-            if (tbody) {
-                tbody.innerHTML = `
-                    <tr>
-                        <td colspan="6" class="px-5 py-12 text-center text-red-500">Failed to load roles</td>
-                    </tr>
-                `;
+            if (!hasLoaded) {
+                const tbody = document.getElementById('roleTableBody');
+                if (tbody) {
+                    tbody.innerHTML = `
+                        <tr>
+                            <td colspan="6" class="px-5 py-12 text-center text-red-500">Failed to load roles</td>
+                        </tr>
+                    `;
+                }
+                showToast('Failed to load roles', 'error');
             }
-            showToast('Failed to load roles', 'error');
         }
     }
 

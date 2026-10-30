@@ -1,5 +1,5 @@
 import { API_ROUTES } from '../server/api.js';
-import { getToken } from '../../utils/jwt.js';
+import { getToken, setUserData } from '../../utils/jwt.js';
 
 export async function getStudentProfile() {
     try {
@@ -46,7 +46,7 @@ export async function updateStudentProfile(profileData) {
         }
 
         if (data.student) {
-            sessionStorage.setItem('studentData', JSON.stringify(data.student));
+            setUserData(data.student, 'student');
         }
 
         return data;

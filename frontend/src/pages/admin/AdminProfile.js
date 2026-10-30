@@ -328,6 +328,18 @@ export function initAdminProfile() {
                                 profilePhotoPreview.innerHTML = getPhotoPreview(result.admin.profile_photo, initials);
                             }
                             selectedPhoto = null;
+
+                            const navProfilePhotoMobile = document.getElementById('navProfilePhotoMobile');
+                            const navProfilePlaceholderMobile = document.getElementById('navProfilePlaceholderMobile');
+                            if (navProfilePhotoMobile && navProfilePlaceholderMobile && result.admin.profile_photo) {
+                                const cacheBuster = Date.now();
+                                const photoUrl = result.admin.profile_photo.startsWith('data:') 
+                                    ? result.admin.profile_photo 
+                                    : `${result.admin.profile_photo}?_t=${cacheBuster}`;
+                                navProfilePhotoMobile.src = photoUrl;
+                                navProfilePhotoMobile.classList.remove('hidden');
+                                navProfilePlaceholderMobile.classList.add('hidden');
+                            }
                         }
 
                         document.getElementById('settingsPassword').value = '';
@@ -417,9 +429,22 @@ function getInitials(name) {
 }
 
 function getPhotoPreview(profilePhoto, initials) {
-    return profilePhoto
-        ? `<img id="profile-photo-img" src="${profilePhoto}" alt="Profile" class="w-full h-full object-cover rounded-full">`
-        : `<div id="profile-initials-fallback" class="w-full h-full rounded-full bg-blue-900 text-blue-100 flex items-center justify-center text-2xl font-bold">${initials}</div>`;
+    if (profilePhoto) {
+        const isValidPhoto = profilePhoto && 
+                           profilePhoto.length > 0 &&
+                           (profilePhoto.startsWith('data:image/') || 
+                            profilePhoto.startsWith('http'));
+        
+        if (!isValidPhoto) {
+            return `<div id="profile-initials-fallback" class="w-full h-full rounded-full bg-blue-900 text-blue-100 flex items-center justify-center text-2xl font-bold">${initials}</div>`;
+        }
+        
+        const cacheBuster = Date.now();
+        const separator = profilePhoto.includes('?') ? '&' : '?';
+        const photoUrl = profilePhoto.startsWith('data:') ? profilePhoto : `${profilePhoto}${separator}_t=${cacheBuster}`;
+        return `<img id="profile-photo-img" src="${photoUrl}" alt="Profile" class="w-full h-full object-cover rounded-full" crossorigin="anonymous">`;
+    }
+    return `<div id="profile-initials-fallback" class="w-full h-full rounded-full bg-blue-900 text-blue-100 flex items-center justify-center text-2xl font-bold">${initials}</div>`;
 }
 
 function togglePassword(inputId) {

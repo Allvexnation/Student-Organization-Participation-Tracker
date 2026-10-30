@@ -1,4 +1,4 @@
-import { AdviserNavbar, initAdviserNavbar } from '../../components/Navbar/AdviserNavbar.js';
+import { AdviserNavbar, initAdviserNavbar, updateNavbarProfile } from '../../components/Navbar/AdviserNavbar.js';
 import { getAdviserData } from '../../api/adviser/AdviserAuth/AdviserAuth.js';
 import { getAdviserProfile, updateAdviserProfile } from '../../api/adviser/AdviserProfile.js';
 import { isAuthenticated, setUserData } from '../../utils/jwt.js';
@@ -242,41 +242,55 @@ export async function initAdviserProfile() {
     await initAdviserNavbar();
 
     let adviserData = getAdviserData() || {};
+    let selectedPhoto = null;
+
+    const profilePhotoInput = document.getElementById('profilePhoto');
+    const profilePhotoPreview = document.getElementById('profilePhotoPreview');
+
     try {
         const freshData = await getAdviserProfile();
         if (freshData) {
             setUserData(freshData, 'adviser');
             adviserData = freshData;
 
-            const navUsername = document.getElementById('navUsername');
-            const navProfilePhotoMobile = document.getElementById('navProfilePhotoMobile');
-            const navProfilePlaceholderMobile = document.getElementById('navProfilePlaceholderMobile');
+            const nameInput = document.getElementById('settingsName');
+            const usernameInput = document.getElementById('settingsUsername');
+            const emailInput = document.getElementById('settingsEmail');
+            const settingsId = document.getElementById('settingsId');
+            const profileFullNameDisplay = document.getElementById('profileFullNameDisplay');
 
-            if (navUsername) navUsername.textContent = `Welcome, ${adviserData.name || 'Adviser'}`;
+            if (nameInput) nameInput.value = freshData.name || '';
+            if (usernameInput) usernameInput.value = freshData.username || '';
+            if (emailInput) emailInput.value = freshData.email || '';
+            if (settingsId) settingsId.value = freshData.id || '';
+            if (profileFullNameDisplay) profileFullNameDisplay.textContent = freshData.name || '';
 
-            if (adviserData.profile_photo && navProfilePhotoMobile && navProfilePlaceholderMobile) {
-                navProfilePhotoMobile.src = adviserData.profile_photo;
-                navProfilePhotoMobile.classList.remove('hidden');
-                navProfilePlaceholderMobile.classList.add('hidden');
+            if (profilePhotoPreview && !selectedPhoto) {
+                const initials = getInitials(freshData.name || '');
+                profilePhotoPreview.innerHTML = getPhotoPreview(freshData.profile_photo || '', initials);
             }
+
+            updateNavbarProfile(freshData);
         }
     } catch (error) {
         console.error('Failed to fetch fresh profile data:', error);
     }
 
-    let selectedPhoto = null;
-
-    const profilePhotoInput = document.getElementById('profilePhoto');
-    const profilePhotoPreview = document.getElementById('profilePhotoPreview');
-
     if (profilePhotoInput && profilePhotoPreview) {
         profilePhotoInput.addEventListener('change', (e) => {
             const file = e.target.files[0];
             if (file) {
+                if (file.size > 2 * 1024 * 1024) {
+                    showToast('Image size exceeds 2MB limit', 'error');
+                    profilePhotoInput.value = '';
+                    return;
+                }
                 const reader = new FileReader();
                 reader.onload = (event) => {
                     selectedPhoto = event.target.result;
-                    profilePhotoPreview.innerHTML = `<img src="${selectedPhoto}" alt="Profile Preview" class="w-full h-full object-cover rounded-full">`;
+                    const currentName = document.getElementById('settingsName')?.value || adviserData.name || '';
+                    const initials = getInitials(currentName);
+                    profilePhotoPreview.innerHTML = getPhotoPreview(selectedPhoto, initials);
                 };
                 reader.readAsDataURL(file);
             }
@@ -333,24 +347,26 @@ export async function initAdviserProfile() {
                         `;
 
                         const result = await updateAdviserProfile(profileData);
+                        const updatedAdviser = result.adviser || {};
 
-                        const navUsername = document.getElementById('navUsername');
-                        if (navUsername) {
-                            navUsername.textContent = `Welcome, ${name}`;
-                        }
+                        adviserData = { ...adviserData, ...updatedAdviser };
+                        setUserData(adviserData, 'adviser');
+                        window.dispatchEvent(new CustomEvent('adviser-profile-updated', { detail: adviserData }));
 
                         const profileFullNameDisplay = document.getElementById('profileFullNameDisplay');
                         if (profileFullNameDisplay) {
                             profileFullNameDisplay.textContent = name;
                         }
 
-                        if (result.adviser && result.adviser.profile_photo) {
-                            const initials = getInitials(name);
-                            if (profilePhotoPreview) {
-                                profilePhotoPreview.innerHTML = getPhotoPreview(result.adviser.profile_photo, initials);
-                            }
-                            selectedPhoto = null;
+                        const updatedPhoto = adviserData.profile_photo || selectedPhoto || '';
+                        const initials = getInitials(name);
+                        if (profilePhotoPreview) {
+                            profilePhotoPreview.innerHTML = getPhotoPreview(updatedPhoto, initials);
                         }
+                        selectedPhoto = null;
+                        if (profilePhotoInput) profilePhotoInput.value = '';
+
+                        updateNavbarProfile(adviserData);
 
                         document.getElementById('settingsPassword').value = '';
                         document.getElementById('settingsOldPassword').value = '';
@@ -383,6 +399,7 @@ export async function initAdviserProfile() {
             document.getElementById('settingsOldPassword').value = '';
 
             selectedPhoto = null;
+            if (profilePhotoInput) profilePhotoInput.value = '';
             const initials = getInitials(adviserData.name || '');
             if (profilePhotoPreview) {
                 profilePhotoPreview.innerHTML = getPhotoPreview(adviserData.profile_photo || '', initials);
@@ -439,9 +456,26 @@ function getInitials(name) {
 }
 
 function getPhotoPreview(profilePhoto, initials) {
-    return profilePhoto
-        ? `<img id="profile-photo-img" src="${profilePhoto}" alt="Profile" class="w-full h-full object-cover rounded-full">`
-        : `<div id="profile-initials-fallback" class="w-full h-full rounded-full bg-blue-900 text-blue-100 flex items-center justify-center text-2xl font-bold">${initials}</div>`;
+    if (profilePhoto) {
+        const isValidPhoto = profilePhoto && 
+                           profilePhoto.length > 0 &&
+                           (profilePhoto.startsWith('data:image/') || 
+                            profilePhoto.startsWith('http'));
+        
+        if (!isValidPhoto) {
+            return `<div id="profile-initials-fallback" class="w-full h-full rounded-full bg-blue-900 text-blue-100 flex items-center justify-center text-2xl font-bold">${initials}</div>`;
+        }
+        
+        const photoUrl = profilePhoto.startsWith('data:') 
+            ? profilePhoto 
+            : `${profilePhoto}${profilePhoto.includes('?') ? '&' : '?'}_t=${Date.now()}`;
+
+        return `
+            <img id="profile-photo-img" src="${photoUrl}" alt="Profile" class="w-full h-full object-cover rounded-full" onerror="this.style.display='none'; if(this.nextElementSibling) this.nextElementSibling.style.display='flex';">
+            <div id="profile-initials-fallback" class="w-full h-full rounded-full bg-blue-900 text-blue-100 items-center justify-center text-2xl font-bold" style="display:none;">${initials}</div>
+        `;
+    }
+    return `<div id="profile-initials-fallback" class="w-full h-full rounded-full bg-blue-900 text-blue-100 flex items-center justify-center text-2xl font-bold">${initials}</div>`;
 }
 
 function togglePassword(inputId) {

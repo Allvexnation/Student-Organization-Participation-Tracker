@@ -76,6 +76,11 @@ switch ($command) {
         showCredits();
         break;
 
+    case 'cache':
+        require_once __DIR__ . '/controller/cache.php';
+        manageCache($backendDir);
+        break;
+
     case 'help':
     default:
         showHelp();
@@ -104,8 +109,10 @@ function showInteractiveMenu($backendDir) {
         echo "  \033[0;33m11.\033[0m Reset migrations\n";
         echo "  \033[0;33m12.\033[0m Database summary\n";
         echo "  \033[0;33m13.\033[0m Switch environment settings\n";
-        echo "  \033[0;33m14.\033[0m Credits\n";
-        echo "  \033[0;33m15.\033[0m View README documentation\n";
+        echo "  \033[0;33m14.\033[0m Cache management\n";
+        echo "  \033[0;33m15.\033[0m Credits\n";
+        echo "  \033[0;33m16.\033[0m View README documentation\n";
+        echo "  \033[0;33m17.\033[0m Clear cache\n";
         echo "  \033[0;31m0.\033[0m Exit\n";
         echo "\n";
         echo "\033[1;34mChoice:\033[0m ";
@@ -198,13 +205,26 @@ function showInteractiveMenu($backendDir) {
                 break;
 
             case '14':
+                showLoadingBar("Loading cache management", 2);
+                require_once __DIR__ . '/controller/cache.php';
+                manageCache($backendDir);
+                break;
+
+            case '15':
                 require_once __DIR__ . '/controller/credits.php';
                 showCredits();
                 break;
 
-            case '15':
+            case '16':
                 require_once __DIR__ . '/controller/readme.php';
                 showReadme($backendDir);
+                break;
+
+            case '17':
+                showLoadingBar("Clearing cache", 2);
+                require_once $backendDir . '/cache/CacheService.php';
+                CacheService::flush();
+                showSuccess("Cache cleared successfully!");
                 break;
 
             case '0':

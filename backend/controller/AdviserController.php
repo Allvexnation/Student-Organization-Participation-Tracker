@@ -5,6 +5,7 @@ require_once __DIR__ . '/../model/AdviserOtpModel.php';
 require_once __DIR__ . '/../model/SessionModel.php';
 require_once __DIR__ . '/../config/jwt.php';
 require_once __DIR__ . '/../template/AdviserEmail.php';
+require_once __DIR__ . '/../cache/CacheService.php';
 
 class AdviserController {
     private $adviserModel;
@@ -59,7 +60,9 @@ class AdviserController {
             return;
         }
 
-        $advisers = $this->adviserModel->readAll();
+        $advisers = CacheService::remember('advisers_all', 300, function() {
+            return $this->adviserModel->readAll();
+        });
 
         if ($advisers !== false) {
             http_response_code(200);
@@ -82,7 +85,9 @@ class AdviserController {
             return;
         }
 
-        $adviser = $this->adviserModel->readOne($id);
+        $adviser = CacheService::remember('adviser_' . $id, 300, function() use ($id) {
+            return $this->adviserModel->readOne($id);
+        });
 
         if ($adviser) {
             http_response_code(200);
@@ -126,6 +131,9 @@ class AdviserController {
         $data['password'] = $password;
 
         $result = $this->adviserModel->create($data);
+        if ($result) {
+            CacheService::forget('advisers_all');
+        }
 
         if ($result) {
             $adviserEmail = new AdviserEmail();
@@ -185,9 +193,15 @@ class AdviserController {
         }
 
         $result = $this->adviserModel->update($id, $data);
+        if ($result) {
+            CacheService::forget('advisers_all');
+            CacheService::forget('adviser_' . $id);
+        }
 
         if ($result) {
-            $adviser = $this->adviserModel->readOne($id);
+            $adviser = CacheService::remember('adviser_' . $id, 300, function() use ($id) {
+            return $this->adviserModel->readOne($id);
+        });
             http_response_code(200);
             echo json_encode([
                 'message' => 'Adviser updated successfully',
@@ -214,10 +228,16 @@ class AdviserController {
         $data = json_decode(file_get_contents('php://input'), true);
         $reason = isset($data['reason']) ? $data['reason'] : 'No reason provided';
 
-        $adviser = $this->adviserModel->readOne($id);
+        $adviser = CacheService::remember('adviser_' . $id, 300, function() use ($id) {
+            return $this->adviserModel->readOne($id);
+        });
         $adminName = JWT::getPayload($token)['name'] ?? 'Admin';
 
         $result = $this->adviserModel->delete($id);
+        if ($result) {
+            CacheService::forget('advisers_all');
+            CacheService::forget('adviser_' . $id);
+        }
 
         if ($result) {
             if ($adviser && $adviser['email']) {
@@ -253,7 +273,9 @@ class AdviserController {
             unset($adviser['password']);
             
             if (isset($adviser['profile_photo']) && !empty($adviser['profile_photo'])) {
-                $adviser['profile_photo'] = 'data:image/jpeg;base64,' . base64_encode($adviser['profile_photo']);
+                if (is_string($adviser['profile_photo']) && !str_starts_with($adviser['profile_photo'], 'data:')) {
+                    $adviser['profile_photo'] = 'data:image/jpeg;base64,' . base64_encode($adviser['profile_photo']);
+                }
             }
             
             $tokenPayload = [
@@ -341,7 +363,9 @@ class AdviserController {
             unset($adviser['password']);
             
             if (isset($adviser['profile_photo']) && !empty($adviser['profile_photo'])) {
-                $adviser['profile_photo'] = 'data:image/jpeg;base64,' . base64_encode($adviser['profile_photo']);
+                if (is_string($adviser['profile_photo']) && !str_starts_with($adviser['profile_photo'], 'data:')) {
+                    $adviser['profile_photo'] = 'data:image/jpeg;base64,' . base64_encode($adviser['profile_photo']);
+                }
             }
             
             http_response_code(200);
@@ -374,24 +398,26 @@ class AdviserController {
             return;
         }
 
+        $existingAdviser = $this->adviserModel->readOne($adviserId);
+        if (!$existingAdviser) {
+            http_response_code(404);
+            echo json_encode(['message' => 'Adviser not found']);
+            return;
+        }
+
         $profilePhoto = null;
         if (isset($data['profile_photo']) && !empty($data['profile_photo'])) {
-            if (strpos($data['profile_photo'], 'data:image') === 0) {
-                $parts = explode(',', $data['profile_photo']);
-                if (isset($parts[1])) {
-                    $profilePhoto = base64_decode($parts[1]);
-                }
-            } else {
-                $profilePhoto = base64_decode($data['profile_photo']);
-            }
+            $profilePhoto = $data['profile_photo'];
+        } elseif ($existingAdviser && isset($existingAdviser['profile_photo']) && !empty($existingAdviser['profile_photo'])) {
+            $profilePhoto = $existingAdviser['profile_photo'];
         }
 
         $updateData = [
             'profile_photo' => $profilePhoto,
-            'name' => isset($data['name']) ? $data['name'] : '',
-            'username' => isset($data['username']) ? $data['username'] : '',
-            'email' => isset($data['email']) ? $data['email'] : '',
-            'role' => isset($data['role']) ? $data['role'] : '',
+            'name' => isset($data['name']) ? $data['name'] : ($existingAdviser['name'] ?? ''),
+            'username' => isset($data['username']) ? $data['username'] : ($existingAdviser['username'] ?? ''),
+            'email' => isset($data['email']) ? $data['email'] : ($existingAdviser['email'] ?? ''),
+            'role' => isset($data['role']) ? $data['role'] : ($existingAdviser['role'] ?? 'Adviser'),
             'status' => 'active'
         ];
 
@@ -402,11 +428,16 @@ class AdviserController {
         $result = $this->adviserModel->update($adviserId, $updateData);
 
         if ($result) {
+            CacheService::forget('advisers_all');
+            CacheService::forget('adviser_' . $adviserId);
+
             $adviser = $this->adviserModel->readOne($adviserId);
             unset($adviser['password']);
             
             if (isset($adviser['profile_photo']) && !empty($adviser['profile_photo'])) {
-                $adviser['profile_photo'] = 'data:image/jpeg;base64,' . base64_encode($adviser['profile_photo']);
+                if (is_string($adviser['profile_photo']) && !str_starts_with($adviser['profile_photo'], 'data:')) {
+                    $adviser['profile_photo'] = 'data:image/jpeg;base64,' . base64_encode($adviser['profile_photo']);
+                }
             }
             
             http_response_code(200);

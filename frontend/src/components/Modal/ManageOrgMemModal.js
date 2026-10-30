@@ -9,6 +9,7 @@ import { showToast } from '../ToastMessage.js';
 import { skeletonOrgMemForm, skeletonOrgMemView } from '../SkeletonLoading.js';
 import { OrganizationValidator } from '../../validator/OrganizationValidator.js';
 import { OrganizationMembershipCrudValidator } from '../../validator/OrganizationMembershipCrudValidator.js';
+import { CacheService } from '../../../cache/CacheService.js';
 
 export function openManageOrgMemModal({ mode = 'add', membership = null, membershipId = null, onSubmit }) {
     const isEdit = mode === 'edit';
@@ -166,22 +167,12 @@ function setupFormHandlers(memId, buttonText, onSubmit) {
 
 async function loadStudents(selectedStudentId = null) {
     try {
-        const cachedData = localStorage.getItem('cachedStudents');
-        let students;
-        
-        if (cachedData) {
-            try {
-                students = JSON.parse(cachedData);
-            } catch (e) {
-                console.error('Error parsing cached students:', e);
-                students = await StudentsAPI.getAllStudents();
-                localStorage.setItem('cachedStudents', JSON.stringify(students));
-                localStorage.setItem('cachedStudentsTimestamp', Date.now().toString());
-            }
-        } else {
+        let students = await CacheService.get('cachedStudents');
+        if (!students || !Array.isArray(students) || students.length === 0) {
             students = await StudentsAPI.getAllStudents();
-            localStorage.setItem('cachedStudents', JSON.stringify(students));
-            localStorage.setItem('cachedStudentsTimestamp', Date.now().toString());
+            if (students) {
+                await CacheService.set('cachedStudents', students);
+            }
         }
 
         // Get existing memberships to check which students already have organizations
@@ -216,22 +207,12 @@ async function loadStudents(selectedStudentId = null) {
 
 async function loadOrganizations(selectedOrgId = null) {
     try {
-        const cachedData = localStorage.getItem('cachedOrganizations');
-        let organizations;
-        
-        if (cachedData) {
-            try {
-                organizations = JSON.parse(cachedData);
-            } catch (e) {
-                console.error('Error parsing cached organizations:', e);
-                organizations = await OrganizationsAPI.getAllOrganizations();
-                localStorage.setItem('cachedOrganizations', JSON.stringify(organizations));
-                localStorage.setItem('cachedOrganizationsTimestamp', Date.now().toString());
-            }
-        } else {
+        let organizations = await CacheService.get('cachedOrganizations');
+        if (!organizations || !Array.isArray(organizations) || organizations.length === 0) {
             organizations = await OrganizationsAPI.getAllOrganizations();
-            localStorage.setItem('cachedOrganizations', JSON.stringify(organizations));
-            localStorage.setItem('cachedOrganizationsTimestamp', Date.now().toString());
+            if (organizations) {
+                await CacheService.set('cachedOrganizations', organizations);
+            }
         }
         
         const orgSelect = document.getElementById('organizationId');
@@ -260,22 +241,12 @@ async function loadOrganizations(selectedOrgId = null) {
 
 async function loadRoles(selectedRoleId = null) {
     try {
-        const cachedData = localStorage.getItem('cachedRoles');
-        let roles;
-        
-        if (cachedData) {
-            try {
-                roles = JSON.parse(cachedData);
-            } catch (e) {
-                console.error('Error parsing cached roles:', e);
-                roles = await RolesAPI.getAllRoles();
-                localStorage.setItem('cachedRoles', JSON.stringify(roles));
-                localStorage.setItem('cachedRolesTimestamp', Date.now().toString());
-            }
-        } else {
+        let roles = await CacheService.get('cachedRoles');
+        if (!roles || !Array.isArray(roles) || roles.length === 0) {
             roles = await RolesAPI.getAllRoles();
-            localStorage.setItem('cachedRoles', JSON.stringify(roles));
-            localStorage.setItem('cachedRolesTimestamp', Date.now().toString());
+            if (roles) {
+                await CacheService.set('cachedRoles', roles);
+            }
         }
         
         const roleSelect = document.getElementById('roleId');

@@ -78,7 +78,9 @@ class StudentsModel {
 
             foreach ($results as &$student) {
                 if (isset($student['profile_photo']) && !empty($student['profile_photo'])) {
-                    $student['profile_photo'] = 'data:image/jpeg;base64,' . base64_encode($student['profile_photo']);
+                    if (!str_starts_with($student['profile_photo'], 'data:')) {
+                        $student['profile_photo'] = 'data:image/jpeg;base64,' . base64_encode($student['profile_photo']);
+                    }
                 }
             }
 
@@ -102,7 +104,9 @@ class StudentsModel {
             $result = $stmt->fetch(PDO::FETCH_ASSOC);
             
             if ($result && isset($result['profile_photo']) && !empty($result['profile_photo'])) {
-                $result['profile_photo'] = 'data:image/jpeg;base64,' . base64_encode($result['profile_photo']);
+                if (!str_starts_with($result['profile_photo'], 'data:')) {
+                    $result['profile_photo'] = 'data:image/jpeg;base64,' . base64_encode($result['profile_photo']);
+                }
             }
             
             return $result;
@@ -185,7 +189,7 @@ class StudentsModel {
             
             $null = null;
             if (isset($data['profile_photo']) && !empty($data['profile_photo'])) {
-                if (strpos($data['profile_photo'], 'data:image') === 0) {
+                if (is_string($data['profile_photo']) && strpos($data['profile_photo'], 'data:image') === 0) {
                     $parts = explode(',', $data['profile_photo']);
                     if (isset($parts[1])) {
                         $photoData = base64_decode($parts[1]);
@@ -193,16 +197,54 @@ class StudentsModel {
                     } else {
                         $stmt->bindParam(':profile_photo', $null, PDO::PARAM_NULL);
                     }
-                } else {
+                } else if (is_string($data['profile_photo']) && preg_match('/^[a-zA-Z0-9\/\r\n+]*={0,2}$/', $data['profile_photo']) && base64_decode($data['profile_photo'], true) !== false) {
                     $photoData = base64_decode($data['profile_photo']);
                     $stmt->bindParam(':profile_photo', $photoData, PDO::PARAM_LOB);
+                } else {
+                    $stmt->bindParam(':profile_photo', $data['profile_photo'], PDO::PARAM_LOB);
                 }
-            } elseif ($existingStudent && isset($existingStudent['profile_photo'])) {
-
-                $stmt->bindParam(':profile_photo', $existingStudent['profile_photo'], PDO::PARAM_LOB);
+            } elseif ($existingStudent && isset($existingStudent['profile_photo']) && !empty($existingStudent['profile_photo'])) {
+                if (is_string($existingStudent['profile_photo']) && strpos($existingStudent['profile_photo'], 'data:image') === 0) {
+                    $parts = explode(',', $existingStudent['profile_photo']);
+                    $photoData = isset($parts[1]) ? base64_decode($parts[1]) : null;
+                    $stmt->bindParam(':profile_photo', $photoData, PDO::PARAM_LOB);
+                } else {
+                    $stmt->bindParam(':profile_photo', $existingStudent['profile_photo'], PDO::PARAM_LOB);
+                }
             } else {
                 $stmt->bindParam(':profile_photo', $null, PDO::PARAM_NULL);
             }
+            
+            // Check if required fields exist
+            if (!isset($data['student_number'])) {
+                error_log("Missing student_number in update data");
+                return false;
+            }
+            if (!isset($data['first_name'])) {
+                error_log("Missing first_name in update data");
+                return false;
+            }
+            if (!isset($data['last_name'])) {
+                error_log("Missing last_name in update data");
+                return false;
+            }
+            if (!isset($data['program'])) {
+                error_log("Missing program in update data");
+                return false;
+            }
+            if (!isset($data['year_level'])) {
+                error_log("Missing year_level in update data");
+                return false;
+            }
+            if (!isset($data['username'])) {
+                error_log("Missing username in update data");
+                return false;
+            }
+            if (!isset($data['email'])) {
+                error_log("Missing email in update data");
+                return false;
+            }
+            
             $stmt->bindParam(':student_number', $data['student_number']);
             $stmt->bindParam(':first_name', $data['first_name']);
             $stmt->bindParam(':last_name', $data['last_name']);
@@ -217,11 +259,16 @@ class StudentsModel {
                 $stmt->bindParam(':password', $hashedPassword);
             }
             
+            error_log("Executing update query for student ID: " . $id);
             if($stmt->execute()) {
+                error_log("Update query executed successfully");
                 return true;
             }
+            error_log("Update query execution failed");
+            error_log("PDO Error info: " . json_encode($stmt->errorInfo()));
             return false;
         } catch(PDOException $e) {
+            error_log("PDOException updating student: " . $e->getMessage());
             echo "Error updating student: " . $e->getMessage();
             return false;
         }

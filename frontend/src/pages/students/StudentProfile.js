@@ -1,4 +1,4 @@
-import { StudentNavbar, initStudentNavbar } from '../../components/Navbar/StudentNavbar.js';
+import { StudentNavbar, initStudentNavbar, updateNavbarProfile } from '../../components/Navbar/StudentNavbar.js';
 import { getStudentData } from '../../api/students/StudentAuth/StudentAuth.js';
 import { setUserData } from '../../utils/jwt.js';
 import { getStudentProfile, updateStudentProfile } from '../../api/students/StudentProfile.js';
@@ -295,29 +295,65 @@ export async function initStudentProfile() {
     protectStudentRoute();
     await initStudentNavbar();
 
-    try {
-        const freshData = await getStudentProfile();
-        if (freshData) {
-            setUserData(freshData, 'student');
-        }
-    } catch (error) {
-        console.error('Failed to fetch fresh profile data:', error);
-    }
-
-    const studentData = getStudentData() || {};
+    let studentData = getStudentData() || {};
     let selectedPhoto = null;
 
     const profilePhotoInput = document.getElementById('profilePhoto');
     const profilePhotoPreview = document.getElementById('profilePhotoPreview');
 
+    try {
+        const freshData = await getStudentProfile();
+        if (freshData) {
+            setUserData(freshData, 'student');
+            studentData = freshData;
+
+            const firstNameInput = document.getElementById('settingsFirstName');
+            const lastNameInput = document.getElementById('settingsLastName');
+            const usernameInput = document.getElementById('settingsUsername');
+            const emailInput = document.getElementById('settingsEmail');
+            const studentNumberInput = document.getElementById('settingsStudentNumber');
+            const programInput = document.getElementById('settingsProgram');
+            const yearLevelInput = document.getElementById('settingsYearLevel');
+            const settingsId = document.getElementById('settingsId');
+            const profileFullNameDisplay = document.getElementById('profileFullNameDisplay');
+
+            if (firstNameInput) firstNameInput.value = freshData.first_name || '';
+            if (lastNameInput) lastNameInput.value = freshData.last_name || '';
+            if (usernameInput) usernameInput.value = freshData.username || '';
+            if (emailInput) emailInput.value = freshData.email || '';
+            if (studentNumberInput) studentNumberInput.value = freshData.student_number || '';
+            if (programInput) programInput.value = freshData.program || '';
+            if (yearLevelInput) yearLevelInput.value = freshData.year_level || '';
+            if (settingsId) settingsId.value = freshData.id || '';
+            if (profileFullNameDisplay) profileFullNameDisplay.textContent = `${freshData.first_name || ''} ${freshData.last_name || ''}`.trim();
+
+            if (profilePhotoPreview && !selectedPhoto) {
+                const initials = getInitials(`${freshData.first_name || ''} ${freshData.last_name || ''}`.trim());
+                profilePhotoPreview.innerHTML = getPhotoPreview(freshData.profile_photo || '', initials);
+            }
+
+            updateNavbarProfile(freshData);
+        }
+    } catch (error) {
+        console.error('Failed to fetch fresh profile data:', error);
+    }
+
     if (profilePhotoInput && profilePhotoPreview) {
         profilePhotoInput.addEventListener('change', (e) => {
             const file = e.target.files[0];
             if (file) {
+                if (file.size > 2 * 1024 * 1024) {
+                    showToast('Image size exceeds 2MB limit', 'error');
+                    profilePhotoInput.value = '';
+                    return;
+                }
                 const reader = new FileReader();
                 reader.onload = (event) => {
                     selectedPhoto = event.target.result;
-                    profilePhotoPreview.innerHTML = `<img src="${selectedPhoto}" alt="Profile Preview" class="w-full h-full object-cover rounded-full">`;
+                    const firstName = document.getElementById('settingsFirstName')?.value || studentData.first_name || '';
+                    const lastName = document.getElementById('settingsLastName')?.value || studentData.last_name || '';
+                    const initials = getInitials(`${firstName} ${lastName}`.trim());
+                    profilePhotoPreview.innerHTML = getPhotoPreview(selectedPhoto, initials);
                 };
                 reader.readAsDataURL(file);
             }
@@ -381,24 +417,26 @@ export async function initStudentProfile() {
                         `;
 
                         const result = await updateStudentProfile(profileData);
+                        const updatedStudent = result.student || {};
 
-                        const navUsername = document.getElementById('navUsername');
-                        if (navUsername) {
-                            navUsername.textContent = `Welcome, ${firstName}`;
-                        }
+                        studentData = { ...studentData, ...updatedStudent };
+                        setUserData(studentData, 'student');
+                        window.dispatchEvent(new CustomEvent('student-profile-updated', { detail: studentData }));
 
                         const profileFullNameDisplay = document.getElementById('profileFullNameDisplay');
                         if (profileFullNameDisplay) {
                             profileFullNameDisplay.textContent = `${firstName} ${lastName}`.trim();
                         }
 
-                        if (result.student && result.student.profile_photo) {
-                            const initials = getInitials(`${firstName} ${lastName}`.trim());
-                            if (profilePhotoPreview) {
-                                profilePhotoPreview.innerHTML = getPhotoPreview(result.student.profile_photo, initials);
-                            }
-                            selectedPhoto = null;
+                        const updatedPhoto = studentData.profile_photo || selectedPhoto || '';
+                        const initials = getInitials(`${firstName} ${lastName}`.trim());
+                        if (profilePhotoPreview) {
+                            profilePhotoPreview.innerHTML = getPhotoPreview(updatedPhoto, initials);
                         }
+                        selectedPhoto = null;
+                        if (profilePhotoInput) profilePhotoInput.value = '';
+
+                        updateNavbarProfile(studentData);
 
                         document.getElementById('settingsPassword').value = '';
                         document.getElementById('settingsOldPassword').value = '';
@@ -435,6 +473,7 @@ export async function initStudentProfile() {
             document.getElementById('settingsOldPassword').value = '';
 
             selectedPhoto = null;
+            if (profilePhotoInput) profilePhotoInput.value = '';
             const initials = getInitials(`${studentData.first_name || ''} ${studentData.last_name || ''}`.trim());
             if (profilePhotoPreview) {
                 profilePhotoPreview.innerHTML = getPhotoPreview(studentData.profile_photo || '', initials);
@@ -491,9 +530,26 @@ function getInitials(name) {
 }
 
 function getPhotoPreview(profilePhoto, initials) {
-    return profilePhoto
-        ? `<img id="profile-photo-img" src="${profilePhoto}" alt="Profile" class="w-full h-full object-cover rounded-full">`
-        : `<div id="profile-initials-fallback" class="w-full h-full rounded-full bg-blue-900 text-blue-100 flex items-center justify-center text-2xl font-bold">${initials}</div>`;
+    if (profilePhoto) {
+        const isValidPhoto = profilePhoto && 
+                           profilePhoto.length > 0 &&
+                           (profilePhoto.startsWith('data:image/') || 
+                            profilePhoto.startsWith('http'));
+        
+        if (!isValidPhoto) {
+            return `<div id="profile-initials-fallback" class="w-full h-full rounded-full bg-blue-900 text-blue-100 flex items-center justify-center text-2xl font-bold">${initials}</div>`;
+        }
+        
+        const photoUrl = profilePhoto.startsWith('data:') 
+            ? profilePhoto 
+            : `${profilePhoto}${profilePhoto.includes('?') ? '&' : '?'}_t=${Date.now()}`;
+
+        return `
+            <img id="profile-photo-img" src="${photoUrl}" alt="Profile" class="w-full h-full object-cover rounded-full" onerror="this.style.display='none'; if(this.nextElementSibling) this.nextElementSibling.style.display='flex';">
+            <div id="profile-initials-fallback" class="w-full h-full rounded-full bg-blue-900 text-blue-100 items-center justify-center text-2xl font-bold" style="display:none;">${initials}</div>
+        `;
+    }
+    return `<div id="profile-initials-fallback" class="w-full h-full rounded-full bg-blue-900 text-blue-100 flex items-center justify-center text-2xl font-bold">${initials}</div>`;
 }
 
 function togglePassword(inputId) {

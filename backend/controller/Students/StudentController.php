@@ -5,6 +5,7 @@ require_once __DIR__ . '/../../model/StudentOtpModel.php';
 require_once __DIR__ . '/../../model/SessionModel.php';
 require_once __DIR__ . '/../../config/jwt.php';
 require_once __DIR__ . '/../../template/StudentEmail.php';
+require_once __DIR__ . '/../../cache/CacheService.php';
 
 class StudentController {
     private $studentsModel;
@@ -126,13 +127,25 @@ class StudentController {
             return;
         }
 
-        if (!isset($data['first_name']) || !isset($data['last_name']) || !isset($data['username']) || !isset($data['email'])) {
+        error_log("Update student data: " . json_encode($data));
+
+        if (!isset($data['first_name']) || !isset($data['last_name']) || !isset($data['email'])) {
             http_response_code(400);
-            echo json_encode(['message' => 'Missing required fields']);
+            echo json_encode(['message' => 'Missing required fields', 'data' => $data]);
             return;
         }
 
+        // Preserve existing username if not provided
+        if (!isset($data['username']) || empty($data['username'])) {
+            $existingStudent = $this->studentsModel->readOne($id);
+            if ($existingStudent && isset($existingStudent['username'])) {
+                $data['username'] = $existingStudent['username'];
+            }
+        }
+
+        error_log("Data before update: " . json_encode($data));
         $result = $this->studentsModel->update($id, $data);
+        error_log("Update result: " . ($result ? 'success' : 'failed'));
 
         if ($result) {
             $student = $this->studentsModel->readOne($id);
@@ -190,7 +203,9 @@ class StudentController {
             unset($student['password']);
             
             if (isset($student['profile_photo']) && !empty($student['profile_photo'])) {
-                $student['profile_photo'] = 'data:image/jpeg;base64,' . base64_encode($student['profile_photo']);
+                if (is_string($student['profile_photo']) && !str_starts_with($student['profile_photo'], 'data:')) {
+                    $student['profile_photo'] = 'data:image/jpeg;base64,' . base64_encode($student['profile_photo']);
+                }
             }
             
             $tokenPayload = [
@@ -277,7 +292,9 @@ class StudentController {
             unset($student['password']);
             
             if (isset($student['profile_photo']) && !empty($student['profile_photo'])) {
-                $student['profile_photo'] = 'data:image/jpeg;base64,' . base64_encode($student['profile_photo']);
+                if (is_string($student['profile_photo']) && !str_starts_with($student['profile_photo'], 'data:')) {
+                    $student['profile_photo'] = 'data:image/jpeg;base64,' . base64_encode($student['profile_photo']);
+                }
             }
             
             http_response_code(200);
@@ -344,11 +361,16 @@ class StudentController {
         $result = $this->studentsModel->update($studentId, $updateData);
 
         if ($result) {
+            CacheService::forget('students_all');
+            CacheService::forget('student_' . $studentId);
+
             $student = $this->studentsModel->readOne($studentId);
             unset($student['password']);
             
             if (isset($student['profile_photo']) && !empty($student['profile_photo'])) {
-                $student['profile_photo'] = 'data:image/jpeg;base64,' . base64_encode($student['profile_photo']);
+                if (is_string($student['profile_photo']) && !str_starts_with($student['profile_photo'], 'data:')) {
+                    $student['profile_photo'] = 'data:image/jpeg;base64,' . base64_encode($student['profile_photo']);
+                }
             }
             
             http_response_code(200);

@@ -15,7 +15,6 @@ composer.lock
 .env.*.local
 *.phar
 /build/
-/cache/
 /tmp/
 /temp/
 /logs/

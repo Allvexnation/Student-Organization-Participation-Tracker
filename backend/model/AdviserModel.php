@@ -27,7 +27,7 @@ class AdviserModel {
             
             $null = null;
             if (isset($data['profile_photo']) && !empty($data['profile_photo'])) {
-                if (strpos($data['profile_photo'], 'data:image') === 0) {
+                if (is_string($data['profile_photo']) && strpos($data['profile_photo'], 'data:image') === 0) {
                     $parts = explode(',', $data['profile_photo']);
                     if (isset($parts[1])) {
                         $photoData = base64_decode($parts[1]);
@@ -35,9 +35,11 @@ class AdviserModel {
                     } else {
                         $stmt->bindParam(':profile_photo', $null, PDO::PARAM_NULL);
                     }
-                } else {
+                } else if (is_string($data['profile_photo']) && preg_match('/^[a-zA-Z0-9\/\r\n+]*={0,2}$/', $data['profile_photo']) && base64_decode($data['profile_photo'], true) !== false) {
                     $photoData = base64_decode($data['profile_photo']);
                     $stmt->bindParam(':profile_photo', $photoData, PDO::PARAM_LOB);
+                } else {
+                    $stmt->bindParam(':profile_photo', $data['profile_photo'], PDO::PARAM_LOB);
                 }
             } else {
                 $stmt->bindParam(':profile_photo', $null, PDO::PARAM_NULL);
@@ -76,7 +78,9 @@ class AdviserModel {
 
             foreach ($results as &$adviser) {
                 if (isset($adviser['profile_photo']) && !empty($adviser['profile_photo'])) {
-                    $adviser['profile_photo'] = 'data:image/jpeg;base64,' . base64_encode($adviser['profile_photo']);
+                    if (!str_starts_with($adviser['profile_photo'], 'data:')) {
+                        $adviser['profile_photo'] = 'data:image/jpeg;base64,' . base64_encode($adviser['profile_photo']);
+                    }
                 }
             }
 
@@ -100,7 +104,9 @@ class AdviserModel {
             $result = $stmt->fetch(PDO::FETCH_ASSOC);
             
             if ($result && isset($result['profile_photo']) && !empty($result['profile_photo'])) {
-                $result['profile_photo'] = 'data:image/jpeg;base64,' . base64_encode($result['profile_photo']);
+                if (!str_starts_with($result['profile_photo'], 'data:')) {
+                    $result['profile_photo'] = 'data:image/jpeg;base64,' . base64_encode($result['profile_photo']);
+                }
             }
             
             return $result;
@@ -119,7 +125,13 @@ class AdviserModel {
             $stmt = $this->conn->prepare($query);
             $stmt->bindParam(':username', $username);
             $stmt->execute();
-            return $stmt->fetch(PDO::FETCH_ASSOC);
+            $result = $stmt->fetch(PDO::FETCH_ASSOC);
+            if ($result && isset($result['profile_photo']) && !empty($result['profile_photo'])) {
+                if (!str_starts_with($result['profile_photo'], 'data:')) {
+                    $result['profile_photo'] = 'data:image/jpeg;base64,' . base64_encode($result['profile_photo']);
+                }
+            }
+            return $result;
         } catch(PDOException $e) {
             echo "Error reading adviser by username: " . $e->getMessage();
             return false;
@@ -135,7 +147,13 @@ class AdviserModel {
             $stmt = $this->conn->prepare($query);
             $stmt->bindParam(':email', $email);
             $stmt->execute();
-            return $stmt->fetch(PDO::FETCH_ASSOC);
+            $result = $stmt->fetch(PDO::FETCH_ASSOC);
+            if ($result && isset($result['profile_photo']) && !empty($result['profile_photo'])) {
+                if (!str_starts_with($result['profile_photo'], 'data:')) {
+                    $result['profile_photo'] = 'data:image/jpeg;base64,' . base64_encode($result['profile_photo']);
+                }
+            }
+            return $result;
         } catch(PDOException $e) {
             echo "Error reading adviser by email: " . $e->getMessage();
             return false;
@@ -165,7 +183,7 @@ class AdviserModel {
             
             $null = null;
             if (isset($data['profile_photo']) && !empty($data['profile_photo'])) {
-                if (strpos($data['profile_photo'], 'data:image') === 0) {
+                if (is_string($data['profile_photo']) && strpos($data['profile_photo'], 'data:image') === 0) {
                     $parts = explode(',', $data['profile_photo']);
                     if (isset($parts[1])) {
                         $photoData = base64_decode($parts[1]);
@@ -173,9 +191,11 @@ class AdviserModel {
                     } else {
                         $stmt->bindParam(':profile_photo', $null, PDO::PARAM_NULL);
                     }
-                } else {
+                } else if (is_string($data['profile_photo']) && preg_match('/^[a-zA-Z0-9\/\r\n+]*={0,2}$/', $data['profile_photo']) && base64_decode($data['profile_photo'], true) !== false) {
                     $photoData = base64_decode($data['profile_photo']);
                     $stmt->bindParam(':profile_photo', $photoData, PDO::PARAM_LOB);
+                } else {
+                    $stmt->bindParam(':profile_photo', $data['profile_photo'], PDO::PARAM_LOB);
                 }
             } else {
                 $stmt->bindParam(':profile_photo', $null, PDO::PARAM_NULL);
@@ -345,8 +365,8 @@ class AdviserModel {
     }
 
     public function resetPassword($adviserId, $newPassword) {
-        $query = "UPDATE " . $this->table_name . "
-                  SET password = :password
+        $query = "UPDATE " . $this->table_name . " 
+                  SET password = :password 
                   WHERE id = :id";
 
         try {

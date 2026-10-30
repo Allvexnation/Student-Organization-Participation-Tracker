@@ -1,5 +1,5 @@
 import { API_ROUTES } from '../server/api.js';
-import { getToken } from '../../utils/jwt.js';
+import { getToken, setUserData } from '../../utils/jwt.js';
 
 export async function getAdminProfile() {
     try {
@@ -46,7 +46,7 @@ export async function updateAdminProfile(profileData) {
         }
 
         if (data.admin) {
-            sessionStorage.setItem('adminData', JSON.stringify(data.admin));
+            setUserData(data.admin, 'admin');
         }
 
         return data;

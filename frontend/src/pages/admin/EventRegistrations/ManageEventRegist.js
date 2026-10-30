@@ -1,6 +1,7 @@
 import { AdminNavbar, initAdminNavbar } from '../../../components/Navbar/AdminNavbar.js';
 import { protectAdminRoute } from '../../../middleware/AdminMiddleware.js';
 import * as EventOrgAPI from '../../../api/admin/EventOrganizations/EventOrganizations.js';
+import { CacheService } from '../../../../cache/CacheService.js';
 import { initManageEventRegistAnimations, animateTableRows } from '../../../provider/Animation/ManageEventRegistAnimation.js';
 import { openManageEventRegistModal, openViewEventRegistModal } from '../../../components/Modal/ManageEventRegistModal.js';
 import { openConfirmDialog } from '../../../components/Dialog/ConfirmDialog.js';
@@ -64,37 +65,41 @@ export async function initManageEventRegist() {
 
     let eventRegistrations = [];
     let hasLoaded = false;
-
     async function loadEventRegistrations(forceRefresh = false) {
-        const cachedData = localStorage.getItem('cachedEventRegistrations');
-        if (cachedData && !forceRefresh) {
+        if (!forceRefresh) {
             try {
-                eventRegistrations = JSON.parse(cachedData);
-                renderEventRegistrations(eventRegistrations);
-                hasLoaded = true;
-                return;
+                const cachedData = await CacheService.get('cachedEventRegistrations');
+                if (cachedData && Array.isArray(cachedData) && cachedData.length > 0) {
+                    eventRegistrations = cachedData;
+                    renderEventRegistrations(eventRegistrations);
+                    hasLoaded = true;
+                }
             } catch (e) {
-                console.error('Error parsing cached event registrations:', e);
+                console.error('Error reading cached event registrations:', e);
             }
         }
 
         try {
-            eventRegistrations = await EventOrgAPI.getAllEventOrganizations();
-            localStorage.setItem('cachedEventRegistrations', JSON.stringify(eventRegistrations));
-            localStorage.setItem('cachedEventRegistrationsTimestamp', Date.now().toString());
-            renderEventRegistrations(eventRegistrations);
-            hasLoaded = true;
+            const freshData = await EventOrgAPI.getAllEventOrganizations();
+            if (freshData) {
+                eventRegistrations = freshData;
+                await CacheService.set('cachedEventRegistrations', eventRegistrations);
+                renderEventRegistrations(eventRegistrations);
+                hasLoaded = true;
+            }
         } catch (error) {
             console.error('Error loading event registrations:', error);
-            const tbody = document.getElementById('eventRegistTableBody');
-            if (tbody) {
-                tbody.innerHTML = `
-                    <tr>
-                        <td colspan="6" class="px-5 py-12 text-center text-red-500">Failed to load event registrations</td>
-                    </tr>
-                `;
+            if (!hasLoaded) {
+                const tbody = document.getElementById('eventRegistTableBody');
+                if (tbody) {
+                    tbody.innerHTML = `
+                        <tr>
+                            <td colspan="6" class="px-5 py-12 text-center text-red-500">Failed to load event registrations</td>
+                        </tr>
+                    `;
+                }
+                showToast('Failed to load event registrations', 'error');
             }
-            showToast('Failed to load event registrations', 'error');
         }
     }
 

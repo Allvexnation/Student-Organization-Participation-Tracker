@@ -1,6 +1,7 @@
 import { AdminNavbar, initAdminNavbar } from '../../../components/Navbar/AdminNavbar.js';
 import { protectAdminRoute } from '../../../middleware/AdminMiddleware.js';
 import * as StudentsAPI from '../../../api/admin/Students/ManageStudents.js';
+import { CacheService } from '../../../../cache/CacheService.js';
 import { initManageStudentsAnimations, animateTableRows } from '../../../provider/Animation/ManageStudentsAnimation.js';
 import { openManageStudentsModal, openViewStudentsModal } from '../../../components/Modal/ManageStudentsModal.js';
 import { openConfirmDialog } from '../../../components/Dialog/ConfirmDialog.js';
@@ -66,37 +67,41 @@ export async function initManageStudents() {
 
     let students = [];
     let hasLoaded = false;
-
     async function loadStudents(forceRefresh = false) {
-        const cachedData = localStorage.getItem('cachedStudents');
-        if (cachedData && !forceRefresh) {
+        if (!forceRefresh) {
             try {
-                students = JSON.parse(cachedData);
-                renderStudents(students);
-                hasLoaded = true;
-                return;
+                const cachedData = await CacheService.get('cachedStudents');
+                if (cachedData && Array.isArray(cachedData) && cachedData.length > 0) {
+                    students = cachedData;
+                    renderStudents(students);
+                    hasLoaded = true;
+                }
             } catch (e) {
-                console.error('Error parsing cached students:', e);
+                console.error('Error reading cached students:', e);
             }
         }
 
         try {
-            students = await StudentsAPI.getAllStudents();
-            localStorage.setItem('cachedStudents', JSON.stringify(students));
-            localStorage.setItem('cachedStudentsTimestamp', Date.now().toString());
-            renderStudents(students);
-            hasLoaded = true;
+            const freshData = await StudentsAPI.getAllStudents();
+            if (freshData) {
+                students = freshData;
+                await CacheService.set('cachedStudents', students);
+                renderStudents(students);
+                hasLoaded = true;
+            }
         } catch (error) {
             console.error('Error loading students:', error);
-            const tbody = document.getElementById('studentTableBody');
-            if (tbody) {
-                tbody.innerHTML = `
-                    <tr>
-                        <td colspan="8" class="px-5 py-12 text-center text-red-500">Failed to load students</td>
-                    </tr>
-                `;
+            if (!hasLoaded) {
+                const tbody = document.getElementById('studentTableBody');
+                if (tbody) {
+                    tbody.innerHTML = `
+                        <tr>
+                            <td colspan="8" class="px-5 py-12 text-center text-red-500">Failed to load students</td>
+                        </tr>
+                    `;
+                }
+                showToast('Failed to load students', 'error');
             }
-            showToast('Failed to load students', 'error');
         }
     }
 
@@ -176,13 +181,13 @@ export async function initManageStudents() {
                     await StudentsAPI.updateStudent(id, data);
                 } else {
                     const response = await StudentsAPI.createStudent(data);
-                    localStorage.removeItem('cachedStudents');
-                    localStorage.removeItem('cachedStudentsTimestamp');
+                    await CacheService.remove('cachedStudents');
+                    
                     loadStudents(true);
                     return response;
                 }
-                localStorage.removeItem('cachedStudents');
-                localStorage.removeItem('cachedStudentsTimestamp');
+                await CacheService.remove('cachedStudents');
+                
                 loadStudents(true);
             }
         });
@@ -194,8 +199,8 @@ export async function initManageStudents() {
             studentId: id,
             onSubmit: async (id, data) => {
                 await StudentsAPI.updateStudent(id, data);
-                localStorage.removeItem('cachedStudents');
-                localStorage.removeItem('cachedStudentsTimestamp');
+                await CacheService.remove('cachedStudents');
+                
                 loadStudents(true);
             }
         });

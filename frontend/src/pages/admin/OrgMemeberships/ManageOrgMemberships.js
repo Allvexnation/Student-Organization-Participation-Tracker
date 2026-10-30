@@ -1,6 +1,7 @@
 import { AdminNavbar, initAdminNavbar } from '../../../components/Navbar/AdminNavbar.js';
 import { protectAdminRoute } from '../../../middleware/AdminMiddleware.js';
 import * as OrgMembershipsAPI from '../../../api/admin/OrgMemberships/ManageOrgMemberships.js';
+import { CacheService } from '../../../../cache/CacheService.js';
 import { initManageOrgMemAnimations, animateTableRows } from '../../../provider/Animation/ManageOrgMemAnimation.js';
 import { openManageOrgMemModal, openViewOrgMemModal } from '../../../components/Modal/ManageOrgMemModal.js';
 import { openConfirmDialog } from '../../../components/Dialog/ConfirmDialog.js';
@@ -65,44 +66,41 @@ export async function initManageOrgMemberships() {
 
     let orgMemberships = [];
     let hasLoaded = false;
-
     async function loadOrgMemberships(forceRefresh = false) {
-        const cachedData = localStorage.getItem('cachedOrgMemberships');
-        const cachedTimestamp = localStorage.getItem('cachedOrgMembershipsTimestamp');
-        const cacheMaxAge = 5 * 60 * 1000; // 5 minutes
-        const isCacheExpired = !cachedTimestamp || (Date.now() - parseInt(cachedTimestamp)) > cacheMaxAge;
-
-        if (cachedData && !forceRefresh && !isCacheExpired) {
+        if (!forceRefresh) {
             try {
-                const parsed = JSON.parse(cachedData);
-                if (parsed && parsed.length > 0) {
-                    orgMemberships = parsed;
+                const cachedData = await CacheService.get('cachedOrgMemberships');
+                if (cachedData && Array.isArray(cachedData) && cachedData.length > 0) {
+                    orgMemberships = cachedData;
                     renderOrgMemberships(orgMemberships);
                     hasLoaded = true;
-                    return;
                 }
             } catch (e) {
-                console.error('Error parsing cached org memberships:', e);
+                console.error('Error reading cached org memberships:', e);
             }
         }
 
         try {
-            orgMemberships = await OrgMembershipsAPI.getAllOrgMemberships();
-            localStorage.setItem('cachedOrgMemberships', JSON.stringify(orgMemberships));
-            localStorage.setItem('cachedOrgMembershipsTimestamp', Date.now().toString());
-            renderOrgMemberships(orgMemberships);
-            hasLoaded = true;
+            const freshData = await OrgMembershipsAPI.getAllOrgMemberships();
+            if (freshData) {
+                orgMemberships = freshData;
+                await CacheService.set('cachedOrgMemberships', orgMemberships);
+                renderOrgMemberships(orgMemberships);
+                hasLoaded = true;
+            }
         } catch (error) {
             console.error('Error loading organization memberships:', error);
-            const tbody = document.getElementById('orgMemTableBody');
-            if (tbody) {
-                tbody.innerHTML = `
-                    <tr>
-                        <td colspan="7" class="px-5 py-12 text-center text-red-500">Failed to load memberships</td>
-                    </tr>
-                `;
+            if (!hasLoaded) {
+                const tbody = document.getElementById('orgMemTableBody');
+                if (tbody) {
+                    tbody.innerHTML = `
+                        <tr>
+                            <td colspan="7" class="px-5 py-12 text-center text-red-500">Failed to load memberships</td>
+                        </tr>
+                    `;
+                }
+                showToast('Failed to load memberships', 'error');
             }
-            showToast('Failed to load memberships', 'error');
         }
     }
 

@@ -2,6 +2,7 @@
 
 require_once __DIR__ . '/../model/EventRegistrationsModel.php';
 require_once __DIR__ . '/../config/jwt.php';
+require_once __DIR__ . '/../cache/CacheService.php';
 
 class EventRegistrationsController {
     private $eventRegistrationsModel;
@@ -22,7 +23,9 @@ class EventRegistrationsController {
             return;
         }
 
-        $eventRegistrations = $this->eventRegistrationsModel->readAll();
+        $eventRegistrations = CacheService::remember('event_registrations_all', 300, function() {
+            return $this->eventRegistrationsModel->readAll();
+        });
 
         if ($eventRegistrations !== false) {
             http_response_code(200);
@@ -83,6 +86,9 @@ class EventRegistrationsController {
         }
 
         $result = $this->eventRegistrationsModel->create($data);
+        if ($result) {
+            CacheService::forget('event_registrations_all');
+        }
 
         if ($result) {
             http_response_code(201);
@@ -120,6 +126,10 @@ class EventRegistrationsController {
         }
 
         $result = $this->eventRegistrationsModel->update($id, $data);
+        if ($result) {
+            CacheService::forget('event_registrations_all');
+            CacheService::forget('event_registration_' . $id);
+        }
 
         if ($result) {
             $eventRegistration = $this->eventRegistrationsModel->readOne($id);
@@ -147,6 +157,10 @@ class EventRegistrationsController {
         }
 
         $result = $this->eventRegistrationsModel->delete($id);
+        if ($result) {
+            CacheService::forget('event_registrations_all');
+            CacheService::forget('event_registration_' . $id);
+        }
 
         if ($result) {
             http_response_code(200);

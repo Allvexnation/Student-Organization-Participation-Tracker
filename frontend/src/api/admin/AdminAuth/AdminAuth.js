@@ -1,6 +1,7 @@
 import { API_ROUTES } from '../../server/api.js';
 import { setToken, removeToken, getToken, isAuthenticated as checkAuth, getUserData, setUserData } from '../../../utils/jwt.js';
 import { getDeviceInfo } from '../../../utils/DeviceInfo.js';
+import { CacheService } from '../../../../cache/CacheService.js';
 
 export async function adminLogin(Email, Password) {
     try {
@@ -65,6 +66,7 @@ export async function adminLogout(token) {
         console.error('Logout error:', e);
     } finally {
         removeToken('admin');
+        await CacheService.clear();
     }
     return { success: true };
 }

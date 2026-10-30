@@ -2,6 +2,7 @@
 
 require_once __DIR__ . '/../model/EventsModel.php';
 require_once __DIR__ . '/../config/jwt.php';
+require_once __DIR__ . '/../cache/CacheService.php';
 
 class EventsController {
     private $eventsModel;
@@ -22,7 +23,9 @@ class EventsController {
             return;
         }
 
-        $events = $this->eventsModel->readAll();
+        $events = CacheService::remember('events_all', 300, function() {
+            return $this->eventsModel->readAll();
+        });
 
         if ($events !== false) {
             http_response_code(200);
@@ -83,6 +86,9 @@ class EventsController {
         }
 
         $result = $this->eventsModel->create($data);
+        if ($result) {
+            CacheService::forget('events_all');
+        }
 
         if ($result) {
             http_response_code(201);
@@ -120,6 +126,10 @@ class EventsController {
         }
 
         $result = $this->eventsModel->update($id, $data);
+        if ($result) {
+            CacheService::forget('events_all');
+            CacheService::forget('event_' . $id);
+        }
 
         if ($result) {
             $event = $this->eventsModel->readOne($id);
@@ -147,6 +157,10 @@ class EventsController {
         }
 
         $result = $this->eventsModel->delete($id);
+        if ($result) {
+            CacheService::forget('events_all');
+            CacheService::forget('event_' . $id);
+        }
 
         if ($result) {
             http_response_code(200);

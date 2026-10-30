@@ -1,6 +1,7 @@
 import { AdminNavbar, initAdminNavbar } from '../../../components/Navbar/AdminNavbar.js';
 import { protectAdminRoute } from '../../../middleware/AdminMiddleware.js';
 import * as OrganizationsAPI from '../../../api/admin/Organizations/ManageOrganizations.js';
+import { CacheService } from '../../../../cache/CacheService.js';
 import { initManageOrgsAnimations, animateTableRows } from '../../../provider/Animation/ManageOrgsAnimation.js';
 import { openManageOrgsModal, openViewOrgsModal } from '../../../components/Modal/ManageOrgsModal.js';
 import { openConfirmDialog } from '../../../components/Dialog/ConfirmDialog.js';
@@ -64,37 +65,41 @@ export async function initManageOrganizations() {
 
     let organizations = [];
     let hasLoaded = false;
-
     async function loadOrganizations(forceRefresh = false) {
-        const cachedData = localStorage.getItem('cachedOrganizations');
-        if (cachedData && !forceRefresh) {
+        if (!forceRefresh) {
             try {
-                organizations = JSON.parse(cachedData);
-                renderOrganizations(organizations);
-                hasLoaded = true;
-                return;
+                const cachedData = await CacheService.get('cachedOrganizations');
+                if (cachedData && Array.isArray(cachedData) && cachedData.length > 0) {
+                    organizations = cachedData;
+                    renderOrganizations(organizations);
+                    hasLoaded = true;
+                }
             } catch (e) {
-                console.error('Error parsing cached organizations:', e);
+                console.error('Error reading cached organizations:', e);
             }
         }
 
         try {
-            organizations = await OrganizationsAPI.getAllOrganizations();
-            localStorage.setItem('cachedOrganizations', JSON.stringify(organizations));
-            localStorage.setItem('cachedOrganizationsTimestamp', Date.now().toString());
-            renderOrganizations(organizations);
-            hasLoaded = true;
+            const freshData = await OrganizationsAPI.getAllOrganizations();
+            if (freshData) {
+                organizations = freshData;
+                await CacheService.set('cachedOrganizations', organizations);
+                renderOrganizations(organizations);
+                hasLoaded = true;
+            }
         } catch (error) {
             console.error('Error loading organizations:', error);
-            const tbody = document.getElementById('orgTableBody');
-            if (tbody) {
-                tbody.innerHTML = `
-                    <tr>
-                        <td colspan="6" class="px-5 py-12 text-center text-red-500">Failed to load organizations</td>
-                    </tr>
-                `;
+            if (!hasLoaded) {
+                const tbody = document.getElementById('orgTableBody');
+                if (tbody) {
+                    tbody.innerHTML = `
+                        <tr>
+                            <td colspan="6" class="px-5 py-12 text-center text-red-500">Failed to load organizations</td>
+                        </tr>
+                    `;
+                }
+                showToast('Failed to load organizations', 'error');
             }
-            showToast('Failed to load organizations', 'error');
         }
     }
 

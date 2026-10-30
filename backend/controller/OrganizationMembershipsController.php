@@ -2,6 +2,7 @@
 
 require_once __DIR__ . '/../model/OrganizationMembershipsModel.php';
 require_once __DIR__ . '/../config/jwt.php';
+require_once __DIR__ . '/../cache/CacheService.php';
 
 class OrganizationMembershipsController {
     private $orgMembershipsModel;
@@ -51,7 +52,9 @@ class OrganizationMembershipsController {
             return;
         }
 
-        $orgMemberships = $this->orgMembershipsModel->readAll();
+        $orgMemberships = CacheService::remember('org_memberships_all', 300, function() {
+            return $this->orgMembershipsModel->readAll();
+        });
 
         if ($orgMemberships !== false) {
             http_response_code(200);
@@ -110,6 +113,9 @@ class OrganizationMembershipsController {
         }
 
         $result = $this->orgMembershipsModel->create($data);
+        if ($result) {
+            CacheService::forget('org_memberships_all');
+        }
 
         if ($result) {
             http_response_code(201);
@@ -146,6 +152,10 @@ class OrganizationMembershipsController {
         }
 
         $result = $this->orgMembershipsModel->update($id, $data);
+        if ($result) {
+            CacheService::forget('org_memberships_all');
+            CacheService::forget('org_membership_' . $id);
+        }
 
         if ($result) {
             $orgMembership = $this->orgMembershipsModel->readOne($id);
@@ -172,6 +182,10 @@ class OrganizationMembershipsController {
         }
 
         $result = $this->orgMembershipsModel->delete($id);
+        if ($result) {
+            CacheService::forget('org_memberships_all');
+            CacheService::forget('org_membership_' . $id);
+        }
 
         if ($result) {
             http_response_code(200);

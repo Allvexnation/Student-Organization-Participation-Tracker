@@ -1,6 +1,7 @@
 import { AdminNavbar, initAdminNavbar } from '../../../components/Navbar/AdminNavbar.js';
 import { protectAdminRoute } from '../../../middleware/AdminMiddleware.js';
 import * as EventsAPI from '../../../api/admin/Events/ManageEvents.js';
+import { CacheService } from '../../../../cache/CacheService.js';
 import { initManageEventsAnimations, animateTableRows } from '../../../provider/Animation/ManageEventsAnimation.js';
 import { openManageEventsModal, openViewEventsModal } from '../../../components/Modal/ManageEventsModal.js';
 import { openConfirmDialog } from '../../../components/Dialog/ConfirmDialog.js';
@@ -65,40 +66,41 @@ export async function initManageEvents() {
 
     let events = [];
     let hasLoaded = false;
-
     async function loadEvents(forceRefresh = false) {
-        const cachedData = localStorage.getItem('cachedEvents');
-        const cachedTimestamp = localStorage.getItem('cachedEventsTimestamp');
-        const cacheAge = cachedTimestamp ? Date.now() - parseInt(cachedTimestamp) : Infinity;
-
-        if (cachedData && !forceRefresh && cacheAge < 300000) {
+        if (!forceRefresh) {
             try {
-                events = JSON.parse(cachedData);
-                renderEvents(events);
-                hasLoaded = true;
-                return;
+                const cachedData = await CacheService.get('cachedEvents');
+                if (cachedData && Array.isArray(cachedData) && cachedData.length > 0) {
+                    events = cachedData;
+                    renderEvents(events);
+                    hasLoaded = true;
+                }
             } catch (e) {
-                console.error('Error parsing cached events:', e);
+                console.error('Error reading cached events:', e);
             }
         }
 
         try {
-            events = await EventsAPI.getAllEvents();
-            localStorage.setItem('cachedEvents', JSON.stringify(events));
-            localStorage.setItem('cachedEventsTimestamp', Date.now().toString());
-            renderEvents(events);
-            hasLoaded = true;
+            const freshData = await EventsAPI.getAllEvents();
+            if (freshData) {
+                events = freshData;
+                await CacheService.set('cachedEvents', events);
+                renderEvents(events);
+                hasLoaded = true;
+            }
         } catch (error) {
             console.error('Error loading events:', error);
-            const tbody = document.getElementById('eventTableBody');
-            if (tbody) {
-                tbody.innerHTML = `
-                    <tr>
-                        <td colspan="7" class="px-5 py-12 text-center text-red-500">Failed to load events</td>
-                    </tr>
-                `;
+            if (!hasLoaded) {
+                const tbody = document.getElementById('eventTableBody');
+                if (tbody) {
+                    tbody.innerHTML = `
+                        <tr>
+                            <td colspan="7" class="px-5 py-12 text-center text-red-500">Failed to load events</td>
+                        </tr>
+                    `;
+                }
+                showToast('Failed to load events', 'error');
             }
-            showToast('Failed to load events', 'error');
         }
     }
 

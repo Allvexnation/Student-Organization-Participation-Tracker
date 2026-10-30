@@ -71,9 +71,29 @@ export function initAdminNavbar() {
         if (navUsername) navUsername.textContent = `Welcome, ${adminData.name || 'Admin'}`;
 
         if (adminData.profile_photo && navProfilePhotoMobile && navProfilePlaceholderMobile) {
-            navProfilePhotoMobile.src = adminData.profile_photo;
+            const isValidPhoto = adminData.profile_photo && 
+                               adminData.profile_photo.length > 0 &&
+                               (adminData.profile_photo.startsWith('data:image/') || 
+                                adminData.profile_photo.startsWith('http'));
+            
+            if (!isValidPhoto) {
+                navProfilePhotoMobile.classList.add('hidden');
+                navProfilePlaceholderMobile.classList.remove('hidden');
+                return;
+            }
+            
+            const photoUrl = adminData.profile_photo.startsWith('data:') 
+                ? adminData.profile_photo 
+                : `${adminData.profile_photo}?_t=${Date.now()}`;
+            
+            navProfilePhotoMobile.src = photoUrl;
             navProfilePhotoMobile.classList.remove('hidden');
             navProfilePlaceholderMobile.classList.add('hidden');
+            
+            navProfilePhotoMobile.onerror = function() {
+                navProfilePhotoMobile.classList.add('hidden');
+                navProfilePlaceholderMobile.classList.remove('hidden');
+            };
         }
 
         const logoutBtn = document.getElementById('logoutBtn');

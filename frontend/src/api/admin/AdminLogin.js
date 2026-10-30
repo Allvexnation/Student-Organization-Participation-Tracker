@@ -1,6 +1,7 @@
 import { API_ROUTES } from '../server/api.js';
 import { setToken, removeToken, getToken, isAuthenticated as checkAuth, getUserData, setUserData } from '../../../src/utils/jwt.js';
 import { getDeviceInfo } from '../../../src/utils/DeviceInfo.js';
+import { CacheService } from '../../../cache/CacheService.js';
 
 export async function adminLogin(usernameOrEmail, password) {
     try {
@@ -63,25 +64,12 @@ export async function logout() {
         });
     } catch (error) {
         console.error('Logout error:', error);
+    
     } finally {
         removeToken('admin');
         sessionStorage.removeItem('adminData');
         sessionStorage.removeItem('adminVerified');
-        
-        localStorage.removeItem('cachedAdvisers');
-        localStorage.removeItem('cachedAdvisersTimestamp');
-        localStorage.removeItem('cachedStudents');
-        localStorage.removeItem('cachedStudentsTimestamp');
-        localStorage.removeItem('cachedOrganizations');
-        localStorage.removeItem('cachedOrganizationsTimestamp');
-        localStorage.removeItem('cachedEvents');
-        localStorage.removeItem('cachedEventsTimestamp');
-        localStorage.removeItem('cachedRoles');
-        localStorage.removeItem('cachedRolesTimestamp');
-        localStorage.removeItem('cachedEventRegistrations');
-        localStorage.removeItem('cachedEventRegistrationsTimestamp');
-        localStorage.removeItem('cachedOrgMemberships');
-        localStorage.removeItem('cachedOrgMembershipsTimestamp');
+        await CacheService.clear();
     }
 }
 

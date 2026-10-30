@@ -3,7 +3,7 @@ import { getAdviserData, adviserLogout } from '../../api/adviser/AdviserAuth/Adv
 import { openConfirmDialog } from '../Dialog/ConfirmDialog.js';
 import { showToast, updateToast } from '../ToastMessage.js';
 import { navigate } from '../../utils/navigation.js';
-import { getToken } from '../../utils/jwt.js';
+import { getToken, setUserData } from '../../utils/jwt.js';
 
 export function AdviserNavbar() {
     return `
@@ -18,11 +18,13 @@ export function AdviserNavbar() {
                 <div class="flex items-center space-x-4">
                     <span class="text-sm hidden md:block" id="navUsername">Welcome, Adviser</span>
                     <div class="md:hidden flex items-center space-x-2">
-                        <img src="" alt="Profile" class="w-8 h-8 rounded-full object-cover border-2 border-blue-400 hidden" id="navProfilePhotoMobile">
-                        <div class="w-8 h-8 bg-blue-600 rounded-full flex items-center justify-center" id="navProfilePlaceholderMobile">
-                            <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
-                            </svg>
+                        <div class="relative w-8 h-8 flex-shrink-0">
+                            <img src="" alt="Profile" class="w-8 h-8 rounded-full object-cover border-2 border-blue-400 hidden" id="navProfilePhotoMobile">
+                            <div class="w-8 h-8 bg-blue-600 rounded-full flex items-center justify-center" id="navProfilePlaceholderMobile">
+                                <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
+                                </svg>
+                            </div>
                         </div>
                     </div>
                     <button id="logoutBtn" class="bg-blue-600 hover:bg-blue-800 px-4 py-2 rounded-lg text-sm font-semibold transition-colors hidden md:flex items-center gap-2">
@@ -49,20 +51,69 @@ export function AdviserNavbar() {
     `;
 }
 
+export function updateNavbarProfile(adviserData) {
+    if (!adviserData) return;
+    const navUsername = document.getElementById('navUsername');
+    const navProfilePhotoMobile = document.getElementById('navProfilePhotoMobile');
+    const navProfilePlaceholderMobile = document.getElementById('navProfilePlaceholderMobile');
+
+    if (navUsername && adviserData.name) {
+        navUsername.textContent = `Welcome, ${adviserData.name}`;
+    }
+
+    if (navProfilePhotoMobile && navProfilePlaceholderMobile) {
+        const photo = adviserData.profile_photo;
+        const isValidPhoto = photo && 
+                           photo.length > 0 &&
+                           (photo.startsWith('data:image/') || photo.startsWith('http'));
+
+        if (!isValidPhoto) {
+            navProfilePhotoMobile.src = '';
+            navProfilePhotoMobile.classList.add('hidden');
+            navProfilePlaceholderMobile.classList.remove('hidden');
+            return;
+        }
+
+        const photoUrl = photo.startsWith('data:') 
+            ? photo 
+            : `${photo}${photo.includes('?') ? '&' : '?'}_t=${Date.now()}`;
+
+        navProfilePhotoMobile.src = photoUrl;
+        navProfilePhotoMobile.classList.remove('hidden');
+        navProfilePlaceholderMobile.classList.add('hidden');
+
+        navProfilePhotoMobile.onerror = function() {
+            navProfilePhotoMobile.src = '';
+            navProfilePhotoMobile.classList.add('hidden');
+            navProfilePlaceholderMobile.classList.remove('hidden');
+        };
+    }
+}
+
 export function initAdviserNavbar() {
-    const adviserData = getAdviserData() || {};
+    let adviserData = getAdviserData() || {};
     
     return Promise.resolve().then(() => {
-        const navUsername = document.getElementById('navUsername');
-        const navProfilePhotoMobile = document.getElementById('navProfilePhotoMobile');
-        const navProfilePlaceholderMobile = document.getElementById('navProfilePlaceholderMobile');
-        
-        if (navUsername) navUsername.textContent = `Welcome, ${adviserData.name || 'Adviser'}`;
+        updateNavbarProfile(adviserData);
 
-        if (adviserData.profile_photo && navProfilePhotoMobile && navProfilePlaceholderMobile) {
-            navProfilePhotoMobile.src = adviserData.profile_photo;
-            navProfilePhotoMobile.classList.remove('hidden');
-            navProfilePlaceholderMobile.classList.add('hidden');
+        if (!window._adviserProfileListenerRegistered) {
+            window._adviserProfileListenerRegistered = true;
+            window.addEventListener('adviser-profile-updated', (event) => {
+                if (event.detail) {
+                    updateNavbarProfile(event.detail);
+                }
+            });
+        }
+
+        if (!adviserData.profile_photo && getToken('adviser')) {
+            import('../../api/adviser/AdviserProfile.js').then(({ getAdviserProfile }) => {
+                getAdviserProfile().then((fresh) => {
+                    if (fresh) {
+                        setUserData(fresh, 'adviser');
+                        updateNavbarProfile(fresh);
+                    }
+                }).catch(() => {});
+            }).catch(() => {});
         }
 
         const logoutBtn = document.getElementById('logoutBtn');
