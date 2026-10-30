@@ -3,7 +3,7 @@ import { navigate } from '../utils/navigation.js';
 import { showToast } from '../components/ToastMessage.js';
 
 export function protectAdviserRoute(redirectPath = '/auth/adviser/login') {
-    if (!isAuthenticated()) {
+    if (!isAuthenticated('adviser')) {
         showToast('Please login to access this page', 'error');
         navigate(redirectPath);
         return false;
@@ -12,7 +12,7 @@ export function protectAdviserRoute(redirectPath = '/auth/adviser/login') {
 }
 
 export function validateTokenForApi(options = {}) {
-    const token = getToken();
+    const token = getToken('adviser');
     
     if (!token) {
         throw new Error('No authentication token found');
@@ -20,13 +20,13 @@ export function validateTokenForApi(options = {}) {
 
     const decoded = decodeToken(token);
     if (!decoded) {
-        removeToken();
+        removeToken('adviser');
         throw new Error('Invalid token');
     }
 
     const currentTime = Math.floor(Date.now() / 1000);
     if (decoded.exp && decoded.exp < currentTime) {
-        removeToken();
+        removeToken('adviser');
         throw new Error('Token has expired');
     }
 
@@ -46,7 +46,7 @@ export async function authenticatedFetch(url, options = {}) {
         const response = await fetch(url, validatedOptions);
         
         if (response.status === 401) {
-            removeToken();
+            removeToken('adviser');
             showToast('Session expired. Please login again', 'error');
             navigate('/auth/adviser/login');
             throw new Error('Unauthorized');
@@ -65,7 +65,7 @@ export async function authenticatedFetch(url, options = {}) {
 }
 
 export function isAdviserUser() {
-    const token = getToken();
+    const token = getToken('adviser');
     if (!token) return false;
     
     const decoded = decodeToken(token);
@@ -91,7 +91,7 @@ export function withAdviserAuth(callback) {
 }
 
 export function adviserLogout() {
-    removeToken();
+    removeToken('adviser');
     localStorage.removeItem('adviserData');
     showToast('Logged out successfully', 'success');
     navigate('/auth/adviser/login');
@@ -112,10 +112,10 @@ export async function refreshAuthToken(refreshToken) {
         }
         
         const data = await response.json();
-        setToken(data.token);
+        setToken(data.token, 'adviser');
         return data;
     } catch (error) {
-        removeToken();
+        removeToken('adviser');
         throw error;
     }
 }
