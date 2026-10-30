@@ -116,6 +116,9 @@ export function initAdviserLogin() {
         
         if (result.token) {
             setToken(result.token, 'adviser');
+            if (result.adviser) {
+                localStorage.setItem('adviserData', JSON.stringify(result.adviser));
+            }
             updateToast('Login successful! Redirecting...', 'success');
             setTimeout(() => {
                 navigate('/adviser/dashboard');
