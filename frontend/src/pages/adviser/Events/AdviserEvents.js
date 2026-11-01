@@ -135,7 +135,6 @@ export async function initAdviserEvents() {
 
     async function loadEvents() {
         try {
-            // Concurrent fetch to eliminate waterfall delays
             const [org, regEvents] = await Promise.all([
                 AdviserOrganizationAPI.getAdviserOrganization().catch(err => {
                     console.error('Error loading organization:', err);
@@ -195,7 +194,6 @@ export async function initAdviserEvents() {
             select.appendChild(option);
         });
 
-        // Automatically select the first event
         select.value = events[0].event_id;
         handleEventChange();
     }

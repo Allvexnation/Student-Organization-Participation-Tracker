@@ -6,6 +6,7 @@ export function StudentStripBar(userRole = 'Student') {
 
     const isSettingsActive = currentPath === '/student/profile' || currentPath === '/settings';
     const isTasksActive = currentPath === '/student/tasks';
+    const isAttendanceActive = currentPath === '/student/attendance';
 
     const activeTabClass = 'bg-blue-50 text-blue-900 font-semibold border-b-2 border-blue-900';
     const inactiveTabClass = 'text-gray-600 hover:text-gray-900 hover:bg-gray-50 border-b-2 border-transparent';
@@ -28,6 +29,11 @@ export function StudentStripBar(userRole = 'Student') {
                     <a href="/student/tasks" class="px-3.5 py-3 text-sm font-medium transition-colors whitespace-nowrap flex items-center gap-2 rounded-t-md ${isTasksActive ? activeTabClass : inactiveTabClass}">
                         <i data-lucide="check-square" class="w-4 h-4 ${isTasksActive ? 'text-blue-900' : 'text-gray-400'}"></i>
                         <span>Tasks</span>
+                    </a>
+
+                    <a href="/student/attendance" class="px-3.5 py-3 text-sm font-medium transition-colors whitespace-nowrap flex items-center gap-2 rounded-t-md ${isAttendanceActive ? activeTabClass : inactiveTabClass}">
+                        <i data-lucide="calendar-check" class="w-4 h-4 ${isAttendanceActive ? 'text-blue-900' : 'text-gray-400'}"></i>
+                        <span>Attendance</span>
                     </a>
 
                     <a href="/student/profile" class="px-3.5 py-3 text-sm font-medium transition-colors whitespace-nowrap flex items-center gap-2 rounded-t-md ${isSettingsActive ? activeTabClass : inactiveTabClass}">

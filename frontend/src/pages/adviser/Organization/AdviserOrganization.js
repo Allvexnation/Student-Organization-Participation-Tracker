@@ -151,7 +151,6 @@ export async function initAdviserOrganization() {
         }
 
         try {
-            // Concurrent fetch to eliminate slow sequential waterfalls
             const [org, mems] = await Promise.all([
                 AdviserOrganizationAPI.getAdviserOrganization().catch(err => {
                     console.error('Error fetching organization:', err);

@@ -291,11 +291,9 @@ async function processAdviserSubmit(id, buttonText, onSubmit) {
         profile_photo: imageUrl
     };
 
-    // Fetch existing advisers for validation
     try {
         const existingAdvisers = await AdviserAPI.getAllAdvisers();
-        
-        // Validate form data
+
         const validation = AdviserCrudValidator.validate(formData, existingAdvisers, isEdit ? 'edit' : 'add', id);
         
         if (!validation.isValid) {
@@ -304,7 +302,6 @@ async function processAdviserSubmit(id, buttonText, onSubmit) {
         }
     } catch (error) {
         console.error('Error validating adviser:', error);
-        // Continue with submission if validation fetch fails
     }
 
     if (isEdit) {

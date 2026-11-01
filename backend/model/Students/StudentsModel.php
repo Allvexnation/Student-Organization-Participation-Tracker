@@ -205,7 +205,6 @@ class StudentsModel {
                         $stmt->bindParam(':profile_photo', $data['profile_photo'], PDO::PARAM_LOB);
                     }
                 } else {
-                    // Empty string means remove the photo
                     $stmt->bindParam(':profile_photo', $null, PDO::PARAM_NULL);
                 }
             } elseif ($existingStudent && isset($existingStudent['profile_photo']) && !empty($existingStudent['profile_photo'])) {
@@ -219,8 +218,7 @@ class StudentsModel {
             } else {
                 $stmt->bindParam(':profile_photo', $null, PDO::PARAM_NULL);
             }
-            
-            // Check if required fields exist
+
             if (!isset($data['student_number'])) {
                 error_log("Missing student_number in update data");
                 return false;

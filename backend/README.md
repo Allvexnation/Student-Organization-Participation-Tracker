@@ -1,6 +1,6 @@
 # Student Organization Participation Tracker - Backend API
 
-**Version: 2.2.0**
+**Version: 3.0.0**
 
 ## Overview
 
@@ -25,6 +25,14 @@ The backend follows a clean OOP architecture with separation of concerns:
 
 ```
 backend/
+├── cache/
+│   ├── data/               # Cache data storage (SQLite)
+│   └── CacheService.php    # Caching service with SQLite backend
+├── commands/
+│   ├── cmd.php             # CLI command interface with interactive menu
+│   ├── components/         # CLI components (header, loading, etc.)
+│   ├── config/             # CLI configuration
+│   └── controller/         # CLI controllers (migrate, serve, etc.)
 ├── config/
 │   ├── cors.php            # CORS configuration
 │   ├── db.php              # Database configuration and connection
@@ -49,28 +57,9 @@ backend/
 │   ├── Students/           # Student sub-controllers
 │   │   ├── EventTaskController.php # Student event task management
 │   │   └── StudentController.php # Student management
-│   └── StudentsController.php # Student-related API endpoints
-├── model/
-│   ├── AdminModel.php      # Admin data model and business logic
-│   ├── Adviser/            # Adviser sub-models
-│   │   ├── AdviserEventsModel.php # Adviser event data model
-│   │   └── AdviserOrganizationModel.php # Adviser organization data model
-│   ├── AdviserModel.php    # Adviser data model and business logic
-│   ├── AdviserOtpModel.php # Adviser OTP data model
-│   ├── EventOrganizationsModel.php # Event-organization relationship model
-│   ├── EventRegistrationsModel.php # Event registration model
-│   ├── EventsModel.php     # Event data model
-│   ├── MemberTasksModel.php # Member task data model
-│   ├── OrganizationMembershipsModel.php # Org membership model
-│   ├── OrganizationsModel.php # Organization data model
-│   ├── OrgMembershipsModel.php # Legacy org membership model
-│   ├── RoleModel.php       # Role data model
-│   ├── SessionModel.php    # Session data model
-│   ├── StudentOtpModel.php # Student OTP data model
-│   ├── Students/           # Student sub-models
-│   │   ├── EventTaskModel.php # Student event task data model
-│   │   └── StudentsModel.php # Student data model
-│   └── StudentsModel.php   # Student data model and business logic
+│   ├── StudentsController.php # Student-related API endpoints
+│   └── web/                # Web controllers
+│       └── UpdatesController.php # Updates management controller
 ├── migrations/
 │   ├── Migration.php       # Base migration class
 │   ├── Migrator.php        # Migration runner
@@ -105,10 +94,42 @@ backend/
 │   ├── 2026_01_01_000028_add_organization_id_to_events_table.php
 │   ├── 2026_01_01_000029_populate_organization_id_from_event_organizations.php
 │   ├── 2026_01_01_000030_create_sessions_table.php
+│   ├── 2026_01_01_000030_create_updates_table.php
+│   ├── 2026_01_01_000031_add_device_info_to_sessions_table.php
 │   ├── 2026_01_01_000031_add_task_title_to_member_tasks.php
+│   ├── 2026_01_01_000031_rename_description_to_readme_content.php
+│   ├── 2026_01_01_000032_add_github_branch_link_to_updates.php
 │   ├── 2026_01_01_000032_add_status_to_task_daily_schedules.php
+│   ├── 2026_01_01_000033_add_assets_file_to_updates.php
 │   ├── 2026_01_01_000033_add_student_id_to_task_daily_schedules.php
-│   └── 2026_01_01_000034_add_student_dates_to_member_tasks.php
+│   ├── 2026_01_01_000034_add_student_dates_to_member_tasks.php
+│   ├── 2026_01_01_000034_change_assets_file_to_varchar.php
+│   ├── 2026_01_01_000035_update_sessions_no_expire.php
+│   ├── 2026_01_01_000036_create_attendance_table.php
+│   └── 2026_01_01_000037_add_branch_and_assets_to_updates_table.php
+├── model/
+│   ├── AdminModel.php      # Admin data model and business logic
+│   ├── Adviser/            # Adviser sub-models
+│   │   ├── AdviserEventsModel.php # Adviser event data model
+│   │   └── AdviserOrganizationModel.php # Adviser organization data model
+│   ├── AdviserModel.php    # Adviser data model and business logic
+│   ├── AdviserOtpModel.php # Adviser OTP data model
+│   ├── EventOrganizationsModel.php # Event-organization relationship model
+│   ├── EventRegistrationsModel.php # Event registration model
+│   ├── EventsModel.php     # Event data model
+│   ├── MemberTasksModel.php # Member task data model
+│   ├── OrganizationMembershipsModel.php # Org membership model
+│   ├── OrganizationsModel.php # Organization data model
+│   ├── OrgMembershipsModel.php # Legacy org membership model
+│   ├── RoleModel.php       # Role data model
+│   ├── SessionModel.php    # Session data model
+│   ├── StudentOtpModel.php # Student OTP data model
+│   ├── Students/           # Student sub-models
+│   │   ├── EventTaskModel.php # Student event task data model
+│   │   └── StudentsModel.php # Student data model
+│   ├── StudentsModel.php   # Student data model and business logic
+│   └── web/                # Web models
+│       └── UpdatesModel.php # Updates data model
 ├── routes/
 │   ├── AdminRoutes.php     # Admin routing configuration
 │   ├── Adviser/            # Adviser sub-routes
@@ -124,13 +145,26 @@ backend/
 │   ├── SessionRoutes.php   # Session routing configuration
 │   ├── Students/           # Student sub-routes
 │   │   └── StudentsRoutes.php # Student routing configuration
-│   └── StudentsRoutes.php  # Student routing configuration
+│   ├── StudentsRoutes.php  # Student routing configuration
+│   └── web/                # Web routes
+│       └── UpdatesRoutes.php # Updates routing configuration
+├── seeders/
+│   └── AdminSeeder.php     # Database seeder for admins
 ├── services/
 │   └── EmailService.php    # Email service for OTP and notifications
 ├── template/
 │   ├── AdviserEmail.php    # Email template for advisers
-│   └── StudentEmail.php    # Email template for students
+│   ├── StudentEmail.php    # Email template for students
+│   └── Updates/            # Updates template system
+│       └── Files/          # Update asset files storage
 ├── utils/                  # Utility functions
+├── validator/              # Data validation classes
+│   ├── AdviserCrudValidator.php # Adviser CRUD validation
+│   ├── AdviserValidator.php # Adviser validation
+│   ├── MembershipValidator.php # Membership validation
+│   ├── OrganizationMembershipCrudValidator.php # Org membership CRUD validation
+│   ├── OrganizationValidator.php # Organization validation
+│   └── StudentCrudValidator.php # Student CRUD validation
 ├── view/
 │   └── web.php             # Web view for API root
 ├── .htaccess               # Apache URL rewriting configuration
@@ -138,13 +172,13 @@ backend/
 ├── .env                    # Environment variables (not committed)
 ├── .env.example            # Example environment variables
 ├── .gitignore              # Git ignore rules
-├── AdminSeeder.php         # Database seeder for admins
+├── cli.bat                 # CLI batch file for Windows
 ├── Dockerfile              # Docker configuration for deployment
 ├── favicon.ico             # API favicon
 ├── index.php               # API entry point and routing
 ├── migrate.php             # Migration execution script
 └── render.yaml             # Render deployment configuration
-
+```
 ### Architecture Components
 
 #### 1. **Models** (`model/`)
@@ -290,6 +324,33 @@ backend/
 | GET | `/api/sessions/{id}` | Get session by ID |
 | DELETE | `/api/sessions/{id}` | Delete session |
 
+### Updates Endpoints
+
+| Method | Endpoint | Description |
+|--------|----------|-------------|
+| GET | `/api/web/updates` | Get all updates |
+| GET | `/api/web/updates/active` | Get active updates |
+| GET | `/api/web/updates/{id}` | Get update by ID |
+| POST | `/api/web/updates` | Create new update |
+| PUT | `/api/web/updates/{id}` | Update update |
+| DELETE | `/api/web/updates/{id}` | Delete update |
+| GET | `/api/web/updates/download/{filename}` | Download update asset file |
+| GET | `/api/web/updates/{id}/download-asset` | Download asset file by update ID |
+
+### Attendance Endpoints
+
+| Method | Endpoint | Description |
+|--------|----------|-------------|
+| GET | `/api/adviser/attendance` | Get all attendance records (adviser) |
+| GET | `/api/adviser/attendance/{id}` | Get attendance by ID (adviser) |
+| POST | `/api/adviser/attendance` | Create attendance record (adviser) |
+| PUT | `/api/adviser/attendance/{id}` | Update attendance record (adviser) |
+| DELETE | `/api/adviser/attendance/{id}` | Delete attendance record (adviser) |
+| GET | `/api/student/attendance` | Get student attendance records |
+| GET | `/api/student/attendance/{id}` | Get attendance by ID (student) |
+| POST | `/api/student/attendance` | Create attendance record (student) |
+| PUT | `/api/student/attendance/{id}` | Update attendance record (student) |
+
 ### Adviser Authentication Endpoints
 
 | Method | Endpoint | Description |
@@ -379,6 +440,64 @@ Seed initial admin data:
 
 ```bash
 php AdminSeeder.php
+```
+
+### CLI Commands
+
+The backend includes a powerful CLI tool for common development tasks:
+
+#### Interactive Mode
+
+Run the interactive menu:
+
+```bash
+php commands/cmd.php
+```
+
+The interactive menu provides options for:
+- Starting development server
+- Creating controllers, models, migrations, routes, and bundles
+- Running migrations and seeders
+- Migration status and rollback
+- Database summary
+- Environment switching
+- Cache management
+- XAMPP control (start/stop)
+- Web management
+- Viewing README documentation
+
+#### Command Line Mode
+
+```bash
+# Run migrations
+php commands/cmd.php migrate
+
+# Rollback migrations (optional steps)
+php commands/cmd.php rollback [steps]
+
+# Reset all migrations
+php commands/cmd.php reset
+
+# Check migration status
+php commands/cmd.php status
+
+# Run seeders
+php commands/cmd.php seed
+
+# Start development server
+php commands/cmd.php serve [host] [port]
+
+# Switch environment
+php commands/cmd.php switch
+
+# Cache management
+php commands/cmd.php cache
+
+# View credits
+php commands/cmd.php credits
+
+# View help
+php commands/cmd.php help
 ```
 
 ## Configuration
@@ -683,31 +802,75 @@ Error responses:
 - **Polymorphism**: Use interfaces and abstract classes where appropriate
 - **Single Responsibility**: Each class should have one reason to change
 
-### New Features in v2.2.0
+### New Features in v3.0.0
 
-- **Adviser Authentication System**: Complete OTP-based authentication for advisers
-  - OTP generation and verification via email
-  - Forgot password functionality with email verification
-  - Session management for advisers
-  - Adviser-specific event and organization management endpoints
-- **Student Authentication System**: Complete OTP-based authentication for students
-  - OTP generation and verification via email
-  - Forgot password functionality with email verification
-  - Session management for students
-  - Student-specific task management endpoints
-- **Event Organizations**: New API for managing event-organization relationships with approver workflow
-- **Member Tasks**: Comprehensive task management system
-  - Task assignment to students
-  - Daily schedule tracking for tasks
-  - Task status management (pending, in-progress, completed)
-  - Student-specific task tracking with start/end dates
-- **Email Service**: Integrated email service for OTP delivery and password reset
-  - Email templates for advisers and students
-  - Configurable mailer settings
-- **Session Management**: New session table and controller for managing user sessions
-- **Enhanced Database Schema**: 21 new migrations for OTP, tasks, schedules, and session management
-- **Sub-controllers and Sub-models**: Better code organization with dedicated sub-directories for adviser and student functionality
-- **CORS Configuration**: Dedicated CORS configuration file for better cross-origin request handling
+- **CLI Command System**: Powerful command-line interface for development tasks
+  - Interactive menu with 20+ options for common operations
+  - Commands for migrations, seeding, server management
+  - Bundle creation (controller + model + route)
+  - Database summary and status checking
+  - Environment switching between local and production
+  - Cache management with flush and stats
+  - XAMPP control (start/stop Apache and MySQL)
+  - Web management interface
+  - Built-in README viewer
+- **Cache Service**: High-performance caching system
+  - SQLite-based persistent cache storage
+  - In-memory cache layer for faster access
+  - TTL (Time To Live) support with configurable expiration
+  - Cache operations: get, set, remember, forget, flush
+  - Prefix-based cache invalidation
+  - Cache statistics and monitoring
+- **Updates Management System**: Comprehensive version update tracking
+  - Updates table with version, name, branch, and readme content
+  - GitHub branch link integration
+  - Asset file management and download
+  - Active/inactive update status
+  - Closable types (closable, not_closable, show_once)
+  - Web API for update management
+- **Attendance Tracking System**: Complete attendance management
+  - Daily attendance tracking with AM/PM sessions
+  - Time in/out recording for multiple sessions
+  - Break time tracking (break out/in)
+  - Absence management with excused/unexcused status
+  - Excuse reason and session tracking
+  - Marked by tracking (student/adviser)
+  - Duration calculation in minutes
+  - Unique constraint per student-event-date
+  - Foreign key relationships with students, advisers, events, organizations
+- **Data Validation Layer**: Comprehensive validation classes
+  - AdviserCrudValidator for adviser CRUD operations
+  - AdviserValidator for adviser-specific validation
+  - MembershipValidator for membership validation
+  - OrganizationMembershipCrudValidator for org membership CRUD
+  - OrganizationValidator for organization validation
+  - StudentCrudValidator for student CRUD validation
+- **Enhanced Session Management**: Improved session tracking
+  - Device information tracking (user agent, platform)
+  - IP address logging
+  - No-expire option for persistent sessions
+  - Enhanced session metadata
+- **Web Controllers and Routes**: Dedicated web endpoints
+  - UpdatesController for update management
+  - UpdatesRoutes for web routing
+  - Asset download functionality
+  - Template system for update files
+- **New Database Migrations**: 8 new migrations for v3.0.0
+  - Updates table creation
+  - Attendance table creation
+  - Session device info enhancement
+  - Updates table enhancements (branch, assets, github links)
+  - Session no-expire update
+- **Template System**: Organized template structure
+  - Updates template directory with file storage
+  - Support for README content and asset files
+  - Template file management for downloads
+- **Code Organization Improvements**
+  - Dedicated seeders directory
+  - Validator directory for validation logic
+  - Web sub-directories for controllers, models, and routes
+  - Cache service with data directory
+  - Commands directory with components and controllers
 
 ### Bug Fixes in v2.1
 

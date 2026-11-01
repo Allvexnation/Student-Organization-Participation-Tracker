@@ -1,6 +1,6 @@
 # Student Organization Participation Tracker - Frontend
 
-**Version: 2.2.0**
+**Version: 3.0.0**
 
 ## Overview
 
@@ -24,9 +24,12 @@ The frontend follows a component-based SPA architecture with ES6 modules for cod
 
 ```
 frontend/
+├── cache/
+│   └── CacheService.js      # Caching service for frontend
 ├── public/
-│   ├── banner.png           # Application banner image
-│   ├── crtlogo.png          # Logo image
+│   ├── CRT.jpg              # Application banner image
+│   ├── Overview1.jpg        # Overview image 1
+│   ├── Overview2.jpg        # Overview image 2
 │   └── favicon.ico          # Favicon
 ├── src/
 │   ├── api/                 # API communication layer
@@ -34,6 +37,7 @@ frontend/
 │   │   │   ├── AdminAuth/   # Admin authentication API
 │   │   │   ├── AdminLogin.js # Admin login API
 │   │   │   ├── AdminProfile.js # Admin profile API
+│   │   │   ├── Dashboard/   # Admin dashboard API
 │   │   │   ├── EventOrganizations/ # Event organizations API
 │   │   │   ├── EventRegistrations/ # Event registration API
 │   │   │   ├── Events/      # Events API
@@ -48,14 +52,27 @@ frontend/
 │   │   │   ├── AdviserForgotPassword.js # Adviser forgot password API
 │   │   │   ├── AdviserLogin.js # Adviser login API
 │   │   │   ├── AdviserProfile.js # Adviser profile API
+│   │   │   ├── Attendance/  # Adviser attendance API
+│   │   │   ├── Dashboard/   # Adviser dashboard API
 │   │   │   ├── Events/      # Adviser events API
 │   │   │   └── Organization/ # Adviser organization API
 │   │   ├── students/        # Student API modules
-│   │   └── server/         # Server configuration
+│   │   │   ├── Attendance/  # Student attendance API
+│   │   │   ├── StudentAuth/ # Student authentication API
+│   │   │   ├── StudentForgotPassword.js # Student forgot password API
+│   │   │   ├── StudentLogin.js # Student login API
+│   │   │   ├── StudentProfile.js # Student profile API
+│   │   │   └── Task/        # Student task API
+│   │   ├── server/         # Server configuration
+│   │   └── web/             # Web API modules
+│   │       └── Updates.js   # Updates management API
 │   ├── components/          # Reusable UI components
 │   │   ├── CrudMenu.js      # CRUD menu component
 │   │   ├── Dialog/          # Dialog components
 │   │   ├── Modal/           # Modal components
+│   │   │   ├── Adviser/     # Adviser-specific modals
+│   │   │   └── Updates/     # Updates modal components
+│   │   │       └── UpdatesModal.js # Updates modal
 │   │   ├── Navbar/          # Navigation bar components
 │   │   ├── SkeletonLoading.js # Loading skeleton component
 │   │   ├── Stripbar/        # Strip bar components
@@ -81,9 +98,11 @@ frontend/
 │   │   │   ├── AdviserForgotPassword.js # Adviser forgot password page
 │   │   │   ├── AdviserLogin.js # Adviser login page
 │   │   │   ├── AdviserProfile.js # Adviser profile page
+│   │   │   ├── Attendance/  # Adviser attendance pages
 │   │   │   ├── Events/      # Adviser event pages
 │   │   │   └── Organization/ # Adviser organization pages
 │   │   └── students/        # Student pages
+│   │       ├── Attendance/  # Student attendance pages
 │   │       ├── StudentDashboard.js # Student dashboard
 │   │       ├── StudentForgotPassword.js # Student forgot password page
 │   │       ├── StudentLogin.js # Student login page
@@ -99,12 +118,16 @@ frontend/
 │   │   ├── navigation.js    # Navigation utilities
 │   │   └── steps.js         # Step utilities
 │   └── static/              # Static assets
+├── .config/                 # Configuration directory
+├── .gitignore               # Git ignore rules
+├── .htaccess                # Apache URL rewriting configuration for clean URLs
+├── _headers                 # Netlify headers configuration
 ├── index.html               # Single HTML entry point
 ├── index.css                # Global styles
 ├── app.js                   # Main app component with routing
 ├── main.js                  # Application entry point
+├── netlify.toml             # Netlify deployment configuration
 ├── start.js                 # Application startup script
-├── .htaccess                # Apache URL rewriting configuration for clean URLs
 └── vercel.json              # Vercel deployment configuration
 ```
 
@@ -174,11 +197,13 @@ The application uses pathname-based routing with History API, which allows navig
 | `/auth/adviser/forgot-password` | AdviserForgotPassword | Adviser forgot password page |
 | `/adviser/dashboard` | AdviserDashboard | Adviser dashboard (protected) |
 | `/adviser/profile` | AdviserProfile | Adviser profile editing (protected) |
+| `/adviser/attendance` | AdviserAttendance | Adviser attendance management (protected) |
 | `/auth/student/login` | StudentLogin | Student login page |
 | `/auth/student/forgot-password` | StudentForgotPassword | Student forgot password page |
 | `/student/dashboard` | StudentDashboard | Student dashboard (protected) |
 | `/student/profile` | StudentProfile | Student profile editing (protected) |
 | `/student/tasks` | StudentTask | Student task management (protected) |
+| `/student/attendance` | StudentAttendance | Student attendance management (protected) |
 
 ### Route Guards
 
@@ -717,22 +742,56 @@ export const server = 'http://localhost:8000';
 - **Security**: Validate all inputs, sanitize HTML
 - **Accessibility**: Use semantic HTML, ARIA labels
 
-### New Features in v2.2.0
+### New Features in v3.0.0
 
-- **Adviser Portal**: Complete adviser authentication and management system
-  - Adviser login with OTP-based authentication
-  - Adviser forgot password functionality with email verification
-  - Adviser dashboard and profile management
-  - Adviser event management and organization oversight
-- **Student Portal**: Complete student authentication and task management system
-  - Student login with OTP-based authentication
-  - Student forgot password functionality with email verification
-  - Student dashboard and profile management
-  - Student task tracking and daily schedule management
-- **Event Organizations**: New API module for managing event-organization relationships
-- **Task Management**: New task API module for student task assignments
-- **Middleware**: Added route middleware for authentication and authorization
-- **404 Page**: Added custom 404 error page for better UX
+- **Attendance Management System**: Complete attendance tracking for advisers and students
+  - Adviser attendance management with full CRUD operations
+  - Student attendance self-service tracking
+  - AM/PM session time tracking (time in/out)
+  - Break time tracking (break out/in)
+  - Absence management with excused/unexcused status
+  - Excuse reason and session tracking
+  - Duration calculation in minutes
+  - Real-time attendance status updates
+  - Attendance history and reporting
+- **Updates Management System**: Version update tracking and notifications
+  - Updates modal for displaying version information
+  - Active/inactive update status
+  - Closable types (closable, not_closable, show_once)
+  - GitHub branch link integration
+  - Asset file download functionality
+  - README content display for each update
+  - Web API integration for update management
+- **Cache Service**: Frontend caching for improved performance
+  - In-memory cache for API responses
+  - Configurable TTL (Time To Live)
+  - Cache invalidation support
+  - Reduced API calls for frequently accessed data
+- **Enhanced API Structure**: Improved API organization
+  - Dedicated web API module for updates
+  - Separate attendance API modules for advisers and students
+  - Dashboard API modules for better organization
+  - Improved server configuration with API routes
+- **New Pages and Components**:
+  - Adviser attendance page with comprehensive tracking
+  - Student attendance page with self-service features
+  - Updates modal component for version notifications
+  - Adviser-specific modal components
+- **Deployment Configuration**: Multiple platform support
+  - Vercel deployment configuration
+  - Netlify deployment configuration
+  - Custom headers for Netlify
+  - Apache .htaccess for clean URLs
+- **Improved Asset Management**:
+  - Updated public assets (CRT.jpg, Overview images)
+  - Better organization of static assets
+  - Favicon for browser tab branding
+- **Code Organization Improvements**:
+  - Cache service directory
+  - Web API subdirectory
+  - Attendance subdirectories in API and pages
+  - Updates modal subdirectory
+  - Configuration directory (.config)
 
 ### Bug Fixes in v2.1.0
 

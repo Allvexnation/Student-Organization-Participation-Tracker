@@ -89,11 +89,7 @@ switch ($command) {
 
 function showInteractiveMenu($backendDir) {
     while (true) {
-        if (strtoupper(substr(PHP_OS, 0, 3)) === 'WIN') {
-            system('cls');
-        } else {
-            system('clear');
-        }
+        echo "\033c";
         showHeader('menu');
         echo "\033[1;34mSelect an option:\033[0m\n";
         echo "  \033[0;33m1.\033[0m Start development server\n";
@@ -113,6 +109,9 @@ function showInteractiveMenu($backendDir) {
         echo "  \033[0;33m15.\033[0m Credits\n";
         echo "  \033[0;33m16.\033[0m View README documentation\n";
         echo "  \033[0;33m17.\033[0m Clear cache\n";
+        echo "  \033[0;33m18.\033[0m Start XAMPP (Apache + MySQL)\n";
+        echo "  \033[0;33m19.\033[0m Stop XAMPP (Apache + MySQL)\n";
+        echo "  \033[0;33m20.\033[0m Web management\n";
         echo "  \033[0;31m0.\033[0m Exit\n";
         echo "\n";
         echo "\033[1;34mChoice:\033[0m ";
@@ -225,6 +224,22 @@ function showInteractiveMenu($backendDir) {
                 require_once $backendDir . '/cache/CacheService.php';
                 CacheService::flush();
                 showSuccess("Cache cleared successfully!");
+                break;
+
+            case '18':
+                require_once $backendDir . '/commands/controller/xampp.php';
+                startXampp();
+                break;
+
+            case '19':
+                require_once $backendDir . '/commands/controller/xampp.php';
+                stopXampp();
+                break;
+
+            case '20':
+                echo "\033c";
+                require_once __DIR__ . '/controller/web.php';
+                showWebMenu($backendDir);
                 break;
 
             case '0':

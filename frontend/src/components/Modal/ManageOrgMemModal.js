@@ -175,7 +175,6 @@ async function loadStudents(selectedStudentId = null) {
             }
         }
 
-        // Get existing memberships to check which students already have organizations
         const allMemberships = await OrgMembershipsAPI.getAllOrgMemberships();
         const studentWithOrgIds = allMemberships.map(m => m.student_id);
         
@@ -292,7 +291,6 @@ async function processOrgMemSubmit(id, buttonText, onSubmit) {
         membership_status: document.getElementById('membershipStatus').value
     };
 
-    // Validate organization membership data
     try {
         const allMemberships = await OrgMembershipsAPI.getAllOrgMemberships();
         const validation = OrganizationMembershipCrudValidator.validate(formData, allMemberships, id);

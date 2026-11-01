@@ -138,8 +138,7 @@ export function initStudentForgotPassword() {
         (proceed) => {
             const newPassword = document.getElementById('newPassword').value;
             const confirmPassword = document.getElementById('confirmPassword').value;
-            
-            // Validate password using PasswordValidator
+
             const validation = PasswordValidator.validate(newPassword, confirmPassword);
             if (!validation.isValid) {
                 showToast(validation.message, 'error');
@@ -219,8 +218,7 @@ export function initStudentForgotPassword() {
         const newPassword = document.getElementById('newPassword').value;
         const confirmPassword = document.getElementById('confirmPassword').value;
         const resetButton = document.getElementById('resetPasswordButton');
-        
-        // Validate password using PasswordValidator
+
         const validation = PasswordValidator.validate(newPassword, confirmPassword);
         if (!validation.isValid) {
             showToast(validation.message, 'error');

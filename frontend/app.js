@@ -14,14 +14,17 @@ import { AdviserDashboard, initAdviserDashboard } from './src/pages/adviser/Advi
 import { AdviserProfile, initAdviserProfile } from './src/pages/adviser/AdviserProfile.js';
 import { AdviserOrganization, initAdviserOrganization } from './src/pages/adviser/Organization/AdviserOrganization.js';
 import { AdviserEvents, initAdviserEvents } from './src/pages/adviser/Events/AdviserEvents.js';
+import { Attendance, initAttendance } from './src/pages/adviser/Attendance/Attendance.js';
 import { AdviserForgotPassword, initAdviserForgotPassword } from './src/pages/adviser/AdviserForgotPassword.js';
 import { StudentLogin, initStudentLogin } from './src/pages/students/StudentLogin.js';
 import { StudentForgotPassword, initStudentForgotPassword } from './src/pages/students/StudentForgotPassword.js';
 import { StudentDashboard, initStudentDashboard } from './src/pages/students/StudentDashboard.js';
 import { StudentProfile, initStudentProfile } from './src/pages/students/StudentProfile.js';
 import { EventTask, initEventTask } from './src/pages/students/Task/EventTask.js';
+import { StudentAttendance, initStudentAttendance } from './src/pages/students/Attendance/Attendance.js';
 import { NotFoundPage, initNotFoundPage } from './src/pages/404/404.js';
 import { isAuthenticated, getUserRole } from './src/utils/jwt.js';
+import { initUpdates, UpdatesPage, initUpdatesPage } from './src/pages/web/Updates.js';
 
 const link = document.createElement('link');
 link.rel = 'stylesheet';
@@ -49,11 +52,14 @@ export class App {
             '/adviser/profile': AdviserProfile,
             '/adviser/organization': AdviserOrganization,
             '/adviser/events': AdviserEvents,
+            '/adviser/attendance': Attendance,
             '/auth/student/login': StudentLogin,
             '/auth/student/forgot-password': StudentForgotPassword,
             '/student/dashboard': StudentDashboard,
             '/student/profile': StudentProfile,
             '/student/tasks': EventTask,
+            '/student/attendance': StudentAttendance,
+            '/updates': UpdatesPage,
             '404': NotFoundPage
         };
         this.initFunctions = {
@@ -74,11 +80,14 @@ export class App {
             '/adviser/profile': initAdviserProfile,
             '/adviser/organization': initAdviserOrganization,
             '/adviser/events': initAdviserEvents,
+            '/adviser/attendance': initAttendance,
             '/auth/student/login': initStudentLogin,
             '/auth/student/forgot-password': initStudentForgotPassword,
             '/student/dashboard': initStudentDashboard,
             '/student/profile': initStudentProfile,
             '/student/tasks': initEventTask,
+            '/student/attendance': initStudentAttendance,
+            '/updates': initUpdatesPage,
             '404': initNotFoundPage
         };
 
@@ -130,6 +139,8 @@ export class App {
         const initFunction = this.initFunctions[route] || this.initFunctions['404'];
         if (initFunction) {
             initFunction();
+
+        initUpdates();
         }
     }
 }

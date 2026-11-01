@@ -199,7 +199,6 @@ async function loadStudents(selectedStudentId = null, excludeIds = []) {
             }
         }
 
-        // Get existing memberships to check which students already have organizations
         const allMemberships = await AdviserOrganizationAPI.getAdviserOrgMemberships();
         const studentWithOrgIds = allMemberships.map(m => m.student_id);
 
@@ -256,7 +255,6 @@ async function processOrgMemSubmit(id, buttonText, onSubmit) {
         membership_status: document.getElementById('membershipStatus').value
     };
 
-    // Validate organization membership data
     try {
         const allMemberships = await AdviserOrganizationAPI.getAdviserOrgMemberships();
         const validation = OrganizationMembershipCrudValidator.validate(formData, allMemberships, id);
@@ -395,7 +393,6 @@ export function openEditOrgModal(organization, onSuccess) {
             status: document.getElementById('orgStatus').value
         };
 
-        // Validate organization code uniqueness
         try {
             const allOrganizations = await AdviserOrganizationAPI.getAdviserAllOrganizations();
             const validation = OrganizationCrudValidator.validateCodeUniqueness(formData.org_code, allOrganizations, organization.id);
@@ -503,7 +500,6 @@ export function openSwitchOrgModal(organizations, onSwitch) {
             return;
         }
 
-        // Check if organization is active
         if (!OrganizationValidator.isActive(org.status)) {
             showToast('Cannot switch to an inactive or suspended organization', 'error');
             return;

@@ -98,6 +98,14 @@ export const API_ROUTES = {
         REGISTERED_EVENTS: `${API_BASE_URL}/api/adviser/registered-events`,
         ORGANIZATIONS_BY_EVENT: (eventId) => `${API_BASE_URL}/api/adviser/organizations-by-event/${eventId}`,
         EVENT_GET: (id) => `${API_BASE_URL}/api/admin/events/${id}`,
+        ATTENDANCE_EVENTS: `${API_BASE_URL}/api/adviser/attendance/events`,
+        ATTENDANCE_BY_EVENT: (eventId) => `${API_BASE_URL}/api/adviser/attendance/event/${eventId}`,
+        ATTENDANCE_LOG: `${API_BASE_URL}/api/adviser/attendance/log`,
+        ATTENDANCE_EDIT_SESSION: `${API_BASE_URL}/api/adviser/attendance/edit-session`,
+        ATTENDANCE_APPROVE_EXCUSE: `${API_BASE_URL}/api/adviser/attendance/approve-excuse`,
+        ATTENDANCE_ABSENT: `${API_BASE_URL}/api/adviser/attendance/absent`,
+        ATTENDANCE_EXCUSE: `${API_BASE_URL}/api/adviser/attendance/excuse`,
+        ATTENDANCE_RESET: `${API_BASE_URL}/api/adviser/attendance/reset`,
     },
     STUDENT: {
         BASE: `${API_BASE_URL}/api/student`,
@@ -113,5 +121,18 @@ export const API_ROUTES = {
         TASKS_GET: (id) => `${API_BASE_URL}/api/student/tasks/${id}`,
         TASKS_UPDATE_STATUS: (id) => `${API_BASE_URL}/api/student/tasks/${id}/status`,
         SCHEDULE_UPDATE_STATUS: (id) => `${API_BASE_URL}/api/student/schedule-status/${id}`,
+        ATTENDANCE_EVENTS: `${API_BASE_URL}/api/student/attendance/events`,
+        ATTENDANCE_BY_EVENT: (eventId) => `${API_BASE_URL}/api/student/attendance/event/${eventId}`,
+        ATTENDANCE_LOG: `${API_BASE_URL}/api/student/attendance/log`,
+        ATTENDANCE_EXCUSE: `${API_BASE_URL}/api/student/attendance/excuse`,
+    },
+    WEB: {
+        UPDATES: `${API_BASE_URL}/api/web/updates`,
+        UPDATES_ACTIVE: `${API_BASE_URL}/api/web/updates/active`,
+        UPDATES_GET: (id) => `${API_BASE_URL}/api/web/updates/${id}`,
+        UPDATES_CREATE: `${API_BASE_URL}/api/web/updates`,
+        UPDATES_UPDATE: (id) => `${API_BASE_URL}/api/web/updates/${id}`,
+        UPDATES_DELETE: (id) => `${API_BASE_URL}/api/web/updates/${id}`,
+        UPDATES_DOWNLOAD: (filename) => `${API_BASE_URL}/api/web/updates/download?file=${encodeURIComponent(filename)}`,
     }
 };

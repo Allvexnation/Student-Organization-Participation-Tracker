@@ -191,7 +191,6 @@ function populateFormWithStudent(student) {
     const form = document.getElementById('studentForm');
     if (!form) return;
 
-    // Safely set values - create hidden inputs if they don't exist yet
     const setVal = (id, value) => {
         const el = document.getElementById(id);
         if (el) {
@@ -199,7 +198,6 @@ function populateFormWithStudent(student) {
         }
     };
 
-    // Ensure studentId hidden input exists
     let studentIdEl = document.getElementById('studentId');
     if (!studentIdEl) {
         studentIdEl = document.createElement('input');
@@ -218,7 +216,6 @@ function populateFormWithStudent(student) {
     setVal('email', student.email);
 
     if (student.profile_photo) {
-        // Ensure existingImageUrl hidden input exists
         let existingImgEl = document.getElementById('existingImageUrl');
         if (!existingImgEl) {
             existingImgEl = document.createElement('input');
@@ -339,11 +336,9 @@ async function processStudentSubmit(id, buttonText, onSubmit) {
         }
     }
 
-    // Fetch existing students for validation
     try {
         const existingStudents = await StudentsAPI.getAllStudents();
-        
-        // Validate form data
+
         const validation = StudentCrudValidator.validate(formData, existingStudents, isEdit ? 'edit' : 'add', id);
         
         if (!validation.isValid) {
@@ -352,7 +347,6 @@ async function processStudentSubmit(id, buttonText, onSubmit) {
         }
     } catch (error) {
         console.error('Error validating student:', error);
-        // Continue with submission if validation fetch fails
     }
 
     if (isEdit) {

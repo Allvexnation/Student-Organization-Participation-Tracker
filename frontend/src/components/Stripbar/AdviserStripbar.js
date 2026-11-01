@@ -38,6 +38,11 @@ export function AdviserStripBar(userRole = 'Adviser') {
                         <i data-lucide="check-square" class="w-4 h-4 ${currentPath === '/adviser/events' ? 'text-blue-900' : 'text-gray-400'}"></i>
                         <span>Events & Tasks</span>
                     </a>
+
+                    <a href="/adviser/attendance" class="px-3.5 py-3 text-sm font-medium transition-colors whitespace-nowrap flex items-center gap-2 rounded-t-md ${currentPath === '/adviser/attendance' ? activeTabClass : inactiveTabClass}">
+                        <i data-lucide="calendar-check" class="w-4 h-4 ${currentPath === '/adviser/attendance' ? 'text-blue-900' : 'text-gray-400'}"></i>
+                        <span>Attendance</span>
+                    </a>
                 </div>
             </div>
 

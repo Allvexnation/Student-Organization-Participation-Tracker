@@ -214,7 +214,6 @@ async function processOrgSubmit(id, buttonText, onSubmit) {
         status: document.getElementById('orgStatus').value
     };
 
-    // Validate organization code uniqueness
     try {
         const allOrganizations = await OrganizationsAPI.getAllOrganizations();
         const validation = OrganizationCrudValidator.validateCodeUniqueness(formData.org_code, allOrganizations, id);
