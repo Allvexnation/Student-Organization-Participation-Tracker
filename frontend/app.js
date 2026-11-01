@@ -25,6 +25,7 @@ import { StudentAttendance, initStudentAttendance } from './src/pages/students/A
 import { NotFoundPage, initNotFoundPage } from './src/pages/404/404.js';
 import { isAuthenticated, getUserRole } from './src/utils/jwt.js';
 import { initUpdates, UpdatesPage, initUpdatesPage } from './src/pages/web/Updates.js';
+import { updateSEO } from './src/utils/seo.js';
 
 const link = document.createElement('link');
 link.rel = 'stylesheet';
@@ -135,6 +136,8 @@ export class App {
         const pageComponent = this.routes[route] || this.routes['404'];
 
         this.root.innerHTML = pageComponent();
+
+        updateSEO(route);
 
         const initFunction = this.initFunctions[route] || this.initFunctions['404'];
         if (initFunction) {
