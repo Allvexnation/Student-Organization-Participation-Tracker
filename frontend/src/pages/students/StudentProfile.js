@@ -1,9 +1,14 @@
-import { StudentNavbar, initStudentNavbar } from '../../components/Navbar/StudentNavbar.js';
+import { StudentNavbar, initStudentNavbar, updateNavbarProfile } from '../../components/Navbar/StudentNavbar.js';
 import { getStudentData } from '../../api/students/StudentAuth/StudentAuth.js';
+import { setUserData, getToken, decodeToken } from '../../utils/jwt.js';
 import { getStudentProfile, updateStudentProfile } from '../../api/students/StudentProfile.js';
 import { protectStudentRoute } from '../../middleware/StudentMiddleware.js';
 import { openConfirmDialog } from '../../components/Dialog/ConfirmDialog.js';
 import { showToast, updateToast } from '../../components/ToastMessage.js';
+import { ProfileValidator } from '../../validator/ProfileValidator.js';
+import { getDefaultProfileSVG } from '../../static/Profile/DefaultProfile.js';
+import { logStudentChange } from '../../api/AuditLogs/StudentAuditLogs.js';
+import { initProfileAnimations } from '../../provider/Animation/ProfileAnimation.js';
 
 export function StudentProfile() {
     const studentData = getStudentData() || {};
@@ -20,186 +25,131 @@ export function StudentProfile() {
     const initials = getInitials(fullName);
 
     return `
-        <div class="min-h-screen bg-gray-50">
+        <div id="student-profile-page" data-domino-page class="profile-page min-h-screen bg-surface font-sans text-ink pb-24 md:pb-10">
             ${StudentNavbar()}
 
-            <main class="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
-                <div class="mb-6">
-                    <h1 class="text-2xl font-semibold text-gray-900">Manage Account & Profile</h1>
-                    <p class="text-sm text-gray-500 mt-1">Update your student credentials, personal details, and account security.</p>
-                </div>
+            <main class="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 py-5 sm:py-8">
+                <header class="reveal mb-5 sm:mb-7" data-domino-enter>
+                    <span class="inline-flex items-center gap-2 rounded-full border border-line bg-white px-3 py-1 text-[11px] font-semibold uppercase tracking-[0.16em] text-blue-600">
+                        <span class="h-1.5 w-1.5 rounded-full bg-yellow"></span>
+                        Student account
+                    </span>
+                    <div class="mt-3">
+                        <h1 class="text-[1.65rem] sm:text-3xl font-semibold tracking-tight text-ink leading-tight">Manage Account &amp; Profile</h1>
+                        <p class="mt-1.5 max-w-2xl text-sm text-body">Update your student credentials, personal details, and account security.</p>
+                    </div>
+                </header>
 
                 <form id="edit-profile-form">
                     <input type="hidden" name="id" id="settingsId" value="${studentData.id || ''}">
 
-                    <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
-                        <div class="lg:col-span-1">
-                            <div class="bg-white border border-gray-200 rounded-lg p-5 sm:p-6 shadow-sm flex flex-col items-center text-center">
-                                <div class="w-full flex items-center gap-2 mb-4 pb-3 border-b border-gray-100 text-left">
-                                    <svg xmlns="http://www.w3.org/2000/svg" class="w-4 h-4 text-blue-900" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
-                                    </svg>
-                                    <h2 class="text-sm font-semibold text-gray-900 uppercase tracking-wider">Profile Photo</h2>
+                    <div class="grid grid-cols-1 lg:grid-cols-12 gap-5 lg:gap-6">
+                        <aside class="lg:col-span-4">
+                            <section class="profile-identity reveal rounded-2xl border border-line bg-white p-5 sm:p-6 flex flex-col items-center text-center" data-domino-enter>
+                                <div class="profile-identity-heading w-full flex items-center gap-2 mb-4 pb-3 border-b border-line text-left">
+                                    <i data-lucide="user-round" class="w-4 h-4 text-blue-600"></i>
+                                    <h2 class="text-sm font-semibold text-ink uppercase tracking-wider">Profile Photo</h2>
                                 </div>
 
-                                <div class="relative group my-3">
-                                    <div id="profilePhotoPreview" class="w-28 h-28 rounded-full border-2 border-dashed border-gray-300 p-1 flex items-center justify-center overflow-hidden bg-gray-50 shadow-inner">
-                                        ${getPhotoPreview(profilePhoto, initials)}
-                                    </div>
+                                <div id="profilePhotoPreview" class="profile-photo-ring w-28 h-28 rounded-full border-2 border-dashed border-line p-1 flex items-center justify-center overflow-hidden bg-surface">
+                                    ${getPhotoPreview(profilePhoto, initials)}
                                 </div>
 
-                                <div class="mb-4">
-                                    <h3 class="text-base font-semibold text-gray-900" id="profileFullNameDisplay">${fullName}</h3>
-                                    <span class="inline-flex items-center gap-1.5 px-2.5 py-0.5 mt-1 rounded-full text-xs font-medium bg-blue-50 text-blue-900 border border-blue-200">
+                                <div class="mt-4 mb-1">
+                                    <h3 class="text-base font-semibold text-ink" id="profileFullNameDisplay">${fullName}</h3>
+                                    <span class="profile-role-badge inline-flex items-center gap-1.5 px-2.5 py-0.5 mt-1.5 rounded-full text-xs font-medium bg-blue-50 text-blue-600 border border-blue-200">
                                         <span class="w-1.5 h-1.5 rounded-full bg-blue-600"></span>
                                         Student
                                     </span>
                                 </div>
+                                <p class="profile-identity-meta mt-2 text-xs text-muted break-all">${[studentNumber, program, yearLevel].filter(Boolean).join(' · ') || email}</p>
 
-                                <label for="profilePhoto" class="w-full cursor-pointer px-4 py-2 text-xs font-medium text-blue-900 bg-blue-50 hover:bg-blue-100 border border-blue-200 rounded-md transition flex items-center justify-center gap-2">
-                                    <svg xmlns="http://www.w3.org/2000/svg" class="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 9a2 2 0 012-2h.93a2 2 0 001.664-.89l.812-1.22A2 2 0 0110.07 4h3.86a2 2 0 011.664.89l.812 1.22A2 2 0 0018.07 7H19a2 2 0 012 2v9a2 2 0 01-2 2H5a2 2 0 01-2-2V9z" />
-                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 13a3 3 0 11-6 0 3 3 0 016 0z" />
-                                    </svg>
-                                    <span>Upload New Photo</span>
-                                </label>
-                                <input 
-                                    type="file" 
-                                    id="profilePhoto" 
-                                    name="profilePhoto" 
-                                    accept="image/png,image/jpeg,image/webp" 
-                                    class="hidden">
+                                <div class="profile-photo-actions w-full mt-4">
+                                    <label for="profilePhoto" class="profile-upload-btn w-full cursor-pointer px-4 py-2.5 text-xs font-medium text-blue-600 bg-blue-50 hover:bg-blue-100 border border-blue-200 rounded-xl transition flex items-center justify-center gap-2">
+                                        <i data-lucide="camera" class="w-3.5 h-3.5"></i>
+                                        <span>Upload Photo</span>
+                                    </label>
+                                    <input type="file" id="profilePhoto" name="profilePhoto" accept="image/png,image/jpeg,image/webp" class="hidden">
 
-                                <p class="text-[11px] text-gray-400 mt-2">JPG, PNG, or WEBP up to 2MB</p>
-                            </div>
-                        </div>
+                                    <button type="button" id="removeProfilePhotoBtn" class="profile-remove-btn w-full mt-2 px-4 py-2.5 text-xs font-medium text-red-600 bg-red-50 hover:bg-red-100 border border-red-200 rounded-xl transition flex items-center justify-center gap-2">
+                                        <svg xmlns="http://www.w3.org/2000/svg" class="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                                        </svg>
+                                        <span>Remove Photo</span>
+                                    </button>
+                                </div>
+                                <p class="profile-identity-hint text-[11px] text-muted mt-2">JPG, PNG, or WEBP up to 2MB</p>
+                            </section>
+                        </aside>
 
-                        <div class="lg:col-span-2 space-y-6">
-                            <div class="bg-white border border-gray-200 rounded-lg p-5 sm:p-6 shadow-sm">
-                                <div class="flex items-center gap-2 mb-4 pb-3 border-b border-gray-100">
-                                    <svg xmlns="http://www.w3.org/2000/svg" class="w-4 h-4 text-blue-900" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
-                                    </svg>
-                                    <h2 class="text-sm font-semibold text-gray-900 uppercase tracking-wider">Personal Information</h2>
+                        <div class="lg:col-span-8 space-y-5">
+                            <section class="profile-card reveal rounded-2xl border border-line bg-white p-5 sm:p-6" data-domino-enter>
+                                <div class="flex items-center gap-2 mb-4 pb-3 border-b border-line">
+                                    <i data-lucide="id-card" class="w-4 h-4 text-blue-600"></i>
+                                    <h2 class="text-sm font-semibold text-ink uppercase tracking-wider">Personal Information</h2>
                                 </div>
 
                                 <div class="space-y-4">
                                     <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
                                         <div>
-                                            <label for="settingsFirstName" class="block text-xs font-medium text-gray-700 uppercase tracking-wide mb-1.5">
+                                            <label for="settingsFirstName" class="block text-[11px] font-semibold uppercase tracking-[0.12em] text-muted mb-1.5">
                                                 First Name <span class="text-red-500">*</span>
                                             </label>
-                                            <input 
-                                                type="text" 
-                                                name="first_name" 
-                                                id="settingsFirstName" 
-                                                value="${firstName}" 
-                                                required 
-                                                class="w-full px-3.5 py-2.5 text-sm border border-gray-200 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition">
+                                            <input type="text" name="first_name" id="settingsFirstName" value="${firstName}" required class="profile-input">
                                         </div>
-
                                         <div>
-                                            <label for="settingsLastName" class="block text-xs font-medium text-gray-700 uppercase tracking-wide mb-1.5">
+                                            <label for="settingsLastName" class="block text-[11px] font-semibold uppercase tracking-[0.12em] text-muted mb-1.5">
                                                 Last Name <span class="text-red-500">*</span>
                                             </label>
-                                            <input 
-                                                type="text" 
-                                                name="last_name" 
-                                                id="settingsLastName" 
-                                                value="${lastName}" 
-                                                required 
-                                                class="w-full px-3.5 py-2.5 text-sm border border-gray-200 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition">
+                                            <input type="text" name="last_name" id="settingsLastName" value="${lastName}" required class="profile-input">
                                         </div>
                                     </div>
 
                                     <div>
-                                        <label for="settingsStudentNumber" class="block text-xs font-medium text-gray-700 uppercase tracking-wide mb-1.5">
-                                            Student Number
-                                        </label>
-                                        <input 
-                                            type="text" 
-                                            name="student_number" 
-                                            id="settingsStudentNumber" 
-                                            value="${studentNumber}" 
-                                            class="w-full px-3.5 py-2.5 text-sm border border-gray-200 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition">
+                                        <label for="settingsStudentNumber" class="block text-[11px] font-semibold uppercase tracking-[0.12em] text-muted mb-1.5">Student Number</label>
+                                        <input type="text" name="student_number" id="settingsStudentNumber" value="${studentNumber}" class="profile-input">
                                     </div>
 
                                     <div>
-                                        <label for="settingsUsername" class="block text-xs font-medium text-gray-700 uppercase tracking-wide mb-1.5">
+                                        <label for="settingsUsername" class="block text-[11px] font-semibold uppercase tracking-[0.12em] text-muted mb-1.5">
                                             Username <span class="text-red-500">*</span>
                                         </label>
-                                        <input 
-                                            type="text" 
-                                            name="username" 
-                                            id="settingsUsername" 
-                                            value="${username}" 
-                                            required 
-                                            class="w-full px-3.5 py-2.5 text-sm border border-gray-200 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition">
+                                        <input type="text" name="username" id="settingsUsername" value="${username}" required class="profile-input">
                                     </div>
 
                                     <div>
-                                        <label for="settingsEmail" class="block text-xs font-medium text-gray-700 uppercase tracking-wide mb-1.5">
+                                        <label for="settingsEmail" class="block text-[11px] font-semibold uppercase tracking-[0.12em] text-muted mb-1.5">
                                             Email <span class="text-red-500">*</span>
                                         </label>
-                                        <input 
-                                            type="email" 
-                                            name="email" 
-                                            id="settingsEmail" 
-                                            value="${email}" 
-                                            required 
-                                            class="w-full px-3.5 py-2.5 text-sm border border-gray-200 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition">
+                                        <input type="email" name="email" id="settingsEmail" value="${email}" required class="profile-input">
                                     </div>
 
                                     <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
                                         <div>
-                                            <label for="settingsProgram" class="block text-xs font-medium text-gray-700 uppercase tracking-wide mb-1.5">
-                                                Program
-                                            </label>
-                                            <input 
-                                                type="text" 
-                                                name="program" 
-                                                id="settingsProgram" 
-                                                value="${program}" 
-                                                class="w-full px-3.5 py-2.5 text-sm border border-gray-200 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition">
+                                            <label for="settingsProgram" class="block text-[11px] font-semibold uppercase tracking-[0.12em] text-muted mb-1.5">Program</label>
+                                            <input type="text" name="program" id="settingsProgram" value="${program}" class="profile-input">
                                         </div>
-
                                         <div>
-                                            <label for="settingsYearLevel" class="block text-xs font-medium text-gray-700 uppercase tracking-wide mb-1.5">
-                                                Year Level
-                                            </label>
-                                            <input 
-                                                type="text" 
-                                                name="year_level" 
-                                                id="settingsYearLevel" 
-                                                value="${yearLevel}" 
-                                                class="w-full px-3.5 py-2.5 text-sm border border-gray-200 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition">
+                                            <label for="settingsYearLevel" class="block text-[11px] font-semibold uppercase tracking-[0.12em] text-muted mb-1.5">Year Level</label>
+                                            <input type="text" name="year_level" id="settingsYearLevel" value="${yearLevel}" class="profile-input">
                                         </div>
                                     </div>
                                 </div>
-                            </div>
+                            </section>
 
-                            <div class="bg-white border border-gray-200 rounded-lg p-5 sm:p-6 shadow-sm">
-                                <div class="flex items-center gap-2 mb-2 pb-3 border-b border-gray-100">
-                                    <svg xmlns="http://www.w3.org/2000/svg" class="w-4 h-4 text-blue-900" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 7a2 2 0 012 2m4 0a6 6 0 01-7.743 5.743L11 17H9v2H7v2H4a1 1 0 01-1-1v-2.586a1 1 0 01.293-.707l5.964-5.964A6 6 0 1121 9z" />
-                                    </svg>
-                                    <h2 class="text-sm font-semibold text-gray-900 uppercase tracking-wider">Change Password</h2>
+                            <section class="profile-card reveal rounded-2xl border border-line bg-white p-5 sm:p-6" data-domino-enter>
+                                <div class="flex items-center gap-2 mb-2 pb-3 border-b border-line">
+                                    <i data-lucide="key-round" class="w-4 h-4 text-blue-600"></i>
+                                    <h2 class="text-sm font-semibold text-ink uppercase tracking-wider">Change Password</h2>
                                 </div>
-                                <p class="text-xs text-gray-500 mb-4">Leave password fields blank if you do not wish to change your current password.</p>
+                                <p class="text-xs text-muted mb-4">Leave password fields blank if you do not wish to change your current password.</p>
 
                                 <div class="space-y-4">
                                     <div>
-                                        <label for="settingsOldPassword" class="block text-xs font-medium text-gray-700 uppercase tracking-wide mb-1.5">
-                                            Current (Old) Password
-                                        </label>
+                                        <label for="settingsOldPassword" class="block text-[11px] font-semibold uppercase tracking-[0.12em] text-muted mb-1.5">Current Password</label>
                                         <div class="relative">
-                                            <input 
-                                                type="password" 
-                                                name="old_password" 
-                                                id="settingsOldPassword" 
-                                                placeholder="Enter current password to verify"
-                                                class="w-full px-3.5 py-2.5 text-sm border border-gray-200 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition pr-10">
-                                            <button type="button" onclick="togglePassword('settingsOldPassword')" class="absolute right-2 top-0 bottom-0 flex items-center justify-center text-gray-400 hover:text-gray-600 focus:outline-none px-2">
+                                            <input type="password" name="old_password" id="settingsOldPassword" placeholder="Enter current password to verify" class="profile-input pr-11">
+                                            <button type="button" onclick="togglePassword('settingsOldPassword')" class="absolute right-2 top-0 bottom-0 flex items-center justify-center text-muted hover:text-ink focus:outline-none px-2">
                                                 <svg id="settingsOldPassword-eye-icon" xmlns="http://www.w3.org/2000/svg" class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                                                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
                                                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" />
@@ -209,17 +159,10 @@ export function StudentProfile() {
                                     </div>
 
                                     <div>
-                                        <label for="settingsPassword" class="block text-xs font-medium text-gray-700 uppercase tracking-wide mb-1.5">
-                                            New Password
-                                        </label>
+                                        <label for="settingsPassword" class="block text-[11px] font-semibold uppercase tracking-[0.12em] text-muted mb-1.5">New Password</label>
                                         <div class="relative">
-                                            <input 
-                                                type="password" 
-                                                name="password" 
-                                                id="settingsPassword" 
-                                                placeholder="Minimum 6 characters"
-                                                class="w-full px-3.5 py-2.5 text-sm border border-gray-200 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition pr-10">
-                                            <button type="button" onclick="togglePassword('settingsPassword')" class="absolute right-2 top-0 bottom-0 flex items-center justify-center text-gray-400 hover:text-gray-600 focus:outline-none px-2">
+                                            <input type="password" name="password" id="settingsPassword" placeholder="Minimum 6 characters" class="profile-input pr-11">
+                                            <button type="button" onclick="togglePassword('settingsPassword')" class="absolute right-2 top-0 bottom-0 flex items-center justify-center text-muted hover:text-ink focus:outline-none px-2">
                                                 <svg id="settingsPassword-eye-icon" xmlns="http://www.w3.org/2000/svg" class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                                                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
                                                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" />
@@ -228,21 +171,12 @@ export function StudentProfile() {
                                         </div>
                                     </div>
                                 </div>
-                            </div>
+                            </section>
                         </div>
                     </div>
 
-                    <div class="mt-6 bg-white border border-gray-200 rounded-lg p-4 shadow-sm flex flex-col-reverse sm:flex-row items-center justify-end gap-3">
-                        <button 
-                            type="button" 
-                            id="resetProfileBtn" 
-                            class="w-full sm:w-auto px-4 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-md hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-gray-200 transition">
-                            Reset Changes
-                        </button>
-                        <button 
-                            type="submit" 
-                            id="saveSettings" 
-                            class="w-full sm:w-auto px-6 py-2 text-sm font-medium text-white bg-blue-900 hover:bg-blue-800 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 transition flex items-center justify-center gap-2">
+                    <div class="profile-actions reveal mt-5 md:mt-6 rounded-2xl border border-line bg-white p-3.5 sm:p-4 flex justify-end" data-domino-enter>
+                        <button type="submit" id="saveSettings" class="w-full sm:w-auto px-6 py-2.5 text-sm font-medium text-white bg-blue-600 hover:bg-blue-800 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-600/30 transition flex items-center justify-center gap-2">
                             <svg xmlns="http://www.w3.org/2000/svg" class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7H5a2 2 0 00-2 2v9a2 2 0 002 2h14a2 2 0 002-2V9a2 2 0 00-2-2h-3m-1 4l-3 3m0 0l-3-3m3 3V4" />
                             </svg>
@@ -292,33 +226,157 @@ export function StudentProfile() {
 export async function initStudentProfile() {
     protectStudentRoute();
     await initStudentNavbar();
+    initProfileAnimations();
+    if (typeof lucide !== 'undefined') lucide.createIcons();
 
-    try {
-        const freshData = await getStudentProfile();
-        if (freshData) {
-            localStorage.setItem('studentData', JSON.stringify(freshData));
-        }
-    } catch (error) {
-        console.error('Failed to fetch fresh profile data:', error);
-    }
-
-    const studentData = getStudentData() || {};
+    let studentData = getStudentData() || {};
     let selectedPhoto = null;
 
     const profilePhotoInput = document.getElementById('profilePhoto');
     const profilePhotoPreview = document.getElementById('profilePhotoPreview');
 
+    try {
+        const freshData = await getStudentProfile();
+        if (freshData) {
+            setUserData(freshData, 'student');
+            studentData = freshData;
+
+            const firstNameInput = document.getElementById('settingsFirstName');
+            const lastNameInput = document.getElementById('settingsLastName');
+            const usernameInput = document.getElementById('settingsUsername');
+            const emailInput = document.getElementById('settingsEmail');
+            const studentNumberInput = document.getElementById('settingsStudentNumber');
+            const programInput = document.getElementById('settingsProgram');
+            const yearLevelInput = document.getElementById('settingsYearLevel');
+            const settingsId = document.getElementById('settingsId');
+            const profileFullNameDisplay = document.getElementById('profileFullNameDisplay');
+
+            if (firstNameInput) firstNameInput.value = freshData.first_name || '';
+            if (lastNameInput) lastNameInput.value = freshData.last_name || '';
+            if (usernameInput) usernameInput.value = freshData.username || '';
+            if (emailInput) emailInput.value = freshData.email || '';
+            if (studentNumberInput) studentNumberInput.value = freshData.student_number || '';
+            if (programInput) programInput.value = freshData.program || '';
+            if (yearLevelInput) yearLevelInput.value = freshData.year_level || '';
+            if (settingsId) settingsId.value = freshData.id || '';
+            if (profileFullNameDisplay) profileFullNameDisplay.textContent = `${freshData.first_name || ''} ${freshData.last_name || ''}`.trim();
+
+            if (profilePhotoPreview && !selectedPhoto) {
+                const initials = getInitials(`${freshData.first_name || ''} ${freshData.last_name || ''}`.trim());
+                profilePhotoPreview.innerHTML = getPhotoPreview(freshData.profile_photo || '', initials);
+            }
+
+            updateNavbarProfile(freshData);
+        }
+    } catch (error) {
+        console.error('Failed to fetch fresh profile data:', error);
+    }
+
     if (profilePhotoInput && profilePhotoPreview) {
         profilePhotoInput.addEventListener('change', (e) => {
             const file = e.target.files[0];
             if (file) {
+                if (file.size > 2 * 1024 * 1024) {
+                    showToast('Image size exceeds 2MB limit', 'error');
+                    profilePhotoInput.value = '';
+                    return;
+                }
                 const reader = new FileReader();
                 reader.onload = (event) => {
                     selectedPhoto = event.target.result;
-                    profilePhotoPreview.innerHTML = `<img src="${selectedPhoto}" alt="Profile Preview" class="w-full h-full object-cover rounded-full">`;
+                    const firstName = document.getElementById('settingsFirstName')?.value || studentData.first_name || '';
+                    const lastName = document.getElementById('settingsLastName')?.value || studentData.last_name || '';
+                    const initials = getInitials(`${firstName} ${lastName}`.trim());
+                    profilePhotoPreview.innerHTML = getPhotoPreview(selectedPhoto, initials);
                 };
                 reader.readAsDataURL(file);
             }
+        });
+    }
+
+    const removeProfilePhotoBtn = document.getElementById('removeProfilePhotoBtn');
+    if (removeProfilePhotoBtn) {
+        removeProfilePhotoBtn.addEventListener('click', () => {
+            openConfirmDialog({
+                title: 'Remove Profile Photo',
+                message: 'Are you sure you want to remove your profile photo? This action cannot be undone.',
+                confirmText: 'Remove Photo',
+                cancelText: 'Cancel',
+                type: 'danger',
+                onConfirm: async () => {
+                    showToast('Removing profile photo...', 'loading');
+                    try {
+                        const removeBtn = document.getElementById('removeProfilePhotoBtn');
+                        removeBtn.disabled = true;
+                        removeBtn.innerHTML = `
+                            <svg class="animate-spin h-3.5 w-3.5" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                                <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+                                <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                            </svg>
+                            <span>Removing...</span>
+                        `;
+
+                        const profileData = {
+                            first_name: studentData.first_name || '',
+                            last_name: studentData.last_name || '',
+                            username: studentData.username || '',
+                            email: studentData.email || '',
+                            student_number: studentData.student_number || '',
+                            program: studentData.program || '',
+                            year_level: studentData.year_level || '',
+                            profile_photo: ''
+                        };
+
+                        const result = await updateStudentProfile(profileData);
+                        const updatedStudent = result.student || {};
+
+                        studentData = { ...studentData, ...updatedStudent };
+                        setUserData(studentData, 'student');
+                        window.dispatchEvent(new CustomEvent('student-profile-updated', { detail: studentData }));
+
+                        try {
+                            const token = getToken('student');
+                            const decoded = decodeToken(token);
+                            const userId = decoded ? (decoded.user_id || decoded.id) : studentData.id;
+                            if (userId) {
+                                await logStudentChange({
+                                    user_id: userId,
+                                    user_type: 'student',
+                                    action: 'UPDATE',
+                                    table_name: 'students',
+                                    record_id: userId,
+                                    field_name: 'profile_photo',
+                                    old_value: studentData.profile_photo || '',
+                                    new_value: ''
+                                }, 'student');
+                            }
+                        } catch (logError) {
+                            console.error('Failed to log profile photo removal:', logError);
+                        }
+
+                        const initials = getInitials(`${studentData.first_name || ''} ${studentData.last_name || ''}`.trim());
+                        if (profilePhotoPreview) {
+                            profilePhotoPreview.innerHTML = getPhotoPreview('', initials);
+                        }
+                        selectedPhoto = null;
+
+                        updateNavbarProfile(studentData);
+
+                        updateToast('Profile photo removed successfully!', 'success');
+                    } catch (error) {
+                        updateToast(error.message || 'Failed to remove profile photo. Please try again.', 'error');
+                    } finally {
+                        const removeBtn = document.getElementById('removeProfilePhotoBtn');
+                        removeBtn.disabled = false;
+                        removeBtn.innerHTML = `
+                            <svg xmlns="http://www.w3.org/2000/svg" class="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                            </svg>
+                            <span>Remove Profile Photo</span>
+                        `;
+                    }
+                }
+            });
         });
     }
 
@@ -337,11 +395,6 @@ export async function initStudentProfile() {
             const password = document.getElementById('settingsPassword').value;
             const oldPassword = document.getElementById('settingsOldPassword').value;
 
-            if (password && !oldPassword) {
-                showToast('Please enter your current password to change your password.', 'error');
-                return;
-            }
-
             const profileData = {
                 first_name: firstName,
                 last_name: lastName,
@@ -355,6 +408,13 @@ export async function initStudentProfile() {
 
             if (password) {
                 profileData.password = password;
+                profileData.old_password = oldPassword;
+            }
+
+            const validation = ProfileValidator.validate(profileData, [studentData], 'student', studentData.id);
+            if (!validation.isValid) {
+                showToast(validation.message, 'error');
+                return;
             }
 
             openConfirmDialog({
@@ -376,11 +436,131 @@ export async function initStudentProfile() {
                             <span>Saving...</span>
                         `;
 
-                        const result = await updateStudentProfile(profileData);
+                        const oldStudentData = { ...studentData };
 
-                        const navUsername = document.getElementById('navUsername');
-                        if (navUsername) {
-                            navUsername.textContent = `Welcome, ${firstName}`;
+                        const result = await updateStudentProfile(profileData);
+                        const updatedStudent = result.student || {};
+
+                        studentData = { ...studentData, ...updatedStudent };
+                        setUserData(studentData, 'student');
+ 
+                        try {
+                            const token = getToken('student');
+                            const decoded = decodeToken(token);
+                            const userId = decoded ? (decoded.user_id || decoded.id) : studentData.id;
+                            if (userId) {
+
+                                if (oldStudentData.first_name !== firstName) {
+                                    await logStudentChange({
+                                        user_id: userId,
+                                        user_type: 'student',
+                                        action: 'UPDATE',
+                                        table_name: 'students',
+                                        record_id: userId,
+                                        field_name: 'first_name',
+                                        old_value: oldStudentData.first_name || '',
+                                        new_value: firstName
+                                    }, 'student');
+                                }
+                                if (oldStudentData.last_name !== lastName) {
+                                    await logStudentChange({
+                                        user_id: userId,
+                                        user_type: 'student',
+                                        action: 'UPDATE',
+                                        table_name: 'students',
+                                        record_id: userId,
+                                        field_name: 'last_name',
+                                        old_value: oldStudentData.last_name || '',
+                                        new_value: lastName
+                                    }, 'student');
+                                }
+                                if (oldStudentData.username !== username) {
+                                    await logStudentChange({
+                                        user_id: userId,
+                                        user_type: 'student',
+                                        action: 'UPDATE',
+                                        table_name: 'students',
+                                        record_id: userId,
+                                        field_name: 'username',
+                                        old_value: oldStudentData.username || '',
+                                        new_value: username
+                                    }, 'student');
+                                }
+                                if (oldStudentData.email !== email) {
+                                    await logStudentChange({
+                                        user_id: userId,
+                                        user_type: 'student',
+                                        action: 'UPDATE',
+                                        table_name: 'students',
+                                        record_id: userId,
+                                        field_name: 'email',
+                                        old_value: oldStudentData.email || '',
+                                        new_value: email
+                                    }, 'student');
+                                }
+                                if (oldStudentData.student_number !== studentNumber) {
+                                    await logStudentChange({
+                                        user_id: userId,
+                                        user_type: 'student',
+                                        action: 'UPDATE',
+                                        table_name: 'students',
+                                        record_id: userId,
+                                        field_name: 'student_number',
+                                        old_value: oldStudentData.student_number || '',
+                                        new_value: studentNumber
+                                    }, 'student');
+                                }
+                                if (oldStudentData.program !== program) {
+                                    await logStudentChange({
+                                        user_id: userId,
+                                        user_type: 'student',
+                                        action: 'UPDATE',
+                                        table_name: 'students',
+                                        record_id: userId,
+                                        field_name: 'program',
+                                        old_value: oldStudentData.program || '',
+                                        new_value: program
+                                    }, 'student');
+                                }
+                                if (oldStudentData.year_level !== yearLevel) {
+                                    await logStudentChange({
+                                        user_id: userId,
+                                        user_type: 'student',
+                                        action: 'UPDATE',
+                                        table_name: 'students',
+                                        record_id: userId,
+                                        field_name: 'year_level',
+                                        old_value: oldStudentData.year_level || '',
+                                        new_value: yearLevel
+                                    }, 'student');
+                                }
+                                if (selectedPhoto && oldStudentData.profile_photo !== selectedPhoto) {
+                                    await logStudentChange({
+                                        user_id: userId,
+                                        user_type: 'student',
+                                        action: 'UPDATE',
+                                        table_name: 'students',
+                                        record_id: userId,
+                                        field_name: 'profile_photo',
+                                        old_value: oldStudentData.profile_photo || '',
+                                        new_value: '[Photo Updated]'
+                                    }, 'student');
+                                }
+                                if (password) {
+                                    await logStudentChange({
+                                        user_id: userId,
+                                        user_type: 'student',
+                                        action: 'UPDATE',
+                                        table_name: 'students',
+                                        record_id: userId,
+                                        field_name: 'password',
+                                        old_value: '[Previous Password]',
+                                        new_value: '[Password Changed]'
+                                    }, 'student');
+                                }
+                            }
+                        } catch (logError) {
+                            console.error('Failed to log profile changes:', logError);
                         }
 
                         const profileFullNameDisplay = document.getElementById('profileFullNameDisplay');
@@ -388,13 +568,15 @@ export async function initStudentProfile() {
                             profileFullNameDisplay.textContent = `${firstName} ${lastName}`.trim();
                         }
 
-                        if (result.student && result.student.profile_photo) {
-                            const initials = getInitials(`${firstName} ${lastName}`.trim());
-                            if (profilePhotoPreview) {
-                                profilePhotoPreview.innerHTML = getPhotoPreview(result.student.profile_photo, initials);
-                            }
-                            selectedPhoto = null;
+                        const updatedPhoto = studentData.profile_photo || selectedPhoto || '';
+                        const initials = getInitials(`${firstName} ${lastName}`.trim());
+                        if (profilePhotoPreview) {
+                            profilePhotoPreview.innerHTML = getPhotoPreview(updatedPhoto, initials);
                         }
+                        selectedPhoto = null;
+                        if (profilePhotoInput) profilePhotoInput.value = '';
+
+                        updateNavbarProfile(studentData);
 
                         document.getElementById('settingsPassword').value = '';
                         document.getElementById('settingsOldPassword').value = '';
@@ -414,27 +596,6 @@ export async function initStudentProfile() {
                     }
                 }
             });
-        });
-    }
-
-    const resetBtn = document.getElementById('resetProfileBtn');
-    if (resetBtn) {
-        resetBtn.addEventListener('click', () => {
-            document.getElementById('settingsFirstName').value = studentData.first_name || '';
-            document.getElementById('settingsLastName').value = studentData.last_name || '';
-            document.getElementById('settingsUsername').value = studentData.username || '';
-            document.getElementById('settingsEmail').value = studentData.email || '';
-            document.getElementById('settingsStudentNumber').value = studentData.student_number || '';
-            document.getElementById('settingsProgram').value = studentData.program || '';
-            document.getElementById('settingsYearLevel').value = studentData.year_level || '';
-            document.getElementById('settingsPassword').value = '';
-            document.getElementById('settingsOldPassword').value = '';
-
-            selectedPhoto = null;
-            const initials = getInitials(`${studentData.first_name || ''} ${studentData.last_name || ''}`.trim());
-            if (profilePhotoPreview) {
-                profilePhotoPreview.innerHTML = getPhotoPreview(studentData.profile_photo || '', initials);
-            }
         });
     }
 
@@ -487,9 +648,23 @@ function getInitials(name) {
 }
 
 function getPhotoPreview(profilePhoto, initials) {
-    return profilePhoto
-        ? `<img id="profile-photo-img" src="${profilePhoto}" alt="Profile" class="w-full h-full object-cover rounded-full">`
-        : `<div id="profile-initials-fallback" class="w-full h-full rounded-full bg-blue-900 text-blue-100 flex items-center justify-center text-2xl font-bold">${initials}</div>`;
+    if (profilePhoto) {
+        const isValidPhoto = profilePhoto && 
+                           profilePhoto.length > 0 &&
+                           (profilePhoto.startsWith('data:image/') || 
+                            profilePhoto.startsWith('http'));
+        
+        if (!isValidPhoto) {
+            return `<div class="w-full h-full rounded-full overflow-hidden">${getDefaultProfileSVG('100%', '100%')}</div>`;
+        }
+        
+        const photoUrl = profilePhoto.startsWith('data:') 
+            ? profilePhoto 
+            : `${profilePhoto}${profilePhoto.includes('?') ? '&' : '?'}_t=${Date.now()}`;
+
+        return `<img id="profile-photo-img" src="${photoUrl}" alt="Profile" class="w-full h-full object-cover rounded-full" crossorigin="anonymous" onerror="handleProfileImageError(this)">`;
+    }
+    return `<div class="w-full h-full rounded-full overflow-hidden">${getDefaultProfileSVG('100%', '100%')}</div>`;
 }
 
 function togglePassword(inputId) {

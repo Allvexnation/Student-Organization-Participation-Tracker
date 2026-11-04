@@ -1,10 +1,12 @@
 import { openModal, closeModal, setModalButtonLoading } from '../../../utils/modal.js';
-import { animateModalOpen, animateModalClose, clearModalAnimations, animateFormElements } from '../../../provider/ModalAnimation.js';
+import { animateModalClose, clearModalAnimations } from '../../../provider/ModalAnimation.js';
 import { showToast } from '../../ToastMessage.js';
 import { API_ROUTES } from '../../../api/server/api.js';
 import { getToken } from '../../../utils/jwt.js';
+import { MembershipValidator } from '../../../validator/MembershipValidator.js';
+import { FIELD_CLASS, LABEL_CLASS, modalSection, modalActions, applyModalDomino } from '../modalUi.js';
 
-export function openTaskModal({ mode = 'add', task = null, taskId = null, taskGroup = null, eventId, eventTitle, organizationId, memberships = [], onSubmit }) {
+export function openTaskModal({ mode = 'add', task = null, taskId = null, taskGroup = null, eventId, eventTitle, organizationId, memberships = [], onSubmit, event = null }) {
     const isEdit = mode === 'edit';
     const title = isEdit ? 'Edit Task' : 'New Task';
     const buttonText = isEdit ? 'Save Changes' : 'Add Task';
@@ -31,139 +33,101 @@ export function openTaskModal({ mode = 'add', task = null, taskId = null, taskGr
     const taskDescVal = isEdit ? (taskGroup ? (taskGroup.description || '') : (task?.task_description || '')) : '';
     const startDateVal = isEdit 
         ? ((taskGroup?.students && (taskGroup.students[0]?.student_start_date || taskGroup.students[0]?.start_date)) || task?.student_start_date || task?.start_date || '') 
-        : '';
+        : (event?.event_day_start || '');
     const endDateVal = isEdit 
         ? ((taskGroup?.students && (taskGroup.students[0]?.student_end_date || taskGroup.students[0]?.end_date)) || task?.student_end_date || task?.end_date || '') 
-        : '';
+        : (event?.event_day_end || '');
 
     const allCheckedInitially = uniqueMemberships.length > 0 && uniqueMemberships.every(m => assignedStudentIds.has(parseInt(m.student_id)));
 
     const formContent = `
-        <form id="taskForm" class="space-y-5">
+        <form id="taskForm" class="manage-modal-form space-y-4">
             ${isEdit ? `<input type="hidden" id="taskId" value="${task?.id || taskId || ''}">` : ''}
             <input type="hidden" id="eventId" value="${eventId || ''}">
             <input type="hidden" id="organizationId" value="${organizationId || ''}">
-
-            <fieldset>
-                <legend class="text-xs font-semibold text-gray-500 uppercase tracking-wider mb-3">Event Context</legend>
-                <div class="bg-blue-50 border border-blue-200 rounded-md p-3">
-                    <p class="text-sm font-medium text-blue-900">${eventTitle || 'Event'}</p>
+            ${modalSection('Event Context', `
+                <div class="rounded-xl border border-blue-100 bg-blue-50 px-3.5 py-3">
+                    <p class="text-[10px] uppercase tracking-[0.12em] text-navy/70">Assigned Event</p>
+                    <p class="text-sm font-semibold text-navy mt-1">${eventTitle || 'Event'}</p>
                 </div>
-            </fieldset>
-
-            <fieldset>
-                <legend class="text-xs font-semibold text-gray-500 uppercase tracking-wider mb-3">Task Details</legend>
+            `)}
+            ${modalSection('Task Details', `
                 <div class="space-y-3">
                     <div>
-                        <label for="taskTitle" class="block text-sm font-medium text-gray-700 mb-1">Task Title</label>
-                        <input type="text" id="taskTitle" name="taskTitle"
-                            placeholder="Enter a brief title for the task"
-                            class="w-full px-3 py-2 text-sm border border-gray-200 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-transparent transition"
-                            value="${taskTitleVal}">
+                        <label for="taskTitle" class="${LABEL_CLASS}">Task Title</label>
+                        <input type="text" id="taskTitle" name="taskTitle" placeholder="Enter a brief title for the task" class="${FIELD_CLASS}" value="${taskTitleVal}">
                     </div>
                     <div>
-                        <label for="taskDescription" class="block text-sm font-medium text-gray-700 mb-1">Task Description <span class="text-red-500">*</span></label>
-                        <textarea id="taskDescription" name="taskDescription" rows="3" required
-                            placeholder="Describe the task to be completed"
-                            class="w-full px-3 py-2 text-sm border border-gray-200 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-transparent transition resize-none">${taskDescVal}</textarea>
+                        <label for="taskDescription" class="${LABEL_CLASS}">Task Description <span class="text-red-500">*</span></label>
+                        <textarea id="taskDescription" name="taskDescription" rows="3" required placeholder="Describe the task to be completed" class="${FIELD_CLASS} resize-none">${taskDescVal}</textarea>
                     </div>
                     <div>
-                        <div class="flex items-center justify-between mb-2">
-                            <label class="block text-sm font-medium text-gray-700">Assign to Students <span class="text-red-500">*</span></label>
-                            <button type="button" id="selectAllStudentsBtn" class="text-xs text-blue-900 hover:text-blue-700 font-medium">
+                        <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2 mb-2">
+                            <label class="${LABEL_CLASS} mb-0">Assign to Students <span class="text-red-500">*</span></label>
+                            <button type="button" id="selectAllStudentsBtn" class="text-xs text-navy hover:text-navy-700 font-medium self-start sm:self-auto">
                                 ${allCheckedInitially ? 'Deselect All' : 'Select All'}
                             </button>
                         </div>
-                        <div id="studentsList" class="space-y-2 max-h-40 overflow-y-auto border border-gray-200 rounded-md p-3 bg-gray-50">
+                        <div id="studentsList" class="space-y-2 max-h-44 overflow-y-auto rounded-xl border border-line p-2 sm:p-3 bg-surface">
                             ${uniqueMemberships.map(m => {
                                 const isChecked = isEdit && assignedStudentIds.has(parseInt(m.student_id));
+                                const isInactive = MembershipValidator.isInactive(m);
+                                const displayName = MembershipValidator.getDisplayName(m);
                                 return `
-                                    <label class="flex items-center gap-2 cursor-pointer hover:bg-gray-100 p-1 rounded">
-                                        <input type="checkbox" name="studentSelect" value="${m.student_id}" ${isChecked ? 'checked' : ''} 
-                                            class="w-4 h-4 text-blue-900 border-gray-300 rounded focus:ring-blue-500">
-                                        <span class="text-sm text-gray-700 flex-1">${m.student_name} (${m.student_number || 'N/A'})</span>
-                                        <span class="text-xs text-gray-500 bg-gray-100 px-2 py-1 rounded">${m.role_name || m.position || 'Member'}</span>
+                                    <label class="flex flex-col sm:flex-row sm:items-center gap-1.5 sm:gap-2 cursor-pointer hover:bg-white p-2.5 rounded-xl border border-transparent hover:border-line ${isInactive ? 'opacity-60 cursor-not-allowed' : ''}">
+                                        <span class="flex items-center gap-2 min-w-0">
+                                            <input type="checkbox" name="studentSelect" value="${m.student_id}" ${isChecked ? 'checked' : ''} ${isInactive ? 'disabled' : ''}
+                                                class="w-4 h-4 text-navy border-gray-300 rounded focus:ring-navy">
+                                            <span class="text-sm text-ink flex-1">${displayName} (${m.student_number || 'N/A'})</span>
+                                        </span>
+                                        <span class="text-xs text-muted bg-white px-2 py-1 rounded-lg border border-line ml-6 sm:ml-0">${m.role_name || m.position || 'Member'}</span>
                                     </label>
                                 `;
                             }).join('')}
                         </div>
                     </div>
-                    <div class="grid grid-cols-2 gap-3">
+                    <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
                         <div>
-                            <label for="startDate" class="block text-sm font-medium text-gray-700 mb-1">Start Date <span class="text-red-500">*</span></label>
-                            <input type="date" id="startDate" name="startDate" value="${startDateVal}" required
-                                class="w-full px-3 py-2 text-sm border border-gray-200 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-transparent transition">
+                            <label for="startDate" class="${LABEL_CLASS}">Start Date <span class="text-red-500">*</span></label>
+                            <input type="date" id="startDate" name="startDate" value="${startDateVal}" required class="${FIELD_CLASS}">
                         </div>
                         <div>
-                            <label for="endDate" class="block text-sm font-medium text-gray-700 mb-1">End Date <span class="text-red-500">*</span></label>
-                            <input type="date" id="endDate" name="endDate" value="${endDateVal}" required
-                                class="w-full px-3 py-2 text-sm border border-gray-200 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-transparent transition">
+                            <label for="endDate" class="${LABEL_CLASS}">End Date <span class="text-red-500">*</span></label>
+                            <input type="date" id="endDate" name="endDate" value="${endDateVal}" required class="${FIELD_CLASS}">
                         </div>
                     </div>
                     ${eventId ? `
-                    <button type="button" id="syncToEventBtn" class="w-full px-3 py-2 text-xs font-medium text-blue-900 bg-blue-50 hover:bg-blue-100 rounded border border-blue-200 transition flex items-center justify-center gap-2">
+                    <button type="button" id="syncToEventBtn" class="w-full px-3 py-2.5 text-xs font-medium text-navy bg-blue-50 hover:bg-blue-100 rounded-xl border border-blue-100 transition flex items-center justify-center gap-2">
                         <i data-lucide="refresh-cw" class="w-3 h-3"></i>
                         <span>Sync to Event Schedule</span>
                     </button>
                     ` : ''}
                 </div>
-            </fieldset>
-
-            <hr class="border-gray-100">
-
-            <fieldset>
-                <legend class="text-xs font-semibold text-gray-500 uppercase tracking-wider mb-3">Student Schedule Configuration</legend>
+            `)}
+            ${modalSection('Student Schedule Configuration', `
                 <div class="space-y-3">
-                    <div class="flex items-center justify-between">
-                        <p class="text-sm text-gray-600">Configure daily schedules for each student</p>
-                        <button type="button" id="applyToAllBtn" class="px-3 py-1 text-xs font-medium text-blue-900 bg-blue-50 hover:bg-blue-100 rounded border border-blue-200 transition">
+                    <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2">
+                        <p class="text-sm text-muted">Configure daily schedules for each student</p>
+                        <button type="button" id="applyToAllBtn" class="w-full sm:w-auto px-3 py-2 text-xs font-medium text-navy bg-blue-50 hover:bg-blue-100 rounded-xl border border-blue-100 transition">
                             Apply to All Students
                         </button>
                     </div>
-                    <div id="studentSchedulesContainer" class="space-y-4 max-h-80 overflow-y-auto border border-gray-200 rounded-md p-3 bg-gray-50">
-                        <p class="text-sm text-gray-400 text-center py-4">Select students first to configure their schedules</p>
+                    <div id="studentSchedulesContainer" class="space-y-3 max-h-80 overflow-y-auto rounded-xl border border-line p-2 sm:p-3 bg-surface">
+                        <p class="text-sm text-muted text-center py-4">Select students first to configure their schedules</p>
                     </div>
                 </div>
-            </fieldset>
-
-            <div id="formError" class="hidden text-sm text-red-600 bg-red-50 border border-red-200 rounded-md px-3 py-2"></div>
-
-            <div class="flex justify-end pt-3 border-t border-gray-100 flex-row gap-2">
-                <button 
-                    type="button" 
-                    onclick="closeTaskModal()" 
-                    class="px-4 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-md hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-gray-200 transition">
-                    Cancel
-                </button>
-                <button 
-                    type="submit" 
-                    id="submitBtn" 
-                    class="px-5 py-2 text-sm font-medium text-white bg-blue-900 hover:bg-blue-800 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-1 transition">
-                    ${buttonText}
-                </button>
-            </div>
+            `)}
+            <div id="formError" class="hidden text-sm text-red-700 bg-red-50 border border-red-200 rounded-xl px-3 py-2.5"></div>
+            ${modalActions({ cancelOnclick: 'closeTaskModal()', submitText: buttonText })}
         </form>
     `;
 
-    openModal(title, formContent, 'mid-large');
-
-    const modalOverlay = document.getElementById('modal-overlay');
-    const modalContent = document.getElementById('modal-content');
-    if (modalOverlay && modalContent) {
-        animateModalOpen(modalOverlay, modalContent, 'scale');
-    }
-
-    setTimeout(() => {
-        const form = document.getElementById('taskForm');
-        if (form) {
-            animateFormElements(form);
-        }
-    }, 100);
-
-    setupFormHandlers({ taskId, buttonText, onSubmit, task, taskGroup, isEdit });
+    openModal(title, formContent, 'large');
+    applyModalDomino();
+    setupFormHandlers({ taskId, buttonText, onSubmit, task, taskGroup, isEdit, event });
 }
 
-function setupFormHandlers({ taskId, buttonText, onSubmit, task, taskGroup, isEdit }) {
+function setupFormHandlers({ taskId, buttonText, onSubmit, task, taskGroup, isEdit, event }) {
     const form = document.getElementById('taskForm');
     if (form) {
         form.addEventListener('submit', async (e) => {
@@ -229,7 +193,7 @@ function setupFormHandlers({ taskId, buttonText, onSubmit, task, taskGroup, isEd
         });
         
         if (selectedStudents.length === 0) {
-            studentSchedulesContainer.innerHTML = '<p class="text-sm text-gray-400 text-center py-4">Select students first to configure their schedules</p>';
+            studentSchedulesContainer.innerHTML = '<p class="text-sm text-muted text-center py-4">Select students first to configure their schedules</p>';
             return;
         }
         
@@ -237,7 +201,7 @@ function setupFormHandlers({ taskId, buttonText, onSubmit, task, taskGroup, isEd
         const endDate = endDateInput.value;
         
         if (!startDate || !endDate) {
-            studentSchedulesContainer.innerHTML = '<p class="text-sm text-gray-400 text-center py-4">Select start and end dates to generate schedules</p>';
+            studentSchedulesContainer.innerHTML = '<p class="text-sm text-muted text-center py-4">Select start and end dates to generate schedules</p>';
             return;
         }
         
@@ -283,42 +247,50 @@ function setupFormHandlers({ taskId, buttonText, onSubmit, task, taskGroup, isEd
             }
             
             html += `
-                <div class="bg-white rounded border border-gray-200 p-3" data-student-id="${studentId}">
-                    <div class="flex items-center justify-between mb-2">
-                        <h4 class="text-sm font-semibold text-gray-900">${student.name}</h4>
-                        <button type="button" class="px-2 py-1 text-xs font-medium text-blue-900 bg-blue-50 hover:bg-blue-100 rounded border border-blue-200 transition" onclick="copySchedulesToAll(${studentId})">
+                <div class="bg-white rounded-2xl border border-line p-3" data-student-id="${studentId}">
+                    <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2 mb-3">
+                        <h4 class="text-sm font-semibold text-ink">${student.name}</h4>
+                        <button type="button" class="w-full sm:w-auto px-2.5 py-1.5 text-xs font-medium text-navy bg-blue-50 hover:bg-blue-100 rounded-xl border border-blue-100 transition" onclick="copySchedulesToAll(${studentId})">
                             Copy to All
                         </button>
                     </div>
-                    <div class="grid grid-cols-2 gap-2 mb-3">
+                    <div class="grid grid-cols-1 sm:grid-cols-2 gap-2 mb-3">
                         <div>
-                            <label class="block text-xs font-medium text-gray-700 mb-1">Student Start Date</label>
+                            <label class="block text-xs font-medium text-ink mb-1">Student Start Date</label>
                             <input type="date" name="student_${studentId}_start_date" value="${studentSchedules[studentId]?.student_start_date || startDate}" 
-                                class="w-full px-2 py-1 text-xs border border-gray-200 rounded focus:ring-2 focus:ring-blue-500"
+                                class="w-full px-2.5 py-2 text-xs border border-line rounded-xl focus:ring-2 focus:ring-navy/15"
                                 onchange="updateStudentDate(${studentId}, 'student_start_date', this.value)">
                         </div>
                         <div>
-                            <label class="block text-xs font-medium text-gray-700 mb-1">Student End Date</label>
+                            <label class="block text-xs font-medium text-ink mb-1">Student End Date</label>
                             <input type="date" name="student_${studentId}_end_date" value="${studentSchedules[studentId]?.student_end_date || endDate}" 
-                                class="w-full px-2 py-1 text-xs border border-gray-200 rounded focus:ring-2 focus:ring-blue-500"
+                                class="w-full px-2.5 py-2 text-xs border border-line rounded-xl focus:ring-2 focus:ring-navy/15"
                                 onchange="updateStudentDate(${studentId}, 'student_end_date', this.value)">
                         </div>
                     </div>
                     <div class="space-y-2 max-h-40 overflow-y-auto">
                         ${studentSchedules[studentId].map((schedule, index) => {
-                            const date = new Date(schedule.date);
+                            const schedDateStr = schedule.date || schedule.schedule_date || '';
+                            const date = schedDateStr ? new Date(schedDateStr + 'T00:00:00') : new Date();
                             const formattedDate = date.toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' });
+                            const startTimeVal = schedule.start_time ? schedule.start_time.substring(0, 5) : '09:00';
+                            const endTimeVal = schedule.end_time ? schedule.end_time.substring(0, 5) : '17:00';
                             return `
-                                <div class="flex items-center gap-2 p-2 bg-gray-50 rounded border border-gray-200">
-                                    <span class="text-xs font-medium text-gray-700 w-28">${formattedDate}</span>
-                                    <input type="time" name="schedule_${studentId}_${index}_start" value="${schedule.start_time}" 
-                                        class="px-2 py-1 text-xs border border-gray-200 rounded focus:ring-2 focus:ring-blue-500"
-                                        onchange="updateSchedule(${studentId}, ${index}, 'start_time', this.value)">
-                                    <span class="text-xs text-gray-500">to</span>
-                                    <input type="time" name="schedule_${studentId}_${index}_end" value="${schedule.end_time}" 
-                                        class="px-2 py-1 text-xs border border-gray-200 rounded focus:ring-2 focus:ring-blue-500"
-                                        onchange="updateSchedule(${studentId}, ${index}, 'end_time', this.value)">
-                                    <input type="hidden" name="schedule_${studentId}_${index}_date" value="${schedule.date}">
+                                <div class="flex flex-col sm:flex-row sm:items-center gap-2 p-2.5 bg-surface rounded-xl border border-line">
+                                    <div class="flex items-center justify-between sm:justify-start gap-2 shrink-0">
+                                        <span class="text-xs font-bold text-navy">Day ${schedule.day_number || (index + 1)}</span>
+                                        <span class="text-xs font-medium text-muted">${formattedDate}</span>
+                                    </div>
+                                    <div class="flex items-center gap-2 min-w-0">
+                                        <input type="time" name="schedule_${studentId}_${index}_start" value="${startTimeVal}" 
+                                            class="flex-1 px-2 py-1.5 text-xs border border-line rounded-lg focus:ring-2 focus:ring-navy/15"
+                                            onchange="updateSchedule(${studentId}, ${index}, 'start_time', this.value)">
+                                        <span class="text-xs text-muted">to</span>
+                                        <input type="time" name="schedule_${studentId}_${index}_end" value="${endTimeVal}" 
+                                            class="flex-1 px-2 py-1.5 text-xs border border-line rounded-lg focus:ring-2 focus:ring-navy/15"
+                                            onchange="updateSchedule(${studentId}, ${index}, 'end_time', this.value)">
+                                    </div>
+                                    <input type="hidden" name="schedule_${studentId}_${index}_date" value="${schedDateStr}">
                                 </div>
                             `;
                         }).join('')}
@@ -417,7 +389,7 @@ function setupFormHandlers({ taskId, buttonText, onSubmit, task, taskGroup, isEd
             if (typeof lucide !== 'undefined') lucide.createIcons();
 
             try {
-                const token = getToken();
+                const token = getToken('adviser');
                 const response = await fetch(API_ROUTES.ADVISER.EVENT_GET(eventId), {
                     method: 'GET',
                     headers: {
@@ -431,32 +403,42 @@ function setupFormHandlers({ taskId, buttonText, onSubmit, task, taskGroup, isEd
                 }
 
                 const data = await response.json();
-                const event = data.event;
+                const ev = data.event || data;
 
-                if (event.event_day_start && event.event_day_end) {
-                    startDateInput.value = event.event_day_start;
-                    endDateInput.value = event.event_day_end;
+                if (ev && (ev.event_day_start || ev.start_date) && (ev.event_day_end || ev.end_date)) {
+                    const eStart = ev.event_day_start || ev.start_date;
+                    const eEnd = ev.event_day_end || ev.end_date;
+                    startDateInput.value = eStart;
+                    endDateInput.value = eEnd;
                     
-                    const start = new Date(event.event_day_start);
-                    const end = new Date(event.event_day_end);
+                    const start = new Date(eStart + 'T00:00:00');
+                    const end = new Date(eEnd + 'T00:00:00');
                     const dates = getDatesInRange(start, end);
 
-                    const baseSchedules = dates.map(date => ({
-                        date: date.toISOString().split('T')[0],
-                        start_time: '09:00',
-                        end_time: '17:00'
-                    }));
-
-                    if (event.daily_schedules && event.daily_schedules.length > 0) {
-                        baseSchedules.length = 0;
-                        baseSchedules.push(...event.daily_schedules);
+                    let baseSchedules = [];
+                    if (ev.daily_schedules && ev.daily_schedules.length > 0) {
+                        baseSchedules = ev.daily_schedules.map((ds, idx) => ({
+                            day_number: ds.day_number || (idx + 1),
+                            date: ds.schedule_date || ds.date,
+                            start_time: ds.start_time ? ds.start_time.substring(0, 5) : '09:00',
+                            end_time: ds.end_time ? ds.end_time.substring(0, 5) : '17:00',
+                            status: ds.status || 'pending'
+                        }));
+                    } else {
+                        baseSchedules = dates.map((date, idx) => ({
+                            day_number: idx + 1,
+                            date: formatLocalDate(date),
+                            start_time: '09:00',
+                            end_time: '17:00',
+                            status: 'pending'
+                        }));
                     }
                     
                     const selectedStudents = Array.from(document.querySelectorAll('input[name="studentSelect"]:checked')).map(cb => parseInt(cb.value));
                     selectedStudents.forEach(studentId => {
                         studentSchedules[studentId] = baseSchedules.map(s => ({ ...s }));
-                        studentSchedules[studentId].student_start_date = event.event_day_start;
-                        studentSchedules[studentId].student_end_date = event.event_day_end;
+                        studentSchedules[studentId].student_start_date = eStart;
+                        studentSchedules[studentId].student_end_date = eEnd;
                     });
                     
                     renderStudentSchedules();
@@ -488,6 +470,14 @@ function setupFormHandlers({ taskId, buttonText, onSubmit, task, taskGroup, isEd
     window.getStudentSchedules = () => studentSchedules;
 
     renderStudentSchedules();
+}
+
+function formatLocalDate(d) {
+    if (!d) return '';
+    const y = d.getFullYear();
+    const m = String(d.getMonth() + 1).padStart(2, '0');
+    const day = String(d.getDate()).padStart(2, '0');
+    return `${y}-${m}-${day}`;
 }
 
 function getDatesInRange(startDate, endDate) {
@@ -560,8 +550,9 @@ async function processTaskSubmit({ isEdit, taskGroup, taskId, buttonText, onSubm
     const studentsPayload = selectedStudentIds.map(studentId => {
         let schedules = studentSchedules[studentId];
         if (!schedules || schedules.length === 0) {
-            schedules = dates.map(date => ({
-                date: date.toISOString().split('T')[0],
+            schedules = dates.map((date, idx) => ({
+                day_number: idx + 1,
+                date: formatLocalDate(date),
                 start_time: '09:00',
                 end_time: '17:00',
                 status: 'pending'
@@ -572,12 +563,18 @@ async function processTaskSubmit({ isEdit, taskGroup, taskId, buttonText, onSubm
             student_id: studentId,
             student_start_date: studentSchedules[studentId]?.student_start_date || startDate,
             student_end_date: studentSchedules[studentId]?.student_end_date || endDate,
-            daily_schedules: schedules.map(s => ({
-                date: s.date,
-                start_time: s.start_time,
-                end_time: s.end_time,
-                status: s.status || 'pending'
-            }))
+            daily_schedules: schedules.map((s, schIdx) => {
+                const sDate = s.date || s.schedule_date;
+                const sStart = s.start_time ? (s.start_time.length === 5 ? s.start_time + ':00' : s.start_time) : '09:00:00';
+                const sEnd = s.end_time ? (s.end_time.length === 5 ? s.end_time + ':00' : s.end_time) : '17:00:00';
+                return {
+                    day_number: s.day_number || (schIdx + 1),
+                    date: sDate,
+                    start_time: sStart,
+                    end_time: sEnd,
+                    status: s.status || 'pending'
+                };
+            })
         };
     });
 
@@ -614,6 +611,7 @@ async function closeTaskModal() {
         await animateModalClose(modalOverlay, modalContent, 'scale');
         clearModalAnimations(modalOverlay, modalContent);
         modalOverlay.remove();
+        document.body.classList.remove('overflow-hidden');
         document.removeEventListener('keydown', (e) => {
             if (e.key === 'Escape') closeTaskModal();
         });

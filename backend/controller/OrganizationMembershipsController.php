@@ -2,6 +2,7 @@
 
 require_once __DIR__ . '/../model/OrganizationMembershipsModel.php';
 require_once __DIR__ . '/../config/jwt.php';
+require_once __DIR__ . '/../cache/CacheService.php';
 
 class OrganizationMembershipsController {
     private $orgMembershipsModel;
@@ -10,11 +11,40 @@ class OrganizationMembershipsController {
         $this->orgMembershipsModel = new OrganizationMembershipsModel();
     }
 
+    private function getBearerToken() {
+        $headers = function_exists('getallheaders') ? getallheaders() : [];
+        if (!empty($headers)) {
+            foreach ($headers as $key => $value) {
+                if (strtolower($key) === 'authorization') {
+                    $token = trim(str_ireplace('Bearer ', '', $value));
+                    if (!empty($token) && $token !== 'null' && $token !== 'undefined') {
+                        return $token;
+                    }
+                }
+            }
+        }
+        
+        if (!empty($_SERVER['HTTP_AUTHORIZATION'])) {
+            $token = trim(str_ireplace('Bearer ', '', $_SERVER['HTTP_AUTHORIZATION']));
+            if (!empty($token) && $token !== 'null' && $token !== 'undefined') {
+                return $token;
+            }
+        }
+        
+        if (!empty($_SERVER['REDIRECT_HTTP_AUTHORIZATION'])) {
+            $token = trim(str_ireplace('Bearer ', '', $_SERVER['REDIRECT_HTTP_AUTHORIZATION']));
+            if (!empty($token) && $token !== 'null' && $token !== 'undefined') {
+                return $token;
+            }
+        }
+        
+        return null;
+    }
+
     public function getAll() {
         header('Content-Type: application/json');
         
-        $headers = getallheaders();
-        $token = isset($headers['Authorization']) ? str_replace('Bearer ', '', $headers['Authorization']) : null;
+        $token = $this->getBearerToken();
         
         if (!$token || !JWT::validate($token)) {
             http_response_code(401);
@@ -22,7 +52,9 @@ class OrganizationMembershipsController {
             return;
         }
 
-        $orgMemberships = $this->orgMembershipsModel->readAll();
+        $orgMemberships = CacheService::remember('org_memberships_all', 300, function() {
+            return $this->orgMembershipsModel->readAll();
+        });
 
         if ($orgMemberships !== false) {
             http_response_code(200);
@@ -36,8 +68,7 @@ class OrganizationMembershipsController {
     public function getOne($id) {
         header('Content-Type: application/json');
         
-        $headers = getallheaders();
-        $token = isset($headers['Authorization']) ? str_replace('Bearer ', '', $headers['Authorization']) : null;
+        $token = $this->getBearerToken();
         
         if (!$token || !JWT::validate($token)) {
             http_response_code(401);
@@ -59,8 +90,7 @@ class OrganizationMembershipsController {
     public function create() {
         header('Content-Type: application/json');
         
-        $headers = getallheaders();
-        $token = isset($headers['Authorization']) ? str_replace('Bearer ', '', $headers['Authorization']) : null;
+        $token = $this->getBearerToken();
         
         if (!$token || !JWT::validate($token)) {
             http_response_code(401);
@@ -83,6 +113,9 @@ class OrganizationMembershipsController {
         }
 
         $result = $this->orgMembershipsModel->create($data);
+        if ($result) {
+            CacheService::forget('org_memberships_all');
+        }
 
         if ($result) {
             http_response_code(201);
@@ -96,8 +129,7 @@ class OrganizationMembershipsController {
     public function update($id) {
         header('Content-Type: application/json');
         
-        $headers = getallheaders();
-        $token = isset($headers['Authorization']) ? str_replace('Bearer ', '', $headers['Authorization']) : null;
+        $token = $this->getBearerToken();
         
         if (!$token || !JWT::validate($token)) {
             http_response_code(401);
@@ -120,6 +152,10 @@ class OrganizationMembershipsController {
         }
 
         $result = $this->orgMembershipsModel->update($id, $data);
+        if ($result) {
+            CacheService::forget('org_memberships_all');
+            CacheService::forget('org_membership_' . $id);
+        }
 
         if ($result) {
             $orgMembership = $this->orgMembershipsModel->readOne($id);
@@ -137,8 +173,7 @@ class OrganizationMembershipsController {
     public function delete($id) {
         header('Content-Type: application/json');
         
-        $headers = getallheaders();
-        $token = isset($headers['Authorization']) ? str_replace('Bearer ', '', $headers['Authorization']) : null;
+        $token = $this->getBearerToken();
         
         if (!$token || !JWT::validate($token)) {
             http_response_code(401);
@@ -147,6 +182,10 @@ class OrganizationMembershipsController {
         }
 
         $result = $this->orgMembershipsModel->delete($id);
+        if ($result) {
+            CacheService::forget('org_memberships_all');
+            CacheService::forget('org_membership_' . $id);
+        }
 
         if ($result) {
             http_response_code(200);

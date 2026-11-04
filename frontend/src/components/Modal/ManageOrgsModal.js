@@ -1,105 +1,109 @@
 import { openModal, closeModal, setModalButtonLoading } from '../../utils/modal.js';
 import { openConfirmDialog } from '../Dialog/ConfirmDialog.js';
-import { animateModalOpen, animateModalClose, clearModalAnimations, animateFormElements, clearFormAnimations, animateViewModalElements } from '../../provider/ModalAnimation.js';
+import { animateModalClose, clearModalAnimations } from '../../provider/ModalAnimation.js';
 import * as OrganizationsAPI from '../../api/admin/Organizations/ManageOrganizations.js';
 import * as AdviserAPI from '../../api/admin/adviser/ManageAdviser.js';
 import { showToast } from '../ToastMessage.js';
 import { skeletonOrgForm, skeletonOrgView } from '../SkeletonLoading.js';
+import { AdviserValidator } from '../../validator/AdviserValidator.js';
+import { OrganizationCrudValidator } from '../../validator/OrganizationCrudValidator.js';
+import { FIELD_CLASS, LABEL_CLASS, modalSection, modalActions, modalViewClose, modalDetailTile, modalBadge, modalHero, applyModalDomino } from './modalUi.js';
+
+function escapeHtml(value) {
+    return String(value ?? '')
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;')
+        .replace(/"/g, '&quot;');
+}
+
+function statusTone(status) {
+    const lower = String(status || '').toLowerCase();
+    if (lower === 'active') return 'green';
+    if (lower === 'inactive') return 'gray';
+    return 'red';
+}
+
+function orgFormMarkup({ isEdit, organization, organizationId, buttonText }) {
+    const code = isEdit && organization ? escapeHtml(organization.org_code) : '';
+    const name = isEdit && organization ? escapeHtml(organization.name) : '';
+    const description = isEdit && organization ? escapeHtml(organization.description || '') : '';
+    const status = isEdit && organization ? organization.status : '';
+
+    return `
+        <form id="orgForm" class="manage-modal-form space-y-4">
+            ${isEdit ? `<input type="hidden" id="orgId" value="${escapeHtml(organization?.id || organizationId || '')}">` : ''}
+            ${modalSection('Organization Details', `
+                <div class="space-y-3">
+                    <div>
+                        <label for="orgCode" class="${LABEL_CLASS}">Organization Code <span class="text-red-500">*</span></label>
+                        <input type="text" id="orgCode" name="orgCode" value="${code}" required
+                            placeholder="e.g. PITS, JMS, BEC"
+                            class="${FIELD_CLASS} uppercase">
+                    </div>
+                    <div>
+                        <label for="orgName" class="${LABEL_CLASS}">Organization Name <span class="text-red-500">*</span></label>
+                        <input type="text" id="orgName" name="orgName" value="${name}" required
+                            placeholder="e.g. Philippine Institute of Technology Students"
+                            class="${FIELD_CLASS}">
+                    </div>
+                    <div>
+                        <label for="orgDescription" class="${LABEL_CLASS}">Description</label>
+                        <textarea id="orgDescription" name="orgDescription" rows="3"
+                            placeholder="Brief overview or purpose of the organization"
+                            class="${FIELD_CLASS} resize-none">${description}</textarea>
+                    </div>
+                </div>
+            `)}
+            ${modalSection('Status Information', `
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-3">
+                    <div>
+                        <label for="orgAdviser" class="${LABEL_CLASS}">Adviser</label>
+                        <select id="orgAdviser" name="orgAdviser" required class="${FIELD_CLASS}">
+                            <option value="">Select Adviser</option>
+                        </select>
+                    </div>
+                    <div>
+                        <label for="orgStatus" class="${LABEL_CLASS}">Status <span class="text-red-500">*</span></label>
+                        <select id="orgStatus" name="orgStatus" required class="${FIELD_CLASS}">
+                            <option value="">Select Status</option>
+                            <option value="Active" ${status === 'Active' ? 'selected' : ''}>Active</option>
+                            <option value="Inactive" ${status === 'Inactive' ? 'selected' : ''}>Inactive</option>
+                            <option value="Suspended" ${status === 'Suspended' ? 'selected' : ''}>Suspended</option>
+                        </select>
+                    </div>
+                </div>
+            `)}
+            <div id="formError" class="hidden text-sm text-red-700 bg-red-50 border border-red-200 rounded-xl px-3 py-2.5"></div>
+            ${modalActions({ cancelOnclick: 'closeManageOrgsModal()', submitText: buttonText })}
+        </form>
+    `;
+}
 
 export function openManageOrgsModal({ mode = 'add', organization = null, organizationId = null, onSubmit }) {
     const isEdit = mode === 'edit';
     const title = isEdit ? 'Edit Organization' : 'New Organization';
     const buttonText = isEdit ? 'Save Changes' : 'Add Organization';
-
-    const formContent = `
-        <form id="orgForm" class="space-y-5">
-            ${isEdit ? `<input type="hidden" id="orgId" value="${organization?.id || organizationId || ''}">` : ''}
-
-            <fieldset>
-                <legend class="text-xs font-semibold text-gray-500 uppercase tracking-wider mb-3">Organization Details</legend>
-                <div class="space-y-3">
-                    <div>
-                        <label for="orgCode" class="block text-sm font-medium text-gray-700 mb-1">Organization Code <span class="text-red-500">*</span></label>
-                        <input type="text" id="orgCode" name="orgCode" value="${isEdit && organization ? organization.org_code : ''}" required
-                            placeholder="e.g. PITS, JMS, BEC"
-                            class="w-full px-3 py-2 text-sm border border-gray-200 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-transparent transition uppercase">
-                    </div>
-                    <div>
-                        <label for="orgName" class="block text-sm font-medium text-gray-700 mb-1">Organization Name <span class="text-red-500">*</span></label>
-                        <input type="text" id="orgName" name="orgName" value="${isEdit && organization ? organization.name : ''}" required
-                            placeholder="e.g. Philippine Institute of Technology Students"
-                            class="w-full px-3 py-2 text-sm border border-gray-200 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-transparent transition">
-                    </div>
-                    <div>
-                        <label for="orgDescription" class="block text-sm font-medium text-gray-700 mb-1">Description</label>
-                        <textarea id="orgDescription" name="orgDescription" rows="3"
-                            placeholder="Brief overview or purpose of the organization"
-                            class="w-full px-3 py-2 text-sm border border-gray-200 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-transparent transition resize-none">${isEdit && organization ? organization.description : ''}</textarea>
-                    </div>
-                </div>
-            </fieldset>
-
-            <hr class="border-gray-100">
-
-            <fieldset>
-                <legend class="text-xs font-semibold text-gray-500 uppercase tracking-wider mb-3">Status Information</legend>
-                <div class="space-y-3">
-                    <div>
-                        <label for="orgAdviser" class="block text-sm font-medium text-gray-700 mb-1">Adviser</label>
-                        <select id="orgAdviser" name="orgAdviser" required
-                            class="w-full px-3 py-2 text-sm border border-gray-200 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-transparent bg-white transition">
-                            <option value="">Select Adviser</option>
-                        </select>
-                    </div>
-                    <div>
-                        <label for="orgStatus" class="block text-sm font-medium text-gray-700 mb-1">Status <span class="text-red-500">*</span></label>
-                        <select id="orgStatus" name="orgStatus" required
-                            class="w-full px-3 py-2 text-sm border border-gray-200 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-transparent bg-white transition">
-                            <option value="">Select Status</option>
-                            <option value="Active" ${isEdit && organization?.status === 'Active' ? 'selected' : ''}>Active</option>
-                            <option value="Inactive" ${isEdit && organization?.status === 'Inactive' ? 'selected' : ''}>Inactive</option>
-                            <option value="Suspended" ${isEdit && organization?.status === 'Suspended' ? 'selected' : ''}>Suspended</option>
-                        </select>
-                    </div>
-                </div>
-            </fieldset>
-
-            <div id="formError" class="hidden text-sm text-red-600 bg-red-50 border border-red-200 rounded-md px-3 py-2"></div>
-
-            <div class="flex justify-end pt-3 border-t border-gray-100 flex-row gap-2">
-                <button 
-                    type="button" 
-                    onclick="closeManageOrgsModal()" 
-                    class="px-4 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-md hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-gray-200 transition">
-                    Cancel
-                </button>
-                <button 
-                    type="submit" 
-                    id="submitBtn" 
-                    class="px-5 py-2 text-sm font-medium text-white bg-blue-900 hover:bg-blue-800 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-1 transition">
-                    ${buttonText}
-                </button>
-            </div>
-        </form>
-    `;
+    const formContent = orgFormMarkup({ isEdit, organization, organizationId, buttonText });
 
     if (isEdit && !organization && organizationId) {
         openModal(title, skeletonOrgForm(), 'mid-large');
-
-        const modalOverlay = document.getElementById('modal-overlay');
-        const modalContent = document.getElementById('modal-content');
-        if (modalOverlay && modalContent) {
-            animateModalOpen(modalOverlay, modalContent, 'scale');
-        }
+        applyModalDomino();
 
         setTimeout(async () => {
             try {
                 const fetchedOrg = await OrganizationsAPI.getOrganization(organizationId);
                 const modalBody = document.getElementById('modal-body');
                 if (modalBody) {
-                    modalBody.innerHTML = formContent;
+                    modalBody.innerHTML = orgFormMarkup({
+                        isEdit: true,
+                        organization: fetchedOrg,
+                        organizationId: fetchedOrg.id,
+                        buttonText
+                    });
                     populateFormWithOrg(fetchedOrg);
                     setupFormHandlers(fetchedOrg.id, buttonText, onSubmit);
+                    applyModalDomino();
                 }
             } catch (error) {
                 console.error('Error loading organization:', error);
@@ -109,20 +113,7 @@ export function openManageOrgsModal({ mode = 'add', organization = null, organiz
         }, 100);
     } else {
         openModal(title, formContent, 'mid-large');
-
-        const modalOverlay = document.getElementById('modal-overlay');
-        const modalContent = document.getElementById('modal-content');
-        if (modalOverlay && modalContent) {
-            animateModalOpen(modalOverlay, modalContent, 'scale');
-        }
-
-        setTimeout(() => {
-            const form = document.getElementById('orgForm');
-            if (form) {
-                animateFormElements(form);
-            }
-        }, 100);
-
+        applyModalDomino();
         setupFormHandlers(organization?.id, buttonText, onSubmit);
     }
 }
@@ -131,18 +122,16 @@ function populateFormWithOrg(organization) {
     const form = document.getElementById('orgForm');
     if (!form) return;
 
-    document.getElementById('orgId').value = organization.id;
-    document.getElementById('orgCode').value = organization.org_code;
-    document.getElementById('orgName').value = organization.name;
-    document.getElementById('orgDescription').value = organization.description || '';
-    document.getElementById('orgStatus').value = organization.status;
-
-    setTimeout(() => {
-        const formEl = document.getElementById('orgForm');
-        if (formEl) {
-            animateFormElements(formEl);
-        }
-    }, 50);
+    const orgId = document.getElementById('orgId');
+    if (orgId) orgId.value = organization.id;
+    const orgCode = document.getElementById('orgCode');
+    if (orgCode) orgCode.value = organization.org_code || '';
+    const orgName = document.getElementById('orgName');
+    if (orgName) orgName.value = organization.name || '';
+    const orgDescription = document.getElementById('orgDescription');
+    if (orgDescription) orgDescription.value = organization.description || '';
+    const orgStatus = document.getElementById('orgStatus');
+    if (orgStatus) orgStatus.value = organization.status || '';
 
     loadAdvisers(organization.adviser_id);
 }
@@ -168,11 +157,16 @@ async function loadAdvisers(selectedAdviserId = null) {
         if (adviserSelect) {
             adviserSelect.innerHTML = '<option value="">Select Adviser</option>';
             advisers.forEach(adviser => {
+                const isInactive = AdviserValidator.isInactive(adviser);
+                const displayName = AdviserValidator.getDisplayName(adviser);
                 const option = document.createElement('option');
                 option.value = adviser.id;
-                option.textContent = adviser.name;
+                option.textContent = displayName;
                 if (selectedAdviserId && selectedAdviserId == adviser.id) {
                     option.selected = true;
+                }
+                if (isInactive) {
+                    option.disabled = true;
                 }
                 adviserSelect.appendChild(option);
             });
@@ -206,6 +200,18 @@ async function processOrgSubmit(id, buttonText, onSubmit) {
         adviser_id: document.getElementById('orgAdviser').value,
         status: document.getElementById('orgStatus').value
     };
+
+    try {
+        const allOrganizations = await OrganizationsAPI.getAllOrganizations();
+        const validation = OrganizationCrudValidator.validateCodeUniqueness(formData.org_code, allOrganizations, id);
+        if (!validation.isValid) {
+            showFormError(validation.message);
+            showToast(validation.message, 'error');
+            return;
+        }
+    } catch (error) {
+        console.error('Error checking organization code:', error);
+    }
 
     const isEdit = id != null;
 
@@ -248,11 +254,12 @@ async function processOrgSubmit(id, buttonText, onSubmit) {
 async function closeManageOrgsModal() {
     const modalOverlay = document.getElementById('modal-overlay');
     const modalContent = document.getElementById('modal-content');
-    
+
     if (modalOverlay && modalContent) {
         await animateModalClose(modalOverlay, modalContent, 'scale');
         clearModalAnimations(modalOverlay, modalContent);
         modalOverlay.remove();
+        document.body.classList.remove('overflow-hidden');
         document.removeEventListener('keydown', (e) => {
             if (e.key === 'Escape') closeManageOrgsModal();
         });
@@ -265,12 +272,7 @@ window.closeManageOrgsModal = closeManageOrgsModal;
 
 export async function openViewOrgsModal(id) {
     openModal('Organization Details', skeletonOrgView(), 'mid-large');
-
-    const modalOverlay = document.getElementById('modal-overlay');
-    const modalContent = document.getElementById('modal-content');
-    if (modalOverlay && modalContent) {
-        animateModalOpen(modalOverlay, modalContent, 'scale');
-    }
+    applyModalDomino();
 
     try {
         const organization = await OrganizationsAPI.getOrganization(id);
@@ -286,76 +288,37 @@ export async function openViewOrgsModal(id) {
             month: 'long',
             day: 'numeric',
         }) : 'N/A';
+        const tone = statusTone(organization.status);
+        const code = escapeHtml(organization.org_code || 'ORG');
 
         const content = `
-            <div class="space-y-5">
-                <div class="flex flex-col sm:flex-row sm:items-center gap-4 bg-gray-50 rounded-lg p-4 border border-gray-100">
-                    <div class="flex-shrink-0 w-24 h-24 sm:w-32 sm:h-32 rounded-lg bg-blue-900 text-blue-100 flex items-center justify-center text-2xl font-bold shadow-sm mx-auto sm:mx-0">
-                        ${organization.org_code}
-                    </div>
-                    <div class="text-center sm:text-left">
-                        <h3 class="text-lg font-semibold text-gray-900">${organization.name}</h3>
-                        <p class="text-sm text-gray-500 mt-0.5">${organization.org_code}</p>
-                        <span class="inline-flex items-center px-2.5 py-0.5 mt-0.5 rounded-full text-xs font-medium ${organization.status === 'Active' ? 'bg-green-50 text-green-900' : organization.status === 'Inactive' ? 'bg-gray-50 text-gray-900' : 'bg-red-50 text-red-900'} border border-gray-200">
-                            ${organization.status}
-                        </span>
-                    </div>
-                </div>
-
-                <div class="border-b border-gray-200 pb-4">
-                    <h4 class="text-xs font-semibold text-gray-500 uppercase tracking-wider mb-3">Organization Details</h4>
-                    <dl class="grid grid-cols-1 sm:grid-cols-2 gap-x-6 gap-y-3">
-                        <div>
-                            <dt class="text-xs text-gray-400 font-medium">Organization Code</dt>
-                            <dd class="text-sm font-semibold text-gray-900 mt-0.5">${organization.org_code}</dd>
-                        </div>
-                        <div>
-                            <dt class="text-xs text-gray-400 font-medium">Organization Name</dt>
-                            <dd class="text-sm font-semibold text-gray-900 mt-0.5">${organization.name}</dd>
-                        </div>
-                        <div class="sm:col-span-2">
-                            <dt class="text-xs text-gray-400 font-medium">Description</dt>
-                            <dd class="text-sm font-semibold text-gray-900 mt-0.5">${organization.description || 'N/A'}</dd>
-                        </div>
+            <div class="space-y-4">
+                ${modalHero({
+                    fallback: `<span class="text-xl tracking-wide">${code}</span>`,
+                    name: escapeHtml(organization.name),
+                    subtitle: code,
+                    badges: [modalBadge(escapeHtml(organization.status || '—'), tone)]
+                })}
+                ${modalSection('Organization Details', `
+                    <dl class="grid grid-cols-1 md:grid-cols-2 gap-2.5">
+                        ${modalDetailTile('Organization Code', code)}
+                        ${modalDetailTile('Organization Name', escapeHtml(organization.name))}
+                        <div class="md:col-span-2">${modalDetailTile('Description', escapeHtml(organization.description || 'N/A'))}</div>
                     </dl>
-                </div>
-
-                <div class="border-b border-gray-200 pb-4">
-                    <h4 class="text-xs font-semibold text-gray-500 uppercase tracking-wider mb-3">Status Information</h4>
-                    <dl class="grid grid-cols-1 sm:grid-cols-2 gap-x-6 gap-y-3">
-                        <div>
-                            <dt class="text-xs text-gray-400 font-medium">Adviser</dt>
-                            <dd class="text-sm font-semibold text-gray-900 mt-0.5">${organization.adviser || 'N/A'}</dd>
-                        </div>
-                        <div>
-                            <dt class="text-xs text-gray-400 font-medium">Status</dt>
-                            <dd class="text-sm font-semibold text-gray-900 mt-0.5">${organization.status}</dd>
-                        </div>
+                `)}
+                ${modalSection('Status Information', `
+                    <dl class="grid grid-cols-1 md:grid-cols-2 gap-2.5">
+                        ${modalDetailTile('Adviser', escapeHtml(organization.adviser || 'N/A'))}
+                        ${modalDetailTile('Status', modalBadge(escapeHtml(organization.status || '—'), tone))}
                     </dl>
-                </div>
-
-                <div class="border-b border-gray-200 pb-4">
-                    <h4 class="text-xs font-semibold text-gray-500 uppercase tracking-wider mb-3">Timestamps</h4>
-                    <dl class="grid grid-cols-1 sm:grid-cols-2 gap-x-6 gap-y-3">
-                        <div>
-                            <dt class="text-xs text-gray-400 font-medium">Created At</dt>
-                            <dd class="text-sm font-semibold text-gray-900 mt-0.5">${createdAt}</dd>
-                        </div>
-                        <div>
-                            <dt class="text-xs text-gray-400 font-medium">Updated At</dt>
-                            <dd class="text-sm font-semibold text-gray-900 mt-0.5">${updatedAt}</dd>
-                        </div>
+                `)}
+                ${modalSection('Timestamps', `
+                    <dl class="grid grid-cols-1 md:grid-cols-2 gap-2.5">
+                        ${modalDetailTile('Created At', createdAt)}
+                        ${modalDetailTile('Updated At', updatedAt)}
                     </dl>
-                </div>
-
-                <div class="flex justify-end pt-3 border-t border-gray-100 flex-col sm:flex-row gap-2">
-                    <button 
-                        type="button" 
-                        onclick="closeModal()" 
-                        class="px-4 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-md hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-gray-200 transition">
-                        Close
-                    </button>
-                </div>
+                `)}
+                ${modalViewClose('closeManageOrgsModal()')}
             </div>
         `;
 
@@ -363,13 +326,7 @@ export async function openViewOrgsModal(id) {
         if (modalBody) {
             modalBody.innerHTML = content;
         }
-
-        setTimeout(() => {
-            const modalContentEl = document.getElementById('modal-content');
-            if (modalContentEl) {
-                animateViewModalElements(modalContentEl);
-            }
-        }, 50);
+        applyModalDomino();
     } catch (error) {
         console.error('Error loading organization:', error);
         showToast('Failed to load organization', 'error');

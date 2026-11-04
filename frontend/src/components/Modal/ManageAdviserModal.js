@@ -1,9 +1,11 @@
 import { openModal, closeModal, setModalButtonLoading } from '../../utils/modal.js';
 import { openConfirmDialog } from '../Dialog/ConfirmDialog.js';
-import { animateModalOpen, animateModalClose, clearModalAnimations, animateFormElements, clearFormAnimations, animateViewModalElements } from '../../provider/ModalAnimation.js';
+import { animateModalClose, clearModalAnimations } from '../../provider/ModalAnimation.js';
 import * as AdviserAPI from '../../api/admin/adviser/ManageAdviser.js';
 import { showToast } from '../ToastMessage.js';
 import { skeletonAdviserForm, skeletonAdviserView } from '../SkeletonLoading.js';
+import { AdviserCrudValidator } from '../../validator/AdviserCrudValidator.js';
+import { FIELD_CLASS, LABEL_CLASS, modalSection, modalActions, modalViewClose, modalDetailTile, modalBadge, modalHero, modalPhotoField, applyModalDomino } from './modalUi.js';
 
 let croppedAdviserImage = null;
 
@@ -15,108 +17,59 @@ export function openManageAdviserModal({ mode = 'add', adviser = null, adviserId
     const existingImageUrl = isEdit && adviser?.profile_photo ? adviser.profile_photo : '';
 
     const formContent = `
-        <form id="adviserForm" class="space-y-5">
+        <form id="adviserForm" class="manage-modal-form space-y-4">
             ${isEdit ? `<input type="hidden" id="adviserId" value="${adviser?.id || adviserId || ''}">` : ''}
-            ${isEdit && existingImageUrl ? `<input type="hidden" id="existingImageUrl" value="${existingImageUrl}">` : ''}
-
-            <fieldset>
-                <legend class="text-xs font-semibold text-gray-500 uppercase tracking-wider mb-3">Photo</legend>
-                <div class="space-y-3">
-                    <div class="flex flex-col sm:flex-row sm:items-center gap-4">
-                        <div id="imagePreviewContainer" class="flex-shrink-0 w-20 h-20 rounded-lg bg-gray-100 border-2 border-dashed border-gray-300 flex items-center justify-center overflow-hidden">
-                            ${existingImageUrl
-                                ? `<img src="${existingImageUrl}" alt="Preview" class="w-full h-full object-cover" id="imagePreview">`
-                                : `<i data-lucide="user" class="w-8 h-8 text-gray-400" id="imagePreviewIcon"></i>`
-                            }
-                        </div>
-                        <div class="flex-1 w-full">
-                            <label for="imageUpload" class="block text-sm font-medium text-gray-700 mb-1">Upload Photo</label>
-                            <input type="file" id="imageUpload" name="imageUpload" accept="image/jpeg,image/jpg,image/png,image/gif,image/webp"
-                                class="w-full text-sm text-gray-500 file:mr-3 file:py-2 file:px-3 file:rounded-md file:border-0 file:text-sm file:font-medium file:bg-blue-50 file:text-blue-900 hover:file:bg-blue-100 transition">
-                            <p class="text-xs text-gray-400 mt-1">JPG, PNG, GIF, or WebP (max 5MB)</p>
-                        </div>
-                    </div>
-                    <input type="hidden" id="imageUrl" name="imageUrl" value="${existingImageUrl}">
-                </div>
-            </fieldset>
-
-            <hr class="border-gray-100">
-
-            <fieldset>
-                <legend class="text-xs font-semibold text-gray-500 uppercase tracking-wider mb-3">Personal Information</legend>
+            ${isEdit ? `<input type="hidden" id="existingImageUrl" value="${existingImageUrl}">` : ''}
+            ${modalSection('Photo', modalPhotoField(existingImageUrl))}
+            ${modalSection('Personal Information', `
                 <div class="space-y-3">
                     <div>
-                        <label for="adviserName" class="block text-sm font-medium text-gray-700 mb-1">Name <span class="text-red-500">*</span></label>
-                        <input type="text" id="adviserName" name="adviserName" value="${isEdit && adviser ? adviser.name : ''}" required
-                            placeholder="e.g. Juan Dela Cruz"
-                            class="w-full px-3 py-2 text-sm border border-gray-200 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-transparent transition">
+                        <label for="adviserName" class="${LABEL_CLASS}">Name <span class="text-red-500">*</span></label>
+                        <input type="text" id="adviserName" name="adviserName" value="${isEdit && adviser ? adviser.name : ''}" required placeholder="e.g. Juan Dela Cruz" class="${FIELD_CLASS}">
                     </div>
+                    ${isEdit ? `
                     <div>
-                        <label for="adviserEmail" class="block text-sm font-medium text-gray-700 mb-1">Email <span class="text-red-500">*</span></label>
-                        <input type="email" id="adviserEmail" name="adviserEmail" value="${isEdit && adviser ? adviser.email : ''}" required
-                            placeholder="e.g. juan@example.com"
-                            class="w-full px-3 py-2 text-sm border border-gray-200 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-transparent transition">
+                        <label for="adviserUsername" class="${LABEL_CLASS}">Username <span class="text-red-500">*</span></label>
+                        <input type="text" id="adviserUsername" name="adviserUsername" value="${adviser ? adviser.username : ''}" required placeholder="e.g. juandelacruz" class="${FIELD_CLASS}">
+                    </div>
+                    ` : ''}
+                    <div>
+                        <label for="adviserEmail" class="${LABEL_CLASS}">Email <span class="text-red-500">*</span></label>
+                        <input type="email" id="adviserEmail" name="adviserEmail" value="${isEdit && adviser ? adviser.email : ''}" required placeholder="e.g. juan@example.com" class="${FIELD_CLASS}">
                     </div>
                     ${!isEdit ? `
-                    <p class="text-xs text-gray-500 bg-blue-50 border border-blue-200 rounded-md px-3 py-2">
+                    <p class="text-xs text-muted bg-blue-50 border border-blue-100 rounded-xl px-3 py-2.5">
                         <i data-lucide="info" class="w-4 h-4 inline mr-1"></i>
                         Username and password will be auto-generated and sent to the adviser's email.
                     </p>
-                    ` : ``}
+                    ` : ''}
                 </div>
-            </fieldset>
-
-            <hr class="border-gray-100">
-
-            <fieldset>
-                <legend class="text-xs font-semibold text-gray-500 uppercase tracking-wider mb-3">Role & Status</legend>
-                <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
+            `)}
+            ${modalSection('Role & Status', `
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-3">
                     <div>
-                        <label for="adviserRole" class="block text-sm font-medium text-gray-700 mb-1">Role <span class="text-red-500">*</span></label>
-                        <select id="adviserRole" name="adviserRole" required
-                            class="w-full px-3 py-2 text-sm border border-gray-200 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-transparent bg-white transition">
+                        <label for="adviserRole" class="${LABEL_CLASS}">Role <span class="text-red-500">*</span></label>
+                        <select id="adviserRole" name="adviserRole" required class="${FIELD_CLASS}">
                             <option value="adviser" ${isEdit && adviser?.role === 'adviser' ? 'selected' : ''}>Adviser</option>
                             <option value="head_adviser" ${isEdit && adviser?.role === 'head_adviser' ? 'selected' : ''}>Head Adviser</option>
                         </select>
                     </div>
                     <div>
-                        <label for="adviserStatus" class="block text-sm font-medium text-gray-700 mb-1">Status <span class="text-red-500">*</span></label>
-                        <select id="adviserStatus" name="adviserStatus" required
-                            class="w-full px-3 py-2 text-sm border border-gray-200 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-transparent bg-white transition">
+                        <label for="adviserStatus" class="${LABEL_CLASS}">Status <span class="text-red-500">*</span></label>
+                        <select id="adviserStatus" name="adviserStatus" required class="${FIELD_CLASS}">
                             <option value="active" ${isEdit && adviser?.status === 'active' ? 'selected' : ''}>Active</option>
                             <option value="inactive" ${isEdit && adviser?.status === 'inactive' ? 'selected' : ''}>Inactive</option>
                         </select>
                     </div>
                 </div>
-            </fieldset>
-
-            <div id="formError" class="hidden text-sm text-red-600 bg-red-50 border border-red-200 rounded-md px-3 py-2"></div>
-
-            <div class="flex justify-end pt-3 border-t border-gray-100 flex-row gap-2">
-                <button
-                    type="button"
-                    onclick="closeManageAdviserModal()"
-                    class="px-4 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-md hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-gray-200 transition">
-                    Cancel
-                </button>
-                <button
-                    type="submit"
-                    id="submitBtn"
-                    class="px-5 py-2 text-sm font-medium text-white bg-blue-900 hover:bg-blue-800 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-1 transition">
-                    ${buttonText}
-                </button>
-            </div>
+            `)}
+            <div id="formError" class="hidden text-sm text-red-700 bg-red-50 border border-red-200 rounded-xl px-3 py-2.5"></div>
+            ${modalActions({ cancelOnclick: 'closeManageAdviserModal()', submitText: buttonText })}
         </form>
     `;
 
     if (isEdit && !adviser && adviserId) {
         openModal(title, skeletonAdviserForm(), 'mid-large');
-
-        const modalOverlay = document.getElementById('modal-overlay');
-        const modalContent = document.getElementById('modal-content');
-        if (modalOverlay && modalContent) {
-            animateModalOpen(modalOverlay, modalContent, 'scale');
-        }
 
         setTimeout(async () => {
             try {
@@ -126,7 +79,7 @@ export function openManageAdviserModal({ mode = 'add', adviser = null, adviserId
                     modalBody.innerHTML = formContent;
                     populateFormWithAdviser(fetchedAdviser);
                     setupFormHandlers(fetchedAdviser.id, buttonText, onSubmit);
-                    if (typeof lucide !== 'undefined') lucide.createIcons();
+                    applyModalDomino();
                 }
             } catch (error) {
                 console.error('Error loading adviser:', error);
@@ -136,20 +89,7 @@ export function openManageAdviserModal({ mode = 'add', adviser = null, adviserId
         }, 100);
     } else {
         openModal(title, formContent, 'mid-large');
-
-        const modalOverlay = document.getElementById('modal-overlay');
-        const modalContent = document.getElementById('modal-content');
-        if (modalOverlay && modalContent) {
-            animateModalOpen(modalOverlay, modalContent, 'scale');
-        }
-
-        setTimeout(() => {
-            const form = document.getElementById('adviserForm');
-            if (form) {
-                animateFormElements(form);
-            }
-        }, 100);
-
+        applyModalDomino();
         setupFormHandlers(adviser?.id, buttonText, onSubmit);
     }
 }
@@ -158,25 +98,36 @@ function populateFormWithAdviser(adviser) {
     const form = document.getElementById('adviserForm');
     if (!form) return;
 
-    document.getElementById('adviserId').value = adviser.id;
-    document.getElementById('adviserName').value = adviser.name;
-    document.getElementById('adviserUsername').value = adviser.username;
-    document.getElementById('adviserEmail').value = adviser.email;
-    document.getElementById('adviserRole').value = adviser.role;
-    document.getElementById('adviserStatus').value = adviser.status;
+    const adviserIdInput = document.getElementById('adviserId');
+    if (adviserIdInput) adviserIdInput.value = adviser.id;
+
+    const adviserNameInput = document.getElementById('adviserName');
+    if (adviserNameInput) adviserNameInput.value = adviser.name;
+
+    const adviserUsernameInput = document.getElementById('adviserUsername');
+    if (adviserUsernameInput) adviserUsernameInput.value = adviser.username;
+
+    const adviserEmailInput = document.getElementById('adviserEmail');
+    if (adviserEmailInput) adviserEmailInput.value = adviser.email;
+
+    const adviserRoleInput = document.getElementById('adviserRole');
+    if (adviserRoleInput) adviserRoleInput.value = adviser.role;
+
+    const adviserStatusInput = document.getElementById('adviserStatus');
+    if (adviserStatusInput) adviserStatusInput.value = adviser.status;
 
     if (adviser.profile_photo) {
-        document.getElementById('existingImageUrl').value = adviser.profile_photo;
-        document.getElementById('imageUrl').value = adviser.profile_photo;
-        document.getElementById('imagePreviewContainer').innerHTML = `<img src="${adviser.profile_photo}" alt="Preview" class="w-full h-full object-cover" id="imagePreview">`;
+        const existingImageUrlInput = document.getElementById('existingImageUrl');
+        const imageUrlInput = document.getElementById('imageUrl');
+        if (existingImageUrlInput) existingImageUrlInput.value = adviser.profile_photo;
+        if (imageUrlInput) imageUrlInput.value = adviser.profile_photo;
+        const imagePreviewContainer = document.getElementById('imagePreviewContainer');
+        if (imagePreviewContainer) {
+            imagePreviewContainer.innerHTML = `<img src="${adviser.profile_photo}" alt="Preview" class="w-full h-full object-cover" id="imagePreview">`;
+        }
     }
 
-    setTimeout(() => {
-        const formEl = document.getElementById('adviserForm');
-        if (formEl) {
-            animateFormElements(formEl);
-        }
-    }, 50);
+    applyModalDomino();
 }
 
 function setupFormHandlers(adviserId, buttonText, onSubmit) {
@@ -259,12 +210,25 @@ async function processAdviserSubmit(id, buttonText, onSubmit) {
 
     const formData = {
         name: document.getElementById('adviserName').value.trim(),
+        username: document.getElementById('adviserUsername')?.value.trim() || '',
         email: document.getElementById('adviserEmail').value.trim(),
         role: document.getElementById('adviserRole').value,
         status: document.getElementById('adviserStatus').value,
         profile_photo: imageUrl
     };
 
+    try {
+        const existingAdvisers = await AdviserAPI.getAllAdvisers();
+
+        const validation = AdviserCrudValidator.validate(formData, existingAdvisers, isEdit ? 'edit' : 'add', id);
+        
+        if (!validation.isValid) {
+            showFormError(validation.message);
+            return;
+        }
+    } catch (error) {
+        console.error('Error validating adviser:', error);
+    }
 
     if (isEdit) {
         openConfirmDialog({
@@ -314,6 +278,7 @@ async function closeManageAdviserModal() {
         await animateModalClose(modalOverlay, modalContent, 'scale');
         clearModalAnimations(modalOverlay, modalContent);
         modalOverlay.remove();
+        document.body.classList.remove('overflow-hidden');
         document.removeEventListener('keydown', (e) => {
             if (e.key === 'Escape') closeManageAdviserModal();
         });
@@ -327,12 +292,6 @@ window.closeManageAdviserModal = closeManageAdviserModal;
 export async function openViewAdviserModal(id) {
     openModal('Adviser Details', skeletonAdviserView(), 'mid-large');
 
-    const modalOverlay = document.getElementById('modal-overlay');
-    const modalContent = document.getElementById('modal-content');
-    if (modalOverlay && modalContent) {
-        animateModalOpen(modalOverlay, modalContent, 'scale');
-    }
-
     try {
         const adviser = await AdviserAPI.getAdviser(id);
         const dateCreated = new Date(adviser.created_at).toLocaleDateString('en-PH', {
@@ -343,70 +302,28 @@ export async function openViewAdviserModal(id) {
         });
 
         const content = `
-            <div class="space-y-5">
-                <div class="flex flex-col sm:flex-row sm:items-center gap-4 bg-gray-50 rounded-lg p-4 border border-gray-100">
-                    <div class="flex-shrink-0 w-24 h-24 sm:w-32 sm:h-32 rounded-lg bg-blue-900 text-blue-100 flex items-center justify-center text-sm font-bold shadow-sm overflow-hidden mx-auto sm:mx-0">
-                        ${adviser.profile_photo
-                            ? `<img src="${adviser.profile_photo}" alt="${adviser.name}" class="w-full h-full object-cover">`
-                            : adviser.name.charAt(0).toUpperCase()
-                        }
-                    </div>
-                    <div class="text-center sm:text-left">
-                        <h3 class="text-lg font-semibold text-gray-900">${adviser.name}</h3>
-                        <span class="inline-flex items-center px-2.5 py-0.5 mt-0.5 rounded-full text-xs font-medium ${adviser.role === 'head_adviser' ? 'bg-purple-50 text-purple-900 border border-purple-200' : 'bg-blue-50 text-blue-900 border border-blue-200'}">
-                            ${adviser.role === 'head_adviser' ? 'Head Adviser' : 'Adviser'}
-                        </span>
-                    </div>
-                </div>
-
-                <div class="border-b border-gray-200 pb-4">
-                    <h4 class="text-xs font-semibold text-gray-500 uppercase tracking-wider mb-3">Personal Information</h4>
-                    <dl class="grid grid-cols-1 sm:grid-cols-2 gap-x-6 gap-y-3">
-                        <div>
-                            <dt class="text-xs text-gray-400 font-medium">Name</dt>
-                            <dd class="text-sm font-semibold text-gray-900 mt-0.5">${adviser.name}</dd>
-                        </div>
-                        <div>
-                            <dt class="text-xs text-gray-400 font-medium">Username</dt>
-                            <dd class="text-sm font-semibold text-gray-900 mt-0.5">${adviser.username}</dd>
-                        </div>
-                        <div>
-                            <dt class="text-xs text-gray-400 font-medium">Email</dt>
-                            <dd class="text-sm font-semibold text-gray-900 mt-0.5">${adviser.email}</dd>
-                        </div>
-                        <div>
-                            <dt class="text-xs text-gray-400 font-medium">Role</dt>
-                            <dd class="text-sm font-semibold text-gray-900 mt-0.5">${adviser.role === 'head_adviser' ? 'Head Adviser' : 'Adviser'}</dd>
-                        </div>
+            <div class="space-y-4">
+                ${modalHero({
+                    photo: adviser.profile_photo,
+                    fallback: adviser.name.charAt(0).toUpperCase(),
+                    name: adviser.name,
+                    badges: [modalBadge(adviser.role === 'head_adviser' ? 'Head Adviser' : 'Adviser', adviser.role === 'head_adviser' ? 'purple' : 'navy')]
+                })}
+                ${modalSection('Personal Information', `
+                    <dl class="grid grid-cols-1 md:grid-cols-2 gap-2.5">
+                        ${modalDetailTile('Name', adviser.name)}
+                        ${modalDetailTile('Username', adviser.username)}
+                        ${modalDetailTile('Email', adviser.email)}
+                        ${modalDetailTile('Role', adviser.role === 'head_adviser' ? 'Head Adviser' : 'Adviser')}
                     </dl>
-                </div>
-
-                <div class="border-b border-gray-200 pb-4">
-                    <h4 class="text-xs font-semibold text-gray-500 uppercase tracking-wider mb-3">Account Status</h4>
-                    <dl class="grid grid-cols-1 sm:grid-cols-2 gap-x-6 gap-y-3">
-                        <div>
-                            <dt class="text-xs text-gray-400 font-medium">Status</dt>
-                            <dd class="text-sm font-semibold text-gray-900 mt-0.5">
-                                <span class="px-2 py-1 text-xs font-medium rounded-full ${adviser.status === 'active' ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800'}">
-                                    ${adviser.status}
-                                </span>
-                            </dd>
-                        </div>
-                        <div>
-                            <dt class="text-xs text-gray-400 font-medium">Created At</dt>
-                            <dd class="text-sm font-semibold text-gray-900 mt-0.5">${dateCreated}</dd>
-                        </div>
+                `)}
+                ${modalSection('Account Status', `
+                    <dl class="grid grid-cols-1 md:grid-cols-2 gap-2.5">
+                        ${modalDetailTile('Status', modalBadge(adviser.status, adviser.status === 'active' ? 'green' : 'red'))}
+                        ${modalDetailTile('Created At', dateCreated)}
                     </dl>
-                </div>
-
-                <div class="flex justify-end pt-3 border-t border-gray-100 flex-col sm:flex-row gap-2">
-                    <button
-                        type="button"
-                        onclick="closeModal()"
-                        class="px-4 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-md hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-gray-200 transition">
-                        Close
-                    </button>
-                </div>
+                `)}
+                ${modalViewClose()}
             </div>
         `;
 
@@ -414,13 +331,7 @@ export async function openViewAdviserModal(id) {
         if (modalBody) {
             modalBody.innerHTML = content;
         }
-
-        setTimeout(() => {
-            const modalContentEl = document.getElementById('modal-content');
-            if (modalContentEl) {
-                animateViewModalElements(modalContentEl);
-            }
-        }, 50);
+        applyModalDomino();
     } catch (error) {
         console.error('Error loading adviser:', error);
         showToast('Failed to load adviser', 'error');

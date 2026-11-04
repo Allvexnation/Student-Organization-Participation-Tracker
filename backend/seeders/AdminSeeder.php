@@ -1,18 +1,20 @@
 <?php
 
-require_once __DIR__ . '/config/db.php';
-require_once __DIR__ . '/migrations/Migrator.php';
+require_once __DIR__ . '/../config/db.php';
+require_once __DIR__ . '/../migrations/Migrator.php';
+require_once __DIR__ . '/../config/env.php';
 
 class AdminSeeder {
     private $conn;
     private $database = "student_organization_tracker";
 
     public function __construct() {
+        loadEnv(__DIR__ . '/../.env');
     }
 
     private function getConnection() {
         if (!$this->conn) {
-            $db = new Database();
+            $db = Database::getInstance();
             $this->conn = $db->getConnection();
         }
         return $this->conn;
@@ -23,16 +25,16 @@ class AdminSeeder {
         
         $admins = [
             [
-                'profile_photo' => 'admin1.jpg',
-                'name' => 'Admin',
-                'username' => 'crtadmin',
-                'email' => 'crt@edu.com',
-                'password' => 'admin123',
-                'role' => 'admin'
+                'profile_photo' => getenv('CRT_ADMIN_PROFILE_PHOTO'),
+                'name' => getenv('CRT_ADMIN_NAME'),
+                'username' => getenv('CRT_ADMIN_USERNAME'),
+                'email' => getenv('CRT_ADMIN_EMAIL'),
+                'password' => getenv('CRT_ADMIN_PASSWORD'),
+                'role' => getenv('CRT_ADMIN_ROLE')
             ],
         ];
 
-        $query = "INSERT INTO admins (profile_photo, name, username, email, password, role) 
+        $query = "INSERT IGNORE INTO admins (profile_photo, name, username, email, password, role) 
                   VALUES (:profile_photo, :name, :username, :email, :password, :role)";
 
         try {
@@ -49,7 +51,11 @@ class AdminSeeder {
                 $stmt->bindParam(':role', $admin['role']);
                 
                 $stmt->execute();
-                echo "Admin created: " . $admin['username'] . " (Password: " . $admin['password'] . ")\n";
+                if ($stmt->rowCount() > 0) {
+                    echo "Admin created: " . $admin['username'] . " (Password: " . $admin['password'] . ")\n";
+                } else {
+                    echo "Admin already exists: " . $admin['username'] . "\n";
+                }
             }
             
             echo "\nAdmin seeding completed successfully!\n";
@@ -62,7 +68,7 @@ class AdminSeeder {
         echo "Starting admin seeder...\n\n";
         
         echo "Running migrations...\n";
-        $migrator = new Migrator(__DIR__ . '/migrations');
+        $migrator = new Migrator(__DIR__ . '/../migrations');
         $migrator->migrate();
         
         $this->seedAdmins();

@@ -1,12 +1,15 @@
 import { AdminNavbar, initAdminNavbar } from '../../../components/Navbar/AdminNavbar.js';
 import { protectAdminRoute } from '../../../middleware/AdminMiddleware.js';
 import * as EventsAPI from '../../../api/admin/Events/ManageEvents.js';
+import { CacheService } from '../../../../cache/CacheService.js';
 import { initManageEventsAnimations, animateTableRows } from '../../../provider/Animation/ManageEventsAnimation.js';
 import { openManageEventsModal, openViewEventsModal } from '../../../components/Modal/ManageEventsModal.js';
 import { openConfirmDialog } from '../../../components/Dialog/ConfirmDialog.js';
 import { showToast } from '../../../components/ToastMessage.js';
 import { CrudMenu } from '../../../components/CrudMenu.js';
 import { skeletonTableRows } from '../../../components/SkeletonLoading.js';
+import { logChange } from '../../../api/AuditLogs/AuditLogs.js';
+import { getUserId, getUserData } from '../../../utils/jwt.js';
 
 export function ManageEvents() {
     return `
@@ -40,7 +43,6 @@ export function ManageEvents() {
                             <tr class="bg-gray-50 border-b border-gray-200 text-xs font-medium text-gray-500 uppercase tracking-wider">
                                 <th class="px-5 py-3.5 w-12 text-center">#</th>
                                 <th class="px-5 py-3.5">Title</th>
-                                <th class="px-5 py-3.5 hidden sm:table-cell">Organization</th>
                                 <th class="px-5 py-3.5">Date Range</th>
                                 <th class="px-5 py-3.5 hidden sm:table-cell">Schedules</th>
                                 <th class="px-5 py-3.5 hidden sm:table-cell">Venue</th>
@@ -48,7 +50,7 @@ export function ManageEvents() {
                             </tr>
                         </thead>
                         <tbody id="eventTableBody" class="divide-y divide-gray-100">
-                            ${skeletonTableRows(window.innerWidth < 640 ? 3 : 4, window.innerWidth < 640 ? 3 : 6, true)}
+                            ${skeletonTableRows(window.innerWidth < 640 ? 3 : 4, window.innerWidth < 640 ? 3 : 5, true)}
                         </tbody>
                     </table>
                 </div>
@@ -65,41 +67,41 @@ export async function initManageEvents() {
 
     let events = [];
     let hasLoaded = false;
-
     async function loadEvents(forceRefresh = false) {
-        const cachedData = localStorage.getItem('cachedEvents');
-        const cachedTimestamp = localStorage.getItem('cachedEventsTimestamp');
-        const cacheAge = cachedTimestamp ? Date.now() - parseInt(cachedTimestamp) : Infinity;
-        
-        // Force refresh if cache is older than 5 minutes or explicitly requested
-        if (cachedData && !forceRefresh && cacheAge < 300000) {
+        if (!forceRefresh) {
             try {
-                events = JSON.parse(cachedData);
-                renderEvents(events);
-                hasLoaded = true;
-                return;
+                const cachedData = await CacheService.get('cachedEvents');
+                if (cachedData && Array.isArray(cachedData) && cachedData.length > 0) {
+                    events = cachedData;
+                    renderEvents(events);
+                    hasLoaded = true;
+                }
             } catch (e) {
-                console.error('Error parsing cached events:', e);
+                console.error('Error reading cached events:', e);
             }
         }
 
         try {
-            events = await EventsAPI.getAllEvents();
-            localStorage.setItem('cachedEvents', JSON.stringify(events));
-            localStorage.setItem('cachedEventsTimestamp', Date.now().toString());
-            renderEvents(events);
-            hasLoaded = true;
+            const freshData = await EventsAPI.getAllEvents();
+            if (freshData) {
+                events = freshData;
+                await CacheService.set('cachedEvents', events);
+                renderEvents(events);
+                hasLoaded = true;
+            }
         } catch (error) {
             console.error('Error loading events:', error);
-            const tbody = document.getElementById('eventTableBody');
-            if (tbody) {
-                tbody.innerHTML = `
-                    <tr>
-                        <td colspan="7" class="px-5 py-12 text-center text-red-500">Failed to load events</td>
-                    </tr>
-                `;
+            if (!hasLoaded) {
+                const tbody = document.getElementById('eventTableBody');
+                if (tbody) {
+                    tbody.innerHTML = `
+                        <tr>
+                            <td colspan="6" class="px-5 py-12 text-center text-red-500">Failed to load events</td>
+                        </tr>
+                    `;
+                }
+                showToast('Failed to load events', 'error');
             }
-            showToast('Failed to load events', 'error');
         }
     }
 
@@ -114,7 +116,7 @@ export async function initManageEvents() {
         if (!data || data.length === 0) {
             tbody.innerHTML = `
                 <tr>
-                    <td colspan="7" class="px-5 py-12 text-center">
+                    <td colspan="6" class="px-5 py-12 text-center">
                         <i data-lucide="calendar" class="w-10 h-10 text-gray-200 mx-auto mb-2"></i>
                         <p class="text-sm text-gray-500 font-medium">No events found.</p>
                         <p class="text-xs text-gray-400 mt-1">Click "Add New" to create the first event.</p>
@@ -129,15 +131,6 @@ export async function initManageEvents() {
             const formatDate = (date) => {
                 if (!date) return '—';
                 return new Date(date).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
-            };
-            
-            const formatTime = (time) => {
-                if (!time) return '—';
-                const [hours, minutes] = time.split(':');
-                const hour = parseInt(hours);
-                const ampm = hour >= 12 ? 'PM' : 'AM';
-                const hour12 = hour % 12 || 12;
-                return `${hour12}:${minutes} ${ampm}`;
             };
             
             const dateRange = event.event_day_start && event.event_day_end 
@@ -159,7 +152,6 @@ export async function initManageEvents() {
                 <td class="px-3 sm:px-5 py-2 sm:py-3.5">
                     <p class="text-xs sm:text-sm font-semibold text-gray-900">${event.title}</p>
                 </td>
-                <td class="px-3 sm:px-5 py-2 sm:py-3.5 hidden sm:table-cell text-gray-600 text-sm truncate">${event.organization_name || 'N/A'}</td>
                 <td class="px-3 sm:px-5 py-2 sm:py-3.5 text-gray-600 text-sm whitespace-nowrap">
                     ${dateRange}
                 </td>
@@ -193,9 +185,40 @@ export async function initManageEvents() {
             mode: 'add',
             onSubmit: async (id, data) => {
                 if (id) {
+                    const oldEvent = await EventsAPI.getEvent(id);
                     await EventsAPI.updateEvent(id, data);
+                    const user = getUserData('admin');
+                    
+                    const fields = ['title', 'description', 'venue', 'event_category', 'event_day_start', 'event_day_end'];
+                    for (const field of fields) {
+                        if (oldEvent[field] !== data[field]) {
+                            await logChange({
+                                user_id: getUserId('admin'),
+                                user_type: 'admin',
+                                user_name: user?.name || user?.email || 'Unknown',
+                                action: 'UPDATE',
+                                table_name: 'events',
+                                record_id: id,
+                                field_name: field,
+                                old_value: oldEvent[field] || null,
+                                new_value: data[field] || null
+                            });
+                        }
+                    }
                 } else {
-                    await EventsAPI.createEvent(data);
+                    const result = await EventsAPI.createEvent(data);
+                    const user = getUserData('admin');
+                    await logChange({
+                        user_id: getUserId('admin'),
+                        user_type: 'admin',
+                        user_name: user?.name || user?.email || 'Unknown',
+                        action: 'CREATE',
+                        table_name: 'events',
+                        record_id: result?.id || null,
+                        field_name: 'event_title',
+                        old_value: null,
+                        new_value: data.title
+                    });
                 }
                 loadEvents(true);
             }
@@ -207,7 +230,26 @@ export async function initManageEvents() {
             mode: 'edit',
             eventId: id,
             onSubmit: async (id, data) => {
+                const oldEvent = await EventsAPI.getEvent(id);
                 await EventsAPI.updateEvent(id, data);
+                const user = getUserData('admin');
+                
+                const fields = ['title', 'description', 'venue', 'event_category', 'event_day_start', 'event_day_end'];
+                for (const field of fields) {
+                    if (oldEvent[field] !== data[field]) {
+                        await logChange({
+                            user_id: getUserId('admin'),
+                            user_type: 'admin',
+                            user_name: user?.name || user?.email || 'Unknown',
+                            action: 'UPDATE',
+                            table_name: 'events',
+                            record_id: id,
+                            field_name: field,
+                            old_value: oldEvent[field] || null,
+                            new_value: data[field] || null
+                        });
+                    }
+                }
                 loadEvents(true);
             }
         });
@@ -227,6 +269,18 @@ export async function initManageEvents() {
             onConfirm: async () => {
                 try {
                     await EventsAPI.deleteEvent(id);
+                    const user = getUserData('admin');
+                    await logChange({
+                        user_id: getUserId('admin'),
+                        user_type: 'admin',
+                        user_name: user?.name || user?.email || 'Unknown',
+                        action: 'DELETE',
+                        table_name: 'events',
+                        record_id: id,
+                        field_name: 'event_title',
+                        old_value: deleteLabel || 'Unknown',
+                        new_value: null
+                    });
                     loadEvents(true);
                     showToast('Event deleted successfully', 'success');
                 } catch (error) {
@@ -241,7 +295,6 @@ export async function initManageEvents() {
         const searchTerm = e.target.value.toLowerCase();
         const filtered = events.filter(event => 
             (event.title || '').toLowerCase().includes(searchTerm) ||
-            (event.organization_name || '').toLowerCase().includes(searchTerm) ||
             (event.venue || '').toLowerCase().includes(searchTerm) ||
             (event.event_category || '').toLowerCase().includes(searchTerm)
         );

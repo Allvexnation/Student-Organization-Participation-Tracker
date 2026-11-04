@@ -1,36 +1,61 @@
-import { logout, getAdminData } from '../../api/admin/AdminLogin.js';
+import { getAdminData } from '../../api/admin/AdminLogin.js';
 import { AdminNavbar, initAdminNavbar } from '../../components/Navbar/AdminNavbar.js';
 import { protectAdminRoute } from '../../middleware/AdminMiddleware.js';
+import { isAuthenticated, getUserRole } from '../../utils/jwt.js';
+import { navigate } from '../../utils/navigation.js';
+import { getDashboardCounts } from '../../api/admin/Dashboard/AdminDashboard.js';
+import { AuditLogsEmbedded, initAuditLogsEmbedded } from '../AuditLogs/AuditLogs.js';
+import { DashboardLayout, fillDashboardStats, initDashboardTransition } from '../../components/Layout/Dashboard/Dashboard.js';
 
 export function AdminDashboard() {
     const adminData = getAdminData();
-    
-    return `
-        ${AdminNavbar()}
-        <main class="container mx-auto px-4 py-8 bg-white min-h-screen">
-            <div class="p-6">
-                <h2 class="text-2xl font-bold text-blue-800 mb-6">Dashboard Overview</h2>
-                
-                <div class="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
-                    <div class="bg-gradient-to-br from-blue-500 to-blue-600 rounded-lg p-4 text-white transition-transform duration-300 hover:scale-105 shadow-lg">
-                        <div class="text-3xl font-bold" id="totalStudents">0</div>
-                        <div class="text-sm opacity-90">Total Students</div>
-                    </div>
-                    <div class="bg-gradient-to-br from-cyan-500 to-cyan-600 rounded-lg p-4 text-white transition-transform duration-300 hover:scale-105 shadow-lg">
-                        <div class="text-3xl font-bold" id="totalOrganizations">0</div>
-                        <div class="text-sm opacity-90">Total Organizations</div>
-                    </div>
-                    <div class="bg-gradient-to-br from-indigo-500 to-indigo-600 rounded-lg p-4 text-white transition-transform duration-300 hover:scale-105 shadow-lg">
-                        <div class="text-3xl font-bold" id="activeEvents">0</div>
-                        <div class="text-sm opacity-90">Active Events</div>
-                    </div>
-                </div>
-            </div>
-        </main>
-    `;
+    const displayName = adminData?.firstName || 'Admin';
+
+    return DashboardLayout({
+        navbar: AdminNavbar(),
+        displayName,
+        badge: 'Admin portal',
+        subtitle: 'Monitor students, organizations, events, and recent system activity.',
+        extra: AuditLogsEmbedded()
+    });
 }
 
-export function initAdminDashboard() {
+function getPrimaryCards(stats) {
+    return [
+        { href: '/admin/students', imageKey: 'students', label: 'Total Students', value: stats.totalStudents, valueId: 'total-students', icon: 'users' },
+        { href: '/admin/organizations', imageKey: 'organizations', label: 'Organizations', value: stats.totalOrganizations, valueId: 'total-organizations', icon: 'building-2' },
+        { href: '/admin/events', imageKey: 'events', label: 'Total Events', value: stats.activeEvents, valueId: 'active-events', icon: 'calendar' }
+    ];
+}
+
+function getSecondaryCards(stats) {
+    return [
+        { href: '/admin/event-registrations', label: 'Event Registrations', value: stats.eventRegistrations, valueId: 'event-registrations', icon: 'clipboard-list' },
+        { href: '/admin/org-memberships', label: 'Org Memberships', value: stats.orgMemberships, valueId: 'org-memberships', icon: 'user-check' },
+        { href: '/admin/adviser', label: 'Advisers', value: stats.totalAdvisers, valueId: 'total-advisers', icon: 'user-cog' }
+    ];
+}
+
+export async function initAdminDashboard() {
+    const auth = await isAuthenticated('admin');
+    if (!auth || getUserRole('admin') !== 'admin') {
+        navigate('/auth/admin/login');
+        return;
+    }
     protectAdminRoute();
-    initAdminNavbar();
+    await initAdminNavbar();
+    const finishDashboardEnter = initDashboardTransition();
+
+    try {
+        const counts = await getDashboardCounts();
+        fillDashboardStats({
+            primary: getPrimaryCards(counts),
+            secondary: getSecondaryCards(counts)
+        });
+        initAuditLogsEmbedded();
+    } catch (error) {
+        console.error('Error loading dashboard data:', error);
+    } finally {
+        finishDashboardEnter();
+    }
 }

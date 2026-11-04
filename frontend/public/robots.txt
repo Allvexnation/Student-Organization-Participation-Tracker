@@ -1,0 +1,4 @@
+User-agent: *
+Allow: /
+
+Sitemap: https://crtsopt.vercel.app/sitemap.xml

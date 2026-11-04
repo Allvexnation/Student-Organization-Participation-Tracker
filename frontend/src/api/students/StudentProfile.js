@@ -1,9 +1,9 @@
 import { API_ROUTES } from '../server/api.js';
-import { getToken } from '../../utils/jwt.js';
+import { getToken, setUserData } from '../../utils/jwt.js';
 
 export async function getStudentProfile() {
     try {
-        const token = getToken();
+        const token = getToken('student');
         
         const response = await fetch(API_ROUTES.STUDENT.PROFILE, {
             method: 'GET',
@@ -28,7 +28,7 @@ export async function getStudentProfile() {
 
 export async function updateStudentProfile(profileData) {
     try {
-        const token = getToken();
+        const token = getToken('student');
         
         const response = await fetch(API_ROUTES.STUDENT.PROFILE, {
             method: 'PUT',
@@ -46,7 +46,7 @@ export async function updateStudentProfile(profileData) {
         }
 
         if (data.student) {
-            localStorage.setItem('studentData', JSON.stringify(data.student));
+            setUserData(data.student, 'student');
         }
 
         return data;

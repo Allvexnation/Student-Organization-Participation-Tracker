@@ -5,16 +5,35 @@ require_once __DIR__ . '/../../model/StudentOtpModel.php';
 require_once __DIR__ . '/../../model/SessionModel.php';
 require_once __DIR__ . '/../../config/jwt.php';
 require_once __DIR__ . '/../../template/StudentEmail.php';
+require_once __DIR__ . '/../../cache/CacheService.php';
+require_once __DIR__ . '/../../model/OrganizationMembershipsModel.php';
+require_once __DIR__ . '/../../model/EventRegistrationsModel.php';
+require_once __DIR__ . '/../../model/web/UpdatesModel.php';
+require_once __DIR__ . '/../../model/EventsModel.php';
+require_once __DIR__ . '/../../model/Students/EventTaskModel.php';
+require_once __DIR__ . '/../../model/AdviserModel.php';
 
 class StudentController {
     private $studentsModel;
     private $studentOtpModel;
     private $sessionModel;
+    private $organizationMembershipsModel;
+    private $eventRegistrationsModel;
+    private $updatesModel;
+    private $eventsModel;
+    private $eventTaskModel;
+    private $adviserModel;
 
     public function __construct() {
         $this->studentsModel = new StudentsModel();
         $this->studentOtpModel = new StudentOtpModel();
         $this->sessionModel = new SessionModel();
+        $this->organizationMembershipsModel = new OrganizationMembershipsModel();
+        $this->eventRegistrationsModel = new EventRegistrationsModel();
+        $this->updatesModel = new UpdatesModel();
+        $this->eventsModel = new EventsModel();
+        $this->eventTaskModel = new EventTaskModel();
+        $this->adviserModel = new AdviserModel();
     }
 
     public function getAll() {
@@ -126,13 +145,24 @@ class StudentController {
             return;
         }
 
-        if (!isset($data['first_name']) || !isset($data['last_name']) || !isset($data['username']) || !isset($data['email'])) {
+        error_log("Update student data: " . json_encode($data));
+
+        if (!isset($data['first_name']) || !isset($data['last_name']) || !isset($data['email'])) {
             http_response_code(400);
-            echo json_encode(['message' => 'Missing required fields']);
+            echo json_encode(['message' => 'Missing required fields', 'data' => $data]);
             return;
         }
 
+        if (!isset($data['username']) || empty($data['username'])) {
+            $existingStudent = $this->studentsModel->readOne($id);
+            if ($existingStudent && isset($existingStudent['username'])) {
+                $data['username'] = $existingStudent['username'];
+            }
+        }
+
+        error_log("Data before update: " . json_encode($data));
         $result = $this->studentsModel->update($id, $data);
+        error_log("Update result: " . ($result ? 'success' : 'failed'));
 
         if ($result) {
             $student = $this->studentsModel->readOne($id);
@@ -190,7 +220,9 @@ class StudentController {
             unset($student['password']);
             
             if (isset($student['profile_photo']) && !empty($student['profile_photo'])) {
-                $student['profile_photo'] = 'data:image/jpeg;base64,' . base64_encode($student['profile_photo']);
+                if (is_string($student['profile_photo']) && !str_starts_with($student['profile_photo'], 'data:')) {
+                    $student['profile_photo'] = 'data:image/jpeg;base64,' . base64_encode($student['profile_photo']);
+                }
             }
             
             $tokenPayload = [
@@ -199,15 +231,29 @@ class StudentController {
                 'role' => 'student'
             ];
             $token = JWT::encode($tokenPayload);
+
+            $expiresAt = '2038-01-19 03:14:07';
+
+            $ipAddress = $data['ip_address'] ?? '';
+            $userAgent = $_SERVER['HTTP_USER_AGENT'] ?? '';
             
-            // Store token in database
-            $expiresAt = date('Y-m-d H:i:s', time() + (24 * 60 * 60)); // 24 hours from now
             $sessionData = [
                 'user_id' => $student['id'],
                 'user_type' => 'student',
                 'token' => $token,
                 'expires_at' => $expiresAt,
-                'is_active' => 1
+                'is_active' => 1,
+                'ip_address' => $ipAddress,
+                'user_agent' => $data['user_agent'] ?? $userAgent,
+                'device_type' => $data['device_type'] ?? 'unknown',
+                'device_fingerprint' => $data['device_fingerprint'] ?? '',
+                'screen_resolution' => $data['screen_resolution'] ?? '',
+                'browser' => $data['browser'] ?? '',
+                'os' => $data['os'] ?? '',
+                'country' => $data['country'] ?? '',
+                'city' => $data['city'] ?? '',
+                'timezone' => $data['timezone'] ?? '',
+                'auth_type' => 'password'
             ];
             
             $this->sessionModel->create($sessionData);
@@ -224,6 +270,68 @@ class StudentController {
         }
     }
 
+    private function getClientIp() {
+        $ip = '';
+        if (!empty($_SERVER['HTTP_CLIENT_IP'])) {
+            $ip = $_SERVER['HTTP_CLIENT_IP'];
+        } elseif (!empty($_SERVER['HTTP_X_FORWARDED_FOR'])) {
+            $ip = $_SERVER['HTTP_X_FORWARDED_FOR'];
+        } elseif (!empty($_SERVER['HTTP_X_REAL_IP'])) {
+            $ip = $_SERVER['HTTP_X_REAL_IP'];
+        } else {
+            $ip = $_SERVER['REMOTE_ADDR'] ?? '';
+        }
+
+        if (strpos($ip, ',') !== false) {
+            $ips = explode(',', $ip);
+            $ip = trim($ips[0]);
+        }
+        
+        return $ip;
+    }
+
+    public function lookupAccount() {
+        header('Content-Type: application/json');
+
+        $data = json_decode(file_get_contents('php://input'), true);
+
+        if (!isset($data['username_or_email']) || trim($data['username_or_email']) === '') {
+            http_response_code(400);
+            echo json_encode(['message' => 'Username or email is required']);
+            return;
+        }
+
+        $student = $this->studentsModel->findByUsernameOrEmail(trim($data['username_or_email']));
+
+        if (!$student) {
+            http_response_code(404);
+            echo json_encode(['message' => 'Account not found']);
+            return;
+        }
+
+        $profilePhoto = null;
+        if (isset($student['profile_photo']) && !empty($student['profile_photo'])) {
+            if (is_string($student['profile_photo']) && !str_starts_with($student['profile_photo'], 'data:')) {
+                $profilePhoto = 'data:image/jpeg;base64,' . base64_encode($student['profile_photo']);
+            } else {
+                $profilePhoto = $student['profile_photo'];
+            }
+        }
+
+        $name = trim(($student['first_name'] ?? '') . ' ' . ($student['last_name'] ?? ''));
+        if ($name === '') {
+            $name = $student['username'] ?? '';
+        }
+
+        http_response_code(200);
+        echo json_encode([
+            'exists' => true,
+            'name' => $name,
+            'username' => $student['username'] ?? '',
+            'profile_photo' => $profilePhoto
+        ]);
+    }
+
     public function getProfile() {
         header('Content-Type: application/json');
         
@@ -238,20 +346,78 @@ class StudentController {
 
         $studentId = JWT::getUserId($token);
 
-        $student = $this->studentsModel->readOne($studentId);
+        try {
+            $student = $this->studentsModel->readOne($studentId);
 
-        if ($student) {
-            unset($student['password']);
-            
-            if (isset($student['profile_photo']) && !empty($student['profile_photo'])) {
-                $student['profile_photo'] = 'data:image/jpeg;base64,' . base64_encode($student['profile_photo']);
+            if ($student) {
+                unset($student['password']);
+                
+                if (isset($student['profile_photo']) && !empty($student['profile_photo'])) {
+                    if (is_string($student['profile_photo']) && !str_starts_with($student['profile_photo'], 'data:')) {
+                        $student['profile_photo'] = 'data:image/jpeg;base64,' . base64_encode($student['profile_photo']);
+                    }
+                }
+
+                $organizations = $this->organizationMembershipsModel->readByStudentId($studentId);
+
+                error_log("Fetching registered events for student ID: $studentId");
+                $events = $this->eventRegistrationsModel->getByStudentId($studentId);
+                error_log("Registered events result: " . ($events === false ? 'false' : (is_array($events) ? count($events) . ' events' : 'other')));
+                if ($events === false) {
+                    error_log("getByStudentId returned false - check error logs");
+                }
+                
+                $upcomingEvents = $this->eventsModel->getUpcomingEvents();
+
+                $tasks = $this->eventTaskModel->readByStudentId($studentId);
+                $unfinishedTasks = 0;
+                if ($tasks) {
+                    foreach ($tasks as $task) {
+                        if ($task['status'] !== 'completed') {
+                            $unfinishedTasks++;
+                        }
+                    }
+                }
+
+                $adviserCount = 0;
+                if ($organizations && !empty($organizations)) {
+
+                    $orgIds = array_unique(array_column($organizations, 'organization_id'));
+                    if (!empty($orgIds)) {
+                        $placeholders = implode(',', array_fill(0, count($orgIds), '?'));
+
+                        $query = "SELECT COUNT(DISTINCT o.adviser_id) as count 
+                                  FROM organizations o
+                                  WHERE o.id IN ($placeholders) AND o.adviser_id IS NOT NULL";
+                        try {
+                            $stmt = $this->studentsModel->getConnection()->prepare($query);
+                            $stmt->execute($orgIds);
+                            $result = $stmt->fetch(PDO::FETCH_ASSOC);
+                            if ($result && isset($result['count'])) {
+                                $adviserCount = $result['count'];
+                            }
+                        } catch(PDOException $e) {
+                            error_log("Error counting advisers: " . $e->getMessage());
+                        }
+                    }
+                }
+                
+                $student['organizations'] = $organizations ?: [];
+                $student['events'] = $events ?: [];
+                $student['upcomingEvents'] = $upcomingEvents ?: [];
+                $student['unfinishedTasks'] = $unfinishedTasks;
+                $student['adviserCount'] = $adviserCount;
+                
+                http_response_code(200);
+                echo json_encode(['student' => $student]);
+            } else {
+                http_response_code(404);
+                echo json_encode(['message' => 'Student not found']);
             }
-            
-            http_response_code(200);
-            echo json_encode(['student' => $student]);
-        } else {
-            http_response_code(404);
-            echo json_encode(['message' => 'Student not found']);
+        } catch (Exception $e) {
+            error_log("Error in getProfile: " . $e->getMessage());
+            http_response_code(500);
+            echo json_encode(['message' => 'Internal server error', 'error' => $e->getMessage()]);
         }
     }
 
@@ -277,18 +443,22 @@ class StudentController {
             return;
         }
 
-        // Get existing student to preserve profile photo if not being updated
         $existingStudent = $this->studentsModel->readOne($studentId);
         
         $profilePhoto = null;
-        if (isset($data['profile_photo']) && !empty($data['profile_photo'])) {
-            if (strpos($data['profile_photo'], 'data:image') === 0) {
-                $parts = explode(',', $data['profile_photo']);
-                if (isset($parts[1])) {
-                    $profilePhoto = base64_decode($parts[1]);
+        if (isset($data['profile_photo'])) {
+            if (!empty($data['profile_photo'])) {
+                if (strpos($data['profile_photo'], 'data:image') === 0) {
+                    $parts = explode(',', $data['profile_photo']);
+                    if (isset($parts[1])) {
+                        $profilePhoto = base64_decode($parts[1]);
+                    }
+                } else {
+                    $profilePhoto = base64_decode($data['profile_photo']);
                 }
             } else {
-                $profilePhoto = base64_decode($data['profile_photo']);
+                
+                $profilePhoto = '';
             }
         } elseif ($existingStudent && isset($existingStudent['profile_photo'])) {
             $profilePhoto = $existingStudent['profile_photo'];
@@ -312,11 +482,16 @@ class StudentController {
         $result = $this->studentsModel->update($studentId, $updateData);
 
         if ($result) {
+            CacheService::forget('students_all');
+            CacheService::forget('student_' . $studentId);
+
             $student = $this->studentsModel->readOne($studentId);
             unset($student['password']);
             
             if (isset($student['profile_photo']) && !empty($student['profile_photo'])) {
-                $student['profile_photo'] = 'data:image/jpeg;base64,' . base64_encode($student['profile_photo']);
+                if (is_string($student['profile_photo']) && !str_starts_with($student['profile_photo'], 'data:')) {
+                    $student['profile_photo'] = 'data:image/jpeg;base64,' . base64_encode($student['profile_photo']);
+                }
             }
             
             http_response_code(200);
@@ -430,5 +605,45 @@ class StudentController {
             http_response_code(500);
             echo json_encode(['message' => 'Failed to reset password']);
         }
+    }
+
+    public function logout() {
+        header('Content-Type: application/json');
+        
+        $headers = getallheaders();
+        $token = isset($headers['Authorization']) ? str_replace('Bearer ', '', $headers['Authorization']) : null;
+        $deviceFingerprint = $headers['X-Device-Fingerprint'] ?? $headers['x-device-fingerprint'] ?? $_SERVER['HTTP_X_DEVICE_FINGERPRINT'] ?? null;
+        
+        $rawInput = file_get_contents('php://input');
+        if (!empty($rawInput)) {
+            $data = json_decode($rawInput, true);
+            if (!empty($data['device_fingerprint'])) {
+                $deviceFingerprint = $data['device_fingerprint'];
+            }
+            if (!$token && !empty($data['token'])) {
+                $token = $data['token'];
+            }
+        }
+
+        $this->sessionModel->deleteByTokenOrDevice($token, $deviceFingerprint, 'student');
+        
+        http_response_code(200);
+        echo json_encode(['message' => 'Logout successful']);
+    }
+
+    public function verify() {
+        header('Content-Type: application/json');
+        
+        $headers = getallheaders();
+        $token = isset($headers['Authorization']) ? str_replace('Bearer ', '', $headers['Authorization']) : null;
+        
+        if (!$token || !JWT::validate($token)) {
+            http_response_code(401);
+            echo json_encode(['message' => 'Unauthorized']);
+            return;
+        }
+
+        http_response_code(200);
+        echo json_encode(['message' => 'Token is valid']);
     }
 }

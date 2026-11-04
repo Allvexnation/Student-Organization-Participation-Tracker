@@ -1,12 +1,16 @@
 import { AdminNavbar, initAdminNavbar } from '../../../components/Navbar/AdminNavbar.js';
 import { protectAdminRoute } from '../../../middleware/AdminMiddleware.js';
 import * as StudentsAPI from '../../../api/admin/Students/ManageStudents.js';
+import { CacheService } from '../../../../cache/CacheService.js';
 import { initManageStudentsAnimations, animateTableRows } from '../../../provider/Animation/ManageStudentsAnimation.js';
 import { openManageStudentsModal, openViewStudentsModal } from '../../../components/Modal/ManageStudentsModal.js';
 import { openConfirmDialog } from '../../../components/Dialog/ConfirmDialog.js';
 import { showToast } from '../../../components/ToastMessage.js';
 import { CrudMenu } from '../../../components/CrudMenu.js';
 import { skeletonTableRows } from '../../../components/SkeletonLoading.js';
+import { getDefaultProfileSVG } from '../../../static/Profile/DefaultProfile.js';
+import { logChange } from '../../../api/AuditLogs/AuditLogs.js';
+import { decodeToken, getToken } from '../../../utils/jwt.js';
 
 export function ManageStudents() {
     return `
@@ -62,41 +66,48 @@ export async function initManageStudents() {
     protectAdminRoute();
     await initAdminNavbar();
 
+    const adminToken = getToken('admin');
+    const adminUser = decodeToken(adminToken) || {};
+
     initManageStudentsAnimations();
 
     let students = [];
     let hasLoaded = false;
-
     async function loadStudents(forceRefresh = false) {
-        const cachedData = localStorage.getItem('cachedStudents');
-        if (cachedData && !forceRefresh) {
+        if (!forceRefresh) {
             try {
-                students = JSON.parse(cachedData);
-                renderStudents(students);
-                hasLoaded = true;
-                return;
+                const cachedData = await CacheService.get('cachedStudents');
+                if (cachedData && Array.isArray(cachedData) && cachedData.length > 0) {
+                    students = cachedData;
+                    renderStudents(students);
+                    hasLoaded = true;
+                }
             } catch (e) {
-                console.error('Error parsing cached students:', e);
+                console.error('Error reading cached students:', e);
             }
         }
 
         try {
-            students = await StudentsAPI.getAllStudents();
-            localStorage.setItem('cachedStudents', JSON.stringify(students));
-            localStorage.setItem('cachedStudentsTimestamp', Date.now().toString());
-            renderStudents(students);
-            hasLoaded = true;
+            const freshData = await StudentsAPI.getAllStudents();
+            if (freshData) {
+                students = freshData;
+                await CacheService.set('cachedStudents', students);
+                renderStudents(students);
+                hasLoaded = true;
+            }
         } catch (error) {
             console.error('Error loading students:', error);
-            const tbody = document.getElementById('studentTableBody');
-            if (tbody) {
-                tbody.innerHTML = `
-                    <tr>
-                        <td colspan="8" class="px-5 py-12 text-center text-red-500">Failed to load students</td>
-                    </tr>
-                `;
+            if (!hasLoaded) {
+                const tbody = document.getElementById('studentTableBody');
+                if (tbody) {
+                    tbody.innerHTML = `
+                        <tr>
+                            <td colspan="8" class="px-5 py-12 text-center text-red-500">Failed to load students</td>
+                        </tr>
+                    `;
+                }
+                showToast('Failed to load students', 'error');
             }
-            showToast('Failed to load students', 'error');
         }
     }
 
@@ -127,9 +138,9 @@ export async function initManageStudents() {
             <tr style="transition: background-color 0.2s;" onmouseover="this.style.backgroundColor = document.documentElement.classList.contains('dark') ? 'rgba(255, 255, 255, 0.02)' : 'rgba(0, 0, 0, 0.1)'" onmouseout="this.style.backgroundColor = ''">
                 <td class="px-3 sm:px-5 py-2 sm:py-3.5">
                     ${student.profile_photo ? 
-                        `<img src="${student.profile_photo}" alt="${student.first_name} ${student.last_name}" class="w-10 h-10 object-cover rounded-full">` : 
-                        `<div class="w-10 h-10 bg-gray-200 rounded-full flex items-center justify-center">
-                            <i data-lucide="user" class="w-5 h-5 text-gray-400"></i>
+                        `<img src="${student.profile_photo}" alt="${student.first_name} ${student.last_name}" class="w-10 h-10 object-cover rounded-full" onerror="handleProfileImageError(this)">` : 
+                        `<div class="w-10 h-10 rounded-full overflow-hidden">
+                            ${getDefaultProfileSVG('100%', '100%')}
                         </div>`
                     }
                 </td>
@@ -176,13 +187,27 @@ export async function initManageStudents() {
                     await StudentsAPI.updateStudent(id, data);
                 } else {
                     const response = await StudentsAPI.createStudent(data);
-                    localStorage.removeItem('cachedStudents');
-                    localStorage.removeItem('cachedStudentsTimestamp');
+                    try {
+                        await logChange({
+                            user_id: adminUser.user_id,
+                            user_type: 'admin',
+                            action: 'create',
+                            table_name: 'students',
+                            record_id: response.id,
+                            field_name: 'all',
+                            old_value: null,
+                            new_value: `Student: ${data.first_name} ${data.last_name}`
+                        });
+                    } catch (error) {
+                        console.error('Failed to log student creation:', error);
+                    }
+                    await CacheService.remove('cachedStudents');
+
                     loadStudents(true);
                     return response;
                 }
-                localStorage.removeItem('cachedStudents');
-                localStorage.removeItem('cachedStudentsTimestamp');
+                await CacheService.remove('cachedStudents');
+
                 loadStudents(true);
             }
         });
@@ -193,9 +218,31 @@ export async function initManageStudents() {
             mode: 'edit',
             studentId: id,
             onSubmit: async (id, data) => {
+                const oldStudent = students.find(s => s.id === id);
                 await StudentsAPI.updateStudent(id, data);
-                localStorage.removeItem('cachedStudents');
-                localStorage.removeItem('cachedStudentsTimestamp');
+
+                const fieldsToLog = ['first_name', 'last_name', 'student_number', 'email', 'program', 'year_level', 'profile_photo'];
+                for (const field of fieldsToLog) {
+                    if (oldStudent && oldStudent[field] !== data[field]) {
+                        try {
+                            await logChange({
+                                user_id: adminUser.user_id,
+                                user_type: 'admin',
+                                action: 'update',
+                                table_name: 'students',
+                                record_id: id,
+                                field_name: field,
+                                old_value: field === 'profile_photo' ? (oldStudent[field] ? 'Base64 image data' : 'None') : (oldStudent[field] || 'None'),
+                                new_value: field === 'profile_photo' ? (data[field] ? 'Base64 image data' : 'Removed') : (data[field] || 'Removed')
+                            });
+                        } catch (error) {
+                            console.error(`Failed to log student ${field} change:`, error);
+                        }
+                    }
+                }
+
+                await CacheService.remove('cachedStudents');
+
                 loadStudents(true);
             }
         });
@@ -215,7 +262,24 @@ export async function initManageStudents() {
             showReason: true,
             onConfirm: async (reason) => {
                 try {
+                    const oldStudent = students.find(s => s.id === id);
                     await StudentsAPI.deleteStudent(id, reason);
+
+                    try {
+                        await logChange({
+                            user_id: adminUser.user_id,
+                            user_type: 'admin',
+                            action: 'delete',
+                            table_name: 'students',
+                            record_id: id,
+                            field_name: 'all',
+                            old_value: `Student: ${oldStudent?.first_name} ${oldStudent?.last_name || 'Unknown'}`,
+                            new_value: null
+                        });
+                    } catch (error) {
+                        console.error('Failed to log student deletion:', error);
+                    }
+
                     loadStudents(true);
                     showToast('Student deleted successfully', 'success');
                 } catch (error) {

@@ -8,7 +8,7 @@ class AdviserOrganizationModel {
     private $memberships_table = "organization_memberships";
 
     public function __construct() {
-        $database = new Database();
+        $database = Database::getInstance();
         $this->conn = $database->getConnection();
         if (!$this->conn) {
             error_log("Failed to establish database connection in AdviserOrganizationModel");
@@ -129,7 +129,7 @@ class AdviserOrganizationModel {
 
     public function updateOrganization($adviser_id, $data) {
 
-        $currentOrg = $this->getOrganizationByAdviserId($adviser_id);
+        $currentOrg = $this->getCurrentOrganizationForAdviser($adviser_id);
         if (!$currentOrg) {
             error_log("No organization found for adviser_id: " . $adviser_id);
             return false;
@@ -206,6 +206,11 @@ class AdviserOrganizationModel {
 
             foreach ($results as &$membership) {
                 $membership['student_name'] = $membership['first_name'] . ' ' . $membership['last_name'];
+                if (isset($membership['profile_photo']) && !empty($membership['profile_photo'])) {
+                    if (strpos($membership['profile_photo'], 'data:') !== 0) {
+                        $membership['profile_photo'] = 'data:image/jpeg;base64,' . base64_encode($membership['profile_photo']);
+                    }
+                }
             }
 
             return $results;

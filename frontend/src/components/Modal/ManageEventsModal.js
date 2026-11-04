@@ -1,10 +1,10 @@
 import { openModal, closeModal, setModalButtonLoading } from '../../utils/modal.js';
 import { openConfirmDialog } from '../Dialog/ConfirmDialog.js';
-import { animateModalOpen, animateModalClose, clearModalAnimations, animateFormElements, clearFormAnimations, animateViewModalElements } from '../../provider/ModalAnimation.js';
+import { animateModalClose, clearModalAnimations } from '../../provider/ModalAnimation.js';
 import * as EventsAPI from '../../api/admin/Events/ManageEvents.js';
-import * as OrganizationsAPI from '../../api/admin/Organizations/ManageOrganizations.js';
 import { showToast } from '../ToastMessage.js';
 import { skeletonEventForm, skeletonEventView } from '../SkeletonLoading.js';
+import { FIELD_CLASS, LABEL_CLASS, modalSection, modalActions, modalViewClose, modalDetailTile, modalBadge, modalHero, applyModalDomino } from './modalUi.js';
 
 export function openManageEventsModal({ mode = 'add', event = null, eventId = null, onSubmit }) {
     const isEdit = mode === 'edit';
@@ -12,68 +12,49 @@ export function openManageEventsModal({ mode = 'add', event = null, eventId = nu
     const buttonText = isEdit ? 'Save Changes' : 'Add Event';
 
     const formContent = `
-        <form id="eventForm" class="space-y-5">
+        <form id="eventForm" class="manage-modal-form space-y-4">
             ${isEdit ? `<input type="hidden" id="eventId" value="${event?.id || eventId || ''}">` : ''}
-
-            <fieldset>
-                <legend class="text-xs font-semibold text-gray-500 uppercase tracking-wider mb-3">Event Details</legend>
+            ${modalSection('Event Details', `
                 <div class="space-y-3">
                     <div>
-                        <label for="eventTitle" class="block text-sm font-medium text-gray-700 mb-1">Event Title <span class="text-red-500">*</span></label>
-                        <input type="text" id="eventTitle" name="eventTitle" value="${isEdit && event ? event.title : ''}" required
-                            placeholder="e.g. Annual General Assembly"
-                            class="w-full px-3 py-2 text-sm border border-gray-200 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-transparent transition">
+                        <label for="eventTitle" class="${LABEL_CLASS}">Event Title <span class="text-red-500">*</span></label>
+                        <input type="text" id="eventTitle" name="eventTitle" value="${isEdit && event ? event.title : ''}" required placeholder="e.g. Annual General Assembly" class="${FIELD_CLASS}">
                     </div>
                     <div>
-                        <label for="eventDescription" class="block text-sm font-medium text-gray-700 mb-1">Description</label>
-                        <textarea id="eventDescription" name="eventDescription" rows="3"
-                            placeholder="Detailed description of the event"
-                            class="w-full px-3 py-2 text-sm border border-gray-200 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-transparent transition resize-none">${isEdit && event ? event.description : ''}</textarea>
+                        <label for="eventDescription" class="${LABEL_CLASS}">Description</label>
+                        <textarea id="eventDescription" name="eventDescription" rows="3" placeholder="Detailed description of the event" class="${FIELD_CLASS} resize-none">${isEdit && event ? event.description : ''}</textarea>
                     </div>
                 </div>
-            </fieldset>
-
-            <hr class="border-gray-100">
-
-            <fieldset>
-                <legend class="text-xs font-semibold text-gray-500 uppercase tracking-wider mb-3">Event Information</legend>
+            `)}
+            ${modalSection('Event Information', `
                 <div class="space-y-3">
-                    <div>
-                        <label for="organizationIds" class="block text-sm font-medium text-gray-700 mb-1">Organizations <span class="text-red-500">*</span></label>
-                        <div id="organizationCheckboxes" class="space-y-2 max-h-40 overflow-y-auto border border-gray-200 rounded-md p-3 bg-gray-50">
-                            <p class="text-sm text-gray-400">Loading organizations...</p>
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-3">
+                        <div>
+                            <label for="eventDayStart" class="${LABEL_CLASS}">Event Day Start <span class="text-red-500">*</span></label>
+                            <input type="date" id="eventDayStart" name="eventDayStart" value="${isEdit && event ? event.event_day_start : ''}" required class="${FIELD_CLASS}">
+                        </div>
+                        <div>
+                            <label for="eventDayEnd" class="${LABEL_CLASS}">Event Day End <span class="text-red-500">*</span></label>
+                            <input type="date" id="eventDayEnd" name="eventDayEnd" value="${isEdit && event ? event.event_day_end : ''}" required class="${FIELD_CLASS}">
                         </div>
                     </div>
-                    <div>
-                        <label for="eventDayStart" class="block text-sm font-medium text-gray-700 mb-1">Event Day Start <span class="text-red-500">*</span></label>
-                        <input type="date" id="eventDayStart" name="eventDayStart" value="${isEdit && event ? event.event_day_start : ''}" required
-                            class="w-full px-3 py-2 text-sm border border-gray-200 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-transparent transition">
-                    </div>
-                    <div>
-                        <label for="eventDayEnd" class="block text-sm font-medium text-gray-700 mb-1">Event Day End <span class="text-red-500">*</span></label>
-                        <input type="date" id="eventDayEnd" name="eventDayEnd" value="${isEdit && event ? event.event_day_end : ''}" required
-                            class="w-full px-3 py-2 text-sm border border-gray-200 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-transparent transition">
-                    </div>
                     <div id="dailySchedulesContainer" class="hidden">
-                        <div class="flex items-center justify-between mb-2">
-                            <label class="block text-sm font-medium text-gray-700">Daily Schedule Configuration</label>
-                            <button type="button" id="setSameTimeBtn" class="px-3 py-1 text-xs font-medium text-blue-900 bg-blue-50 hover:bg-blue-100 rounded border border-blue-200 transition">
+                        <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2 mb-2">
+                            <label class="block text-sm font-medium text-ink">Daily Schedule</label>
+                            <button type="button" id="setSameTimeBtn" class="px-3 py-1.5 text-xs font-medium text-navy bg-blue-50 hover:bg-blue-100 rounded-lg border border-blue-100 transition">
                                 Set Same Time for All Days
                             </button>
                         </div>
-                        <div id="dailySchedulesList" class="space-y-2 max-h-60 overflow-y-auto border border-gray-200 rounded-md p-3 bg-gray-50">
+                        <div id="dailySchedulesList" class="space-y-2 max-h-60 overflow-y-auto border border-line rounded-xl p-3 bg-surface">
                         </div>
                     </div>
                     <div>
-                        <label for="eventVenue" class="block text-sm font-medium text-gray-700 mb-1">Venue</label>
-                        <input type="text" id="eventVenue" name="eventVenue" value="${isEdit && event ? event.venue : ''}"
-                            placeholder="e.g. Main Auditorium, Online via Zoom"
-                            class="w-full px-3 py-2 text-sm border border-gray-200 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-transparent transition">
+                        <label for="eventVenue" class="${LABEL_CLASS}">Venue</label>
+                        <input type="text" id="eventVenue" name="eventVenue" value="${isEdit && event ? event.venue : ''}" placeholder="e.g. Main Auditorium, Online via Zoom" class="${FIELD_CLASS}">
                     </div>
                     <div>
-                        <label for="eventCategory" class="block text-sm font-medium text-gray-700 mb-1">Event Category <span class="text-red-500">*</span></label>
-                        <select id="eventCategory" name="eventCategory" required
-                            class="w-full px-3 py-2 text-sm border border-gray-200 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-transparent bg-white transition">
+                        <label for="eventCategory" class="${LABEL_CLASS}">Event Category <span class="text-red-500">*</span></label>
+                        <select id="eventCategory" name="eventCategory" required class="${FIELD_CLASS}">
                             <option value="">Select Category</option>
                             <option value="Seminar" ${isEdit && event?.event_category === 'Seminar' ? 'selected' : ''}>Seminar</option>
                             <option value="Outreach" ${isEdit && event?.event_category === 'Outreach' ? 'selected' : ''}>Outreach</option>
@@ -85,41 +66,18 @@ export function openManageEventsModal({ mode = 'add', event = null, eventId = nu
                         </select>
                     </div>
                     <div id="customCategoryContainer" class="${isEdit && event?.event_category && !['Seminar', 'Outreach', 'General Assembly', 'Workshop', 'Competition', 'Social Event'].includes(event.event_category) ? '' : 'hidden'}">
-                        <label for="customCategory" class="block text-sm font-medium text-gray-700 mb-1">Specify Category <span class="text-red-500">*</span></label>
-                        <input type="text" id="customCategory" name="customCategory" value="${isEdit && event?.event_category && !['Seminar', 'Outreach', 'General Assembly', 'Workshop', 'Competition', 'Social Event'].includes(event.event_category) ? event.event_category : ''}"
-                            placeholder="e.g. Sports Competition, Cultural Event"
-                            class="w-full px-3 py-2 text-sm border border-gray-200 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-transparent transition">
+                        <label for="customCategory" class="${LABEL_CLASS}">Specify Category <span class="text-red-500">*</span></label>
+                        <input type="text" id="customCategory" name="customCategory" value="${isEdit && event?.event_category && !['Seminar', 'Outreach', 'General Assembly', 'Workshop', 'Competition', 'Social Event'].includes(event.event_category) ? event.event_category : ''}" placeholder="e.g. Sports Competition, Cultural Event" class="${FIELD_CLASS}">
                     </div>
                 </div>
-            </fieldset>
-
-            <div id="formError" class="hidden text-sm text-red-600 bg-red-50 border border-red-200 rounded-md px-3 py-2"></div>
-
-            <div class="flex justify-end pt-3 border-t border-gray-100 flex-row gap-2">
-                <button 
-                    type="button" 
-                    onclick="closeManageEventsModal()" 
-                    class="px-4 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-md hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-gray-200 transition">
-                    Cancel
-                </button>
-                <button 
-                    type="submit" 
-                    id="submitBtn" 
-                    class="px-5 py-2 text-sm font-medium text-white bg-blue-900 hover:bg-blue-800 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-1 transition">
-                    ${buttonText}
-                </button>
-            </div>
+            `)}
+            <div id="formError" class="hidden text-sm text-red-700 bg-red-50 border border-red-200 rounded-xl px-3 py-2.5"></div>
+            ${modalActions({ cancelOnclick: 'closeManageEventsModal()', submitText: buttonText })}
         </form>
     `;
 
     if (isEdit && !event && eventId) {
         openModal(title, skeletonEventForm(), 'mid-large');
-
-        const modalOverlay = document.getElementById('modal-overlay');
-        const modalContent = document.getElementById('modal-content');
-        if (modalOverlay && modalContent) {
-            animateModalOpen(modalOverlay, modalContent, 'scale');
-        }
 
         setTimeout(async () => {
             try {
@@ -129,6 +87,7 @@ export function openManageEventsModal({ mode = 'add', event = null, eventId = nu
                     modalBody.innerHTML = formContent;
                     populateFormWithEvent(fetchedEvent);
                     setupFormHandlers(fetchedEvent.id, buttonText, onSubmit);
+                    applyModalDomino();
                 }
             } catch (error) {
                 console.error('Error loading event:', error);
@@ -138,20 +97,7 @@ export function openManageEventsModal({ mode = 'add', event = null, eventId = nu
         }, 100);
     } else {
         openModal(title, formContent, 'mid-large');
-
-        const modalOverlay = document.getElementById('modal-overlay');
-        const modalContent = document.getElementById('modal-content');
-        if (modalOverlay && modalContent) {
-            animateModalOpen(modalOverlay, modalContent, 'scale');
-        }
-
-        setTimeout(() => {
-            const form = document.getElementById('eventForm');
-            if (form) {
-                animateFormElements(form);
-            }
-        }, 100);
-
+        applyModalDomino();
         setupFormHandlers(event?.id, buttonText, onSubmit);
     }
 }
@@ -173,15 +119,7 @@ function populateFormWithEvent(event) {
         document.getElementById('customCategoryContainer').classList.remove('hidden');
     }
 
-    setTimeout(() => {
-        const formEl = document.getElementById('eventForm');
-        if (formEl) {
-            animateFormElements(formEl);
-        }
-    }, 50);
-
-    const selectedOrgIds = event.organization_ids ? event.organization_ids.split(',').map(id => parseInt(id.trim())) : [event.organization_id].filter(id => id);
-    loadOrganizations(selectedOrgIds);
+    applyModalDomino();
 
     if (event.daily_schedules && event.daily_schedules.length > 0) {
         const dailySchedulesContainer = document.getElementById('dailySchedulesContainer');
@@ -190,7 +128,6 @@ function populateFormWithEvent(event) {
         }
         renderDailySchedules(event.daily_schedules);
     } else if (event.event_day_start && event.event_day_end) {
-
         const dailySchedulesContainer = document.getElementById('dailySchedulesContainer');
         if (dailySchedulesContainer) {
             dailySchedulesContainer.classList.remove('hidden');
@@ -286,10 +223,6 @@ function setupFormHandlers(eventId, buttonText, onSubmit) {
             showToast('Same time applied to all days', 'success');
         });
     }
-
-    if (!eventId) {
-        loadOrganizations();
-    }
 }
 
 function getDatesInRange(startDate, endDate) {
@@ -317,57 +250,16 @@ function renderDailySchedules(schedules) {
         const endTime = schedule.end_time || '17:00';
         
         return `
-            <div class="flex items-center gap-2 p-2 bg-white rounded border border-gray-200">
-                <span class="text-xs font-medium text-gray-700 w-28">${formattedDate}</span>
-                <input type="time" name="schedule_start_${index}" value="${startTime}" 
-                    class="px-2 py-1 text-xs border border-gray-200 rounded focus:ring-2 focus:ring-blue-500">
-                <span class="text-xs text-gray-500">to</span>
-                <input type="time" name="schedule_end_${index}" value="${endTime}" 
-                    class="px-2 py-1 text-xs border border-gray-200 rounded focus:ring-2 focus:ring-blue-500">
+            <div class="flex flex-col sm:flex-row sm:items-center gap-2 p-3 bg-white rounded-xl border border-line">
+                <span class="text-xs font-semibold text-ink sm:w-28">${formattedDate}</span>
+                <div class="grid grid-cols-2 gap-2 flex-1">
+                    <input type="time" name="schedule_start_${index}" value="${startTime}" class="w-full px-2 py-2 text-sm border border-line rounded-lg focus:ring-2 focus:ring-navy/15 focus:border-navy">
+                    <input type="time" name="schedule_end_${index}" value="${endTime}" class="w-full px-2 py-2 text-sm border border-line rounded-lg focus:ring-2 focus:ring-navy/15 focus:border-navy">
+                </div>
                 <input type="hidden" name="schedule_date_${index}" value="${dateValue}">
             </div>
         `;
     }).join('');
-}
-
-async function loadOrganizations(selectedOrgIds = []) {
-    try {
-        const cachedData = localStorage.getItem('cachedOrganizations');
-        let organizations;
-        
-        if (cachedData) {
-            try {
-                organizations = JSON.parse(cachedData);
-            } catch (e) {
-                console.error('Error parsing cached organizations:', e);
-                organizations = await OrganizationsAPI.getAllOrganizations();
-                localStorage.setItem('cachedOrganizations', JSON.stringify(organizations));
-                localStorage.setItem('cachedOrganizationsTimestamp', Date.now().toString());
-            }
-        } else {
-            organizations = await OrganizationsAPI.getAllOrganizations();
-            localStorage.setItem('cachedOrganizations', JSON.stringify(organizations));
-            localStorage.setItem('cachedOrganizationsTimestamp', Date.now().toString());
-        }
-        
-        const orgContainer = document.getElementById('organizationCheckboxes');
-        if (orgContainer) {
-            orgContainer.innerHTML = organizations.map(org => `
-                <label class="flex items-center space-x-2 cursor-pointer hover:bg-gray-100 p-1 rounded">
-                    <input type="checkbox" name="organizationIds" value="${org.id}" ${selectedOrgIds.includes(org.id) ? 'checked' : ''}
-                        class="w-4 h-4 text-blue-900 border-gray-300 rounded focus:ring-blue-500">
-                    <span class="text-sm text-gray-700">${org.name}</span>
-                </label>
-            `).join('');
-        }
-    } catch (error) {
-        console.error('Error loading organizations:', error);
-        const orgContainer = document.getElementById('organizationCheckboxes');
-        if (orgContainer) {
-            orgContainer.innerHTML = '<p class="text-sm text-red-500">Failed to load organizations</p>';
-        }
-        showToast('Failed to load organizations', 'error');
-    }
 }
 
 function showFormError(message) {
@@ -394,14 +286,6 @@ async function processEventSubmit(id, buttonText, onSubmit) {
         eventCategory = customCategoryInput.value.trim();
     }
 
-    const orgCheckboxes = document.querySelectorAll('input[name="organizationIds"]:checked');
-    const organizationIds = Array.from(orgCheckboxes).map(cb => parseInt(cb.value));
-
-    if (organizationIds.length === 0) {
-        showFormError('Please select at least one organization');
-        return;
-    }
-
     const eventDayStart = document.getElementById('eventDayStart').value;
     const eventDayEnd = document.getElementById('eventDayEnd').value;
 
@@ -424,7 +308,6 @@ async function processEventSubmit(id, buttonText, onSubmit) {
     const formData = {
         title: document.getElementById('eventTitle').value.trim(),
         description: document.getElementById('eventDescription').value.trim(),
-        organization_ids: organizationIds,
         event_day_start: eventDayStart,
         event_day_end: eventDayEnd,
         daily_schedules: dailySchedules,
@@ -478,6 +361,7 @@ async function closeManageEventsModal() {
         await animateModalClose(modalOverlay, modalContent, 'scale');
         clearModalAnimations(modalOverlay, modalContent);
         modalOverlay.remove();
+        document.body.classList.remove('overflow-hidden');
         document.removeEventListener('keydown', (e) => {
             if (e.key === 'Escape') closeManageEventsModal();
         });
@@ -490,12 +374,6 @@ window.closeManageEventsModal = closeManageEventsModal;
 
 export async function openViewEventsModal(id) {
     openModal('Event Details', skeletonEventView(), 'mid-large');
-
-    const modalOverlay = document.getElementById('modal-overlay');
-    const modalContent = document.getElementById('modal-content');
-    if (modalOverlay && modalContent) {
-        animateModalOpen(modalOverlay, modalContent, 'scale');
-    }
 
     try {
         const event = await EventsAPI.getEvent(id);
@@ -539,96 +417,46 @@ export async function openViewEventsModal(id) {
         }) : 'N/A';
 
         const content = `
-            <div class="space-y-5">
-                <div class="flex flex-col sm:flex-row sm:items-center gap-4 bg-gray-50 rounded-lg p-4 border border-gray-100">
-                    <div class="flex-shrink-0 w-24 h-24 sm:w-32 sm:h-32 rounded-lg bg-blue-900 text-blue-100 flex items-center justify-center text-2xl font-bold shadow-sm mx-auto sm:mx-0">
-                        <i data-lucide="calendar" class="w-12 h-12"></i>
-                    </div>
-                    <div class="text-center sm:text-left">
-                        <h3 class="text-lg font-semibold text-gray-900">${event.title}</h3>
-                        <p class="text-sm text-gray-500 mt-0.5">${event.organization_name || 'N/A'}</p>
-                        <span class="inline-flex items-center px-2.5 py-0.5 mt-0.5 rounded-full text-xs font-medium bg-blue-50 text-blue-900 border border-gray-200">
-                            ${event.event_category}
-                        </span>
-                    </div>
-                </div>
-
-                <div class="border-b border-gray-200 pb-4">
-                    <h4 class="text-xs font-semibold text-gray-500 uppercase tracking-wider mb-3">Event Details</h4>
-                    <dl class="grid grid-cols-1 sm:grid-cols-2 gap-x-6 gap-y-3">
-                        <div>
-                            <dt class="text-xs text-gray-400 font-medium">Event Title</dt>
-                            <dd class="text-sm font-semibold text-gray-900 mt-0.5">${event.title}</dd>
-                        </div>
-                        <div>
-                            <dt class="text-xs text-gray-400 font-medium">Organization</dt>
-                            <dd class="text-sm font-semibold text-gray-900 mt-0.5">${event.organization_name || 'N/A'}</dd>
-                        </div>
-                        <div class="sm:col-span-2">
-                            <dt class="text-xs text-gray-400 font-medium">Description</dt>
-                            <dd class="text-sm font-semibold text-gray-900 mt-0.5">${event.description || 'N/A'}</dd>
-                        </div>
+            <div class="space-y-4">
+                ${modalHero({
+                    fallback: '<i data-lucide="calendar" class="w-10 h-10"></i>',
+                    name: event.title,
+                    badges: [modalBadge(event.event_category, 'navy')]
+                })}
+                ${modalSection('Event Details', `
+                    <dl class="grid grid-cols-1 md:grid-cols-2 gap-2.5">
+                        ${modalDetailTile('Event Title', event.title)}
+                        ${modalDetailTile('Category', event.event_category)}
+                        <div class="md:col-span-2">${modalDetailTile('Description', event.description || 'N/A')}</div>
                     </dl>
-                </div>
-
-                <div class="border-b border-gray-200 pb-4">
-                    <h4 class="text-xs font-semibold text-gray-500 uppercase tracking-wider mb-3">Event Information</h4>
-                    <dl class="grid grid-cols-1 sm:grid-cols-2 gap-x-6 gap-y-3">
-                        <div class="sm:col-span-2">
-                            <dt class="text-xs text-gray-400 font-medium">Date Range</dt>
-                            <dd class="text-sm font-semibold text-gray-900 mt-0.5">${dateRange}</dd>
-                        </div>
-                        <div>
-                            <dt class="text-xs text-gray-400 font-medium">Venue</dt>
-                            <dd class="text-sm font-semibold text-gray-900 mt-0.5">${event.venue || 'N/A'}</dd>
-                        </div>
-                        <div>
-                            <dt class="text-xs text-gray-400 font-medium">Category</dt>
-                            <dd class="text-sm font-semibold text-gray-900 mt-0.5">${event.event_category}</dd>
-                        </div>
+                `)}
+                ${modalSection('Event Information', `
+                    <dl class="grid grid-cols-1 md:grid-cols-2 gap-2.5">
+                        <div class="md:col-span-2">${modalDetailTile('Date Range', dateRange)}</div>
+                        ${modalDetailTile('Venue', event.venue || 'N/A')}
                     </dl>
-                </div>
-
-                ${event.daily_schedules && event.daily_schedules.length > 0 ? `
-                <div class="border-b border-gray-200 pb-4">
-                    <h4 class="text-xs font-semibold text-gray-500 uppercase tracking-wider mb-3">Daily Schedule</h4>
+                `)}
+                ${event.daily_schedules && event.daily_schedules.length > 0 ? modalSection('Daily Schedule', `
                     <div class="space-y-2 max-h-48 overflow-y-auto">
                         ${event.daily_schedules.map(schedule => {
                             const date = new Date(schedule.schedule_date);
                             const formattedDate = date.toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' });
                             return `
-                                <div class="flex items-center justify-between p-2 bg-gray-50 rounded border border-gray-100">
-                                    <span class="text-sm font-medium text-gray-700">${formattedDate}</span>
-                                    <span class="text-sm text-gray-600">${formatTime(schedule.start_time)} - ${formatTime(schedule.end_time)}</span>
+                                <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-1 p-3 bg-surface rounded-xl border border-line">
+                                    <span class="text-sm font-medium text-ink">${formattedDate}</span>
+                                    <span class="text-sm text-muted">${formatTime(schedule.start_time)} - ${formatTime(schedule.end_time)}</span>
                                 </div>
                             `;
                         }).join('')}
                     </div>
-                </div>
-                ` : ''}
-
-                <div class="border-b border-gray-200 pb-4">
-                    <h4 class="text-xs font-semibold text-gray-500 uppercase tracking-wider mb-3">Timestamps</h4>
-                    <dl class="grid grid-cols-1 sm:grid-cols-2 gap-x-6 gap-y-3">
-                        <div>
-                            <dt class="text-xs text-gray-400 font-medium">Created At</dt>
-                            <dd class="text-sm font-semibold text-gray-900 mt-0.5">${createdAt}</dd>
-                        </div>
-                        <div>
-                            <dt class="text-xs text-gray-400 font-medium">Updated At</dt>
-                            <dd class="text-sm font-semibold text-gray-900 mt-0.5">${updatedAt}</dd>
-                        </div>
+                `) : ''}
+                ${modalSection('Timestamps', `
+                    <dl class="grid grid-cols-1 md:grid-cols-2 gap-2.5">
+                        ${modalDetailTile('Created At', createdAt)}
+                        ${modalDetailTile('Updated At', updatedAt)}
                     </dl>
-                </div>
-
-                <div class="flex justify-end pt-3 border-t border-gray-100 flex-col sm:flex-row gap-2">
-                    <button 
-                        type="button" 
-                        onclick="closeModal()" 
-                        class="px-4 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-md hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-gray-200 transition">
-                        Close
-                    </button>
-                </div>
+                `)}
+                ${modalViewClose()}
             </div>
         `;
 
@@ -636,16 +464,7 @@ export async function openViewEventsModal(id) {
         if (modalBody) {
             modalBody.innerHTML = content;
         }
-
-        setTimeout(() => {
-            const modalContentEl = document.getElementById('modal-content');
-            if (modalContentEl) {
-                animateViewModalElements(modalContentEl);
-            }
-            if (typeof lucide !== 'undefined') {
-                lucide.createIcons();
-            }
-        }, 50);
+        applyModalDomino();
     } catch (error) {
         console.error('Error loading event:', error);
         showToast('Failed to load event', 'error');

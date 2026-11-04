@@ -14,6 +14,8 @@ class AdviserTasksRoutes {
 
         if ($method === 'GET' && $uri === '/api/adviser/registered-events') {
             $this->controller->getRegisteredEvents();
+        } elseif ($method === 'GET' && preg_match('#^/api/adviser/events/(\d+)$#', $uri, $matches)) {
+            $this->controller->getEvent($matches[1]);
         } elseif ($method === 'GET' && preg_match('#^/api/adviser/organizations-by-event/(\d+)$#', $uri, $matches)) {
             $this->controller->getOrganizationsByEvent($matches[1]);
         }
@@ -38,10 +40,14 @@ class AdviserTasksRoutes {
             $this->controller->updateTask($matches[1]);
         } elseif ($method === 'PATCH' && preg_match('#^/api/adviser/tasks/(\d+)/status$#', $uri, $matches)) {
             $this->controller->updateTaskStatus($matches[1]);
+        } elseif ($method === 'POST' && preg_match('#^/api/adviser/tasks/(\d+)/void$#', $uri, $matches)) {
+            $this->controller->voidTask($matches[1]);
         } elseif ($method === 'DELETE' && preg_match('#^/api/adviser/tasks/(\d+)$#', $uri, $matches)) {
             $this->controller->deleteTask($matches[1]);
         } elseif ($method === 'PATCH' && preg_match('#^/api/adviser/schedule-status/(\d+)$#', $uri, $matches)) {
             $this->controller->updateScheduleStatus($matches[1]);
+        } elseif ($method === 'POST' && preg_match('#^/api/adviser/schedule-status/(\d+)/void$#', $uri, $matches)) {
+            $this->controller->voidSchedule($matches[1]);
         } else {
             http_response_code(404);
             echo json_encode(['message' => 'Route not found']);

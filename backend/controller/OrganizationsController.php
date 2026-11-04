@@ -2,6 +2,7 @@
 
 require_once __DIR__ . '/../model/OrganizationsModel.php';
 require_once __DIR__ . '/../config/jwt.php';
+require_once __DIR__ . '/../cache/CacheService.php';
 
 class OrganizationsController {
     private $organizationsModel;
@@ -22,7 +23,9 @@ class OrganizationsController {
             return;
         }
 
-        $organizations = $this->organizationsModel->readAll();
+        $organizations = CacheService::remember('organizations_all', 300, function() {
+            return $this->organizationsModel->readAll();
+        });
 
         if ($organizations !== false) {
             http_response_code(200);
@@ -83,6 +86,9 @@ class OrganizationsController {
         }
 
         $result = $this->organizationsModel->create($data);
+        if ($result) {
+            CacheService::forget('organizations_all');
+        }
 
         if ($result) {
             http_response_code(201);
@@ -120,6 +126,10 @@ class OrganizationsController {
         }
 
         $result = $this->organizationsModel->update($id, $data);
+        if ($result) {
+            CacheService::forget('organizations_all');
+            CacheService::forget('organization_' . $id);
+        }
 
         if ($result) {
             $organization = $this->organizationsModel->readOne($id);
@@ -147,6 +157,10 @@ class OrganizationsController {
         }
 
         $result = $this->organizationsModel->delete($id);
+        if ($result) {
+            CacheService::forget('organizations_all');
+            CacheService::forget('organization_' . $id);
+        }
 
         if ($result) {
             http_response_code(200);

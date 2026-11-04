@@ -7,7 +7,7 @@ class OrganizationsModel {
     private $table_name = "organizations";
 
     public function __construct() {
-        $database = new Database();
+        $database = Database::getInstance();
         $this->conn = $database->getConnection();
         if (!$this->conn) {
             error_log("Failed to establish database connection in OrganizationsModel");
@@ -94,6 +94,26 @@ class OrganizationsModel {
             return $stmt->fetch(PDO::FETCH_ASSOC);
         } catch(PDOException $e) {
             echo "Error reading organization by org code: " . $e->getMessage();
+            return false;
+        }
+    }
+
+    public function getByAdviserId($adviserId) {
+        $query = "SELECT o.id, o.org_code, o.name, o.description, o.adviser_id, a.name as adviser, o.status, o.updated_at, o.created_at
+                  FROM " . $this->table_name . " o
+                  LEFT JOIN advisers a ON o.adviser_id = a.id
+                  WHERE o.adviser_id = :adviser_id
+                  ORDER BY o.created_at DESC";
+
+        try {
+            $stmt = $this->conn->prepare($query);
+            $stmt->bindParam(':adviser_id', $adviserId);
+            $stmt->execute();
+            $results = $stmt->fetchAll(PDO::FETCH_ASSOC);
+
+            return $results;
+        } catch(PDOException $e) {
+            error_log("Error reading organizations by adviser: " . $e->getMessage());
             return false;
         }
     }

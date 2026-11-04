@@ -1,0 +1,23 @@
+[build]
+  command = "echo 'No build command needed'"
+
+[dev]
+  command = "npx serve"
+  port = 3000
+  targetPort = 3000
+  autoLaunch = false
+
+[[redirects]]
+  from = "/*"
+  to = "/index.html"
+  status = 200
+  force = false
+
+[[headers]]
+  for = "/*"
+  [headers.values]
+    X-Frame-Options = "DENY"
+    X-XSS-Protection = "1; mode=block"
+
+[context.production.environment]
+  NETLIFY_DEV_HUD_ENABLED = "false"

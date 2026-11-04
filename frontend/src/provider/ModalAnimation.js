@@ -92,53 +92,96 @@ export function ensureAnimationStyles() {
         .modal-content-slide-out {
             animation: slideOut 0.1s ease-in forwards;
         }
+
+        @keyframes sheetIn {
+            from {
+                opacity: 0;
+                transform: translate3d(0, 48px, 0) scale(1.045);
+            }
+            to {
+                opacity: 1;
+                transform: translate3d(0, 0, 0) scale(1);
+            }
+        }
+
+        @keyframes sheetOut {
+            from {
+                opacity: 1;
+                transform: translate3d(0, 0, 0) scale(1);
+            }
+            to {
+                opacity: 0;
+                transform: translate3d(0, 36px, 0) scale(0.96);
+            }
+        }
+
+        .modal-content-sheet-in {
+            animation: sheetIn 0.42s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+            transform-origin: 50% 100%;
+        }
+
+        .modal-content-sheet-out {
+            animation: sheetOut 0.22s cubic-bezier(0.4, 0, 0.2, 1) forwards;
+            transform-origin: 50% 100%;
+        }
     `;
     document.head.appendChild(style);
+}
+
+function isMobileSheet() {
+    return typeof window !== 'undefined' && window.matchMedia('(max-width: 767px)').matches;
+}
+
+function modalOpenClass(animationType = 'scale') {
+    if (isMobileSheet()) return 'modal-content-sheet-in';
+    return animationType === 'slide' ? 'modal-content-slide-in' : 'modal-content-scale-in';
+}
+
+function modalCloseClass(animationType = 'scale') {
+    if (isMobileSheet()) return 'modal-content-sheet-out';
+    return animationType === 'slide' ? 'modal-content-slide-out' : 'modal-content-scale-out';
 }
 
 export function animateModalOpen(modalOverlay, modalContent, animationType = 'scale') {
     ensureAnimationStyles();
 
-    modalOverlay.classList.add('modal-overlay-fade-in');
-
-    if (animationType === 'slide') {
-        modalContent.classList.add('modal-content-slide-in');
-    } else {
-        modalContent.classList.add('modal-content-scale-in');
-    }
+    const backdrop = modalOverlay.querySelector?.('[data-modal-overlay]') || modalOverlay;
+    backdrop.classList.add('modal-overlay-fade-in');
+    modalContent.classList.add(modalOpenClass(animationType));
 }
 
 export function animateModalClose(modalOverlay, modalContent, animationType = 'scale') {
     return new Promise((resolve) => {
         ensureAnimationStyles();
 
-        modalOverlay.classList.remove('modal-overlay-fade-in');
-        modalContent.classList.remove('modal-content-scale-in', 'modal-content-slide-in');
+        const backdrop = modalOverlay.querySelector?.('[data-modal-overlay]') || modalOverlay;
+        backdrop.classList.remove('modal-overlay-fade-in');
+        modalContent.classList.remove(
+            'modal-content-scale-in',
+            'modal-content-slide-in',
+            'modal-content-sheet-in'
+        );
 
-        modalOverlay.classList.add('modal-overlay-fade-out');
-
-        if (animationType === 'slide') {
-            modalContent.classList.add('modal-content-slide-out');
-        } else {
-            modalContent.classList.add('modal-content-scale-out');
-        }
+        backdrop.classList.add('modal-overlay-fade-out');
+        modalContent.classList.add(modalCloseClass(animationType));
 
         setTimeout(() => {
             resolve();
-        }, 100);
+        }, isMobileSheet() ? 220 : 100);
     });
 }
 
 export function clearModalAnimations(modalOverlay, modalContent) {
-    modalOverlay.classList.remove(
-        'modal-overlay-fade-in',
-        'modal-overlay-fade-out'
-    );
+    const backdrop = modalOverlay.querySelector?.('[data-modal-overlay]') || modalOverlay;
+    backdrop.classList.remove('modal-overlay-fade-in', 'modal-overlay-fade-out');
+    modalOverlay.classList.remove('modal-overlay-fade-in', 'modal-overlay-fade-out');
     modalContent.classList.remove(
         'modal-content-scale-in',
         'modal-content-scale-out',
         'modal-content-slide-in',
-        'modal-content-slide-out'
+        'modal-content-slide-out',
+        'modal-content-sheet-in',
+        'modal-content-sheet-out'
     );
 }
 

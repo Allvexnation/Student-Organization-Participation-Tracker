@@ -7,7 +7,7 @@ class EventTaskModel {
     private $table_name = "member_tasks";
 
     public function __construct() {
-        $database = new Database();
+        $database = Database::getInstance();
         $this->conn = $database->getConnection();
         if (!$this->conn) {
             error_log("Failed to establish database connection in EventTaskModel");
@@ -25,10 +25,12 @@ class EventTaskModel {
         $memberTasksModel->syncAllTasksStatus();
 
         $query = "SELECT mt.id, mt.event_id, mt.organization_id, mt.student_id, mt.task_title, mt.task_description, mt.start_date, mt.end_date, mt.student_start_date, mt.student_end_date, mt.status, mt.completed_at, mt.updated_at, mt.created_at,
+                         mt.marked_by, mt.marked_at, mt.is_voided, mt.voided_at, mt.voided_by, mt.void_reason,
                          s.first_name, s.last_name, s.student_number,
                          o.name as organization_name,
                          e.title as event_title,
-                         ds.id as schedule_id, ds.student_id as schedule_student_id, ds.schedule_date, ds.start_time as schedule_start_time, ds.end_time as schedule_end_time, ds.status as schedule_status
+                         ds.id as schedule_id, ds.student_id as schedule_student_id, ds.day_number as schedule_day_number, ds.schedule_date, ds.start_time as schedule_start_time, ds.end_time as schedule_end_time, ds.status as schedule_status,
+                         ds.marked_by as schedule_marked_by, ds.marked_at as schedule_marked_at, ds.is_voided as schedule_is_voided, ds.voided_at as schedule_voided_at, ds.voided_by as schedule_voided_by, ds.void_reason as schedule_void_reason
                   FROM " . $this->table_name . " mt
                   LEFT JOIN students s ON mt.student_id = s.id
                   LEFT JOIN organizations o ON mt.organization_id = o.id
@@ -60,6 +62,12 @@ class EventTaskModel {
                         'student_end_date' => $row['student_end_date'] ?? null,
                         'status' => $row['status'],
                         'completed_at' => $row['completed_at'],
+                        'marked_by' => $row['marked_by'] ?? null,
+                        'marked_at' => $row['marked_at'] ?? null,
+                        'is_voided' => intval($row['is_voided'] ?? 0),
+                        'voided_at' => $row['voided_at'] ?? null,
+                        'voided_by' => $row['voided_by'] ?? null,
+                        'void_reason' => $row['void_reason'] ?? null,
                         'updated_at' => $row['updated_at'],
                         'created_at' => $row['created_at'],
                         'first_name' => $row['first_name'],
@@ -77,13 +85,22 @@ class EventTaskModel {
                         'id' => $row['schedule_id'],
                         'task_id' => $taskId,
                         'student_id' => $row['schedule_student_id'] ?? $row['student_id'],
+                        'day_number' => isset($row['schedule_day_number']) && $row['schedule_day_number'] !== null ? intval($row['schedule_day_number']) : null,
                         'schedule_date' => $row['schedule_date'],
                         'start_time' => $row['schedule_start_time'],
                         'end_time' => $row['schedule_end_time'],
-                        'status' => $row['schedule_status'] ?? 'pending'
+                        'status' => $row['schedule_status'] ?? 'pending',
+                        'marked_by' => $row['schedule_marked_by'] ?? null,
+                        'marked_at' => $row['schedule_marked_at'] ?? null,
+                        'is_voided' => intval($row['schedule_is_voided'] ?? 0),
+                        'voided_at' => $row['schedule_voided_at'] ?? null,
+                        'voided_by' => $row['schedule_voided_by'] ?? null,
+                        'void_reason' => $row['schedule_void_reason'] ?? null
                     ];
                 }
             }
+
+            $memberTasksModel->ensureMissingDailySchedules($tasks);
 
             return array_values($tasks);
         } catch(PDOException $e) {
@@ -98,10 +115,12 @@ class EventTaskModel {
         $memberTasksModel->syncAllTasksStatus();
 
         $query = "SELECT mt.id, mt.event_id, mt.organization_id, mt.student_id, mt.task_title, mt.task_description, mt.start_date, mt.end_date, mt.student_start_date, mt.student_end_date, mt.status, mt.completed_at, mt.updated_at, mt.created_at,
+                         mt.marked_by, mt.marked_at, mt.is_voided, mt.voided_at, mt.voided_by, mt.void_reason,
                          s.first_name, s.last_name, s.student_number,
                          o.name as organization_name,
                          e.title as event_title,
-                         ds.id as schedule_id, ds.student_id as schedule_student_id, ds.schedule_date, ds.start_time as schedule_start_time, ds.end_time as schedule_end_time, ds.status as schedule_status
+                         ds.id as schedule_id, ds.student_id as schedule_student_id, ds.day_number as schedule_day_number, ds.schedule_date, ds.start_time as schedule_start_time, ds.end_time as schedule_end_time, ds.status as schedule_status,
+                         ds.marked_by as schedule_marked_by, ds.marked_at as schedule_marked_at, ds.is_voided as schedule_is_voided, ds.voided_at as schedule_voided_at, ds.voided_by as schedule_voided_by, ds.void_reason as schedule_void_reason
                   FROM " . $this->table_name . " mt
                   LEFT JOIN students s ON mt.student_id = s.id
                   LEFT JOIN organizations o ON mt.organization_id = o.id
@@ -133,6 +152,12 @@ class EventTaskModel {
                 'student_end_date' => $results[0]['student_end_date'] ?? null,
                 'status' => $results[0]['status'],
                 'completed_at' => $results[0]['completed_at'],
+                'marked_by' => $results[0]['marked_by'] ?? null,
+                'marked_at' => $results[0]['marked_at'] ?? null,
+                'is_voided' => intval($results[0]['is_voided'] ?? 0),
+                'voided_at' => $results[0]['voided_at'] ?? null,
+                'voided_by' => $results[0]['voided_by'] ?? null,
+                'void_reason' => $results[0]['void_reason'] ?? null,
                 'updated_at' => $results[0]['updated_at'],
                 'created_at' => $results[0]['created_at'],
                 'first_name' => $results[0]['first_name'],
@@ -150,10 +175,17 @@ class EventTaskModel {
                         'id' => $row['schedule_id'],
                         'task_id' => $id,
                         'student_id' => $row['schedule_student_id'] ?? $row['student_id'],
+                        'day_number' => isset($row['schedule_day_number']) && $row['schedule_day_number'] !== null ? intval($row['schedule_day_number']) : null,
                         'schedule_date' => $row['schedule_date'],
                         'start_time' => $row['schedule_start_time'],
                         'end_time' => $row['schedule_end_time'],
-                        'status' => $row['schedule_status'] ?? 'pending'
+                        'status' => $row['schedule_status'] ?? 'pending',
+                        'marked_by' => $row['schedule_marked_by'] ?? null,
+                        'marked_at' => $row['schedule_marked_at'] ?? null,
+                        'is_voided' => intval($row['schedule_is_voided'] ?? 0),
+                        'voided_at' => $row['schedule_voided_at'] ?? null,
+                        'voided_by' => $row['schedule_voided_by'] ?? null,
+                        'void_reason' => $row['schedule_void_reason'] ?? null
                     ];
                 }
             }
@@ -165,21 +197,31 @@ class EventTaskModel {
         }
     }
 
-    public function updateStatus($id, $status) {
+    public function updateStatus($id, $status, $marked_by = 'student') {
         $completed_at = null;
         if ($status === 'completed') {
             $completed_at = date('Y-m-d');
         }
 
+        $marked_at = null;
+        if (in_array($status, ['completed', 'not_completed', 'not_finished'])) {
+            $marked_at = date('Y-m-d H:i:s');
+        }
+
         $query = "UPDATE " . $this->table_name . " 
                   SET status = :status,
-                      completed_at = :completed_at
+                      completed_at = :completed_at,
+                      marked_by = :marked_by,
+                      marked_at = :marked_at,
+                      is_voided = 0
                   WHERE id = :id";
 
         try {
             $stmt = $this->conn->prepare($query);
             $stmt->bindParam(':status', $status);
             $stmt->bindParam(':completed_at', $completed_at);
+            $stmt->bindParam(':marked_by', $marked_by);
+            $stmt->bindParam(':marked_at', $marked_at);
             $stmt->bindParam(':id', $id);
             
             if($stmt->execute()) {

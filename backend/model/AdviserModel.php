@@ -8,7 +8,7 @@ class AdviserModel {
     private $table_name = "advisers";
 
     public function __construct() {
-        $database = new Database();
+        $database = Database::getInstance();
         $this->conn = $database->getConnection();
         if (!$this->conn) {
             error_log("Failed to establish database connection in AdviserModel");
@@ -27,7 +27,7 @@ class AdviserModel {
             
             $null = null;
             if (isset($data['profile_photo']) && !empty($data['profile_photo'])) {
-                if (strpos($data['profile_photo'], 'data:image') === 0) {
+                if (is_string($data['profile_photo']) && strpos($data['profile_photo'], 'data:image') === 0) {
                     $parts = explode(',', $data['profile_photo']);
                     if (isset($parts[1])) {
                         $photoData = base64_decode($parts[1]);
@@ -35,9 +35,11 @@ class AdviserModel {
                     } else {
                         $stmt->bindParam(':profile_photo', $null, PDO::PARAM_NULL);
                     }
-                } else {
+                } else if (is_string($data['profile_photo']) && preg_match('/^[a-zA-Z0-9\/\r\n+]*={0,2}$/', $data['profile_photo']) && base64_decode($data['profile_photo'], true) !== false) {
                     $photoData = base64_decode($data['profile_photo']);
                     $stmt->bindParam(':profile_photo', $photoData, PDO::PARAM_LOB);
+                } else {
+                    $stmt->bindParam(':profile_photo', $data['profile_photo'], PDO::PARAM_LOB);
                 }
             } else {
                 $stmt->bindParam(':profile_photo', $null, PDO::PARAM_NULL);
@@ -76,7 +78,9 @@ class AdviserModel {
 
             foreach ($results as &$adviser) {
                 if (isset($adviser['profile_photo']) && !empty($adviser['profile_photo'])) {
-                    $adviser['profile_photo'] = 'data:image/jpeg;base64,' . base64_encode($adviser['profile_photo']);
+                    if (!str_starts_with($adviser['profile_photo'], 'data:')) {
+                        $adviser['profile_photo'] = 'data:image/jpeg;base64,' . base64_encode($adviser['profile_photo']);
+                    }
                 }
             }
 
@@ -94,32 +98,53 @@ class AdviserModel {
                   LIMIT 0,1";
 
         try {
+            if (!$this->conn) {
+                error_log("Database connection is null in readOne");
+                return false;
+            }
+            
             $stmt = $this->conn->prepare($query);
             $stmt->bindParam(':id', $id);
             $stmt->execute();
             $result = $stmt->fetch(PDO::FETCH_ASSOC);
             
-            if ($result && isset($result['profile_photo']) && !empty($result['profile_photo'])) {
-                $result['profile_photo'] = 'data:image/jpeg;base64,' . base64_encode($result['profile_photo']);
+            if ($result) {
+
+                $result['organization_ids'] = [];
+                $result['student_ids'] = [];
+                
+                if (isset($result['profile_photo']) && !empty($result['profile_photo'])) {
+                    if (!str_starts_with($result['profile_photo'], 'data:')) {
+                        $result['profile_photo'] = 'data:image/jpeg;base64,' . base64_encode($result['profile_photo']);
+                    }
+                }
+            } else {
+                error_log("No adviser found with ID: " . $id);
             }
             
             return $result;
         } catch(PDOException $e) {
-            echo "Error reading adviser: " . $e->getMessage();
+            error_log("Error reading adviser: " . $e->getMessage());
             return false;
         }
     }
 
     public function readByUsername($username) {
         $query = "SELECT * FROM " . $this->table_name . " 
-                  WHERE username = :username 
+                  WHERE LOWER(TRIM(username)) = LOWER(TRIM(:username)) 
                   LIMIT 0,1";
 
         try {
             $stmt = $this->conn->prepare($query);
             $stmt->bindParam(':username', $username);
             $stmt->execute();
-            return $stmt->fetch(PDO::FETCH_ASSOC);
+            $result = $stmt->fetch(PDO::FETCH_ASSOC);
+            if ($result && isset($result['profile_photo']) && !empty($result['profile_photo'])) {
+                if (!str_starts_with($result['profile_photo'], 'data:')) {
+                    $result['profile_photo'] = 'data:image/jpeg;base64,' . base64_encode($result['profile_photo']);
+                }
+            }
+            return $result;
         } catch(PDOException $e) {
             echo "Error reading adviser by username: " . $e->getMessage();
             return false;
@@ -135,7 +160,13 @@ class AdviserModel {
             $stmt = $this->conn->prepare($query);
             $stmt->bindParam(':email', $email);
             $stmt->execute();
-            return $stmt->fetch(PDO::FETCH_ASSOC);
+            $result = $stmt->fetch(PDO::FETCH_ASSOC);
+            if ($result && isset($result['profile_photo']) && !empty($result['profile_photo'])) {
+                if (!str_starts_with($result['profile_photo'], 'data:')) {
+                    $result['profile_photo'] = 'data:image/jpeg;base64,' . base64_encode($result['profile_photo']);
+                }
+            }
+            return $result;
         } catch(PDOException $e) {
             echo "Error reading adviser by email: " . $e->getMessage();
             return false;
@@ -146,10 +177,13 @@ class AdviserModel {
         $query = "UPDATE " . $this->table_name . " 
                   SET profile_photo = :profile_photo, 
                       name = :name, 
-                      username = :username, 
                       email = :email, 
                       role = :role,
                       status = :status";
+
+        if(isset($data['username']) && !empty($data['username'])) {
+            $query .= ", username = :username";
+        }
         
         if(isset($data['password']) && !empty($data['password'])) {
             $query .= ", password = :password";
@@ -161,28 +195,38 @@ class AdviserModel {
             $stmt = $this->conn->prepare($query);
             
             $null = null;
-            if (isset($data['profile_photo']) && !empty($data['profile_photo'])) {
-                if (strpos($data['profile_photo'], 'data:image') === 0) {
-                    $parts = explode(',', $data['profile_photo']);
-                    if (isset($parts[1])) {
-                        $photoData = base64_decode($parts[1]);
+            if (isset($data['profile_photo'])) {
+                if (!empty($data['profile_photo'])) {
+                    if (is_string($data['profile_photo']) && strpos($data['profile_photo'], 'data:image') === 0) {
+                        $parts = explode(',', $data['profile_photo']);
+                        if (isset($parts[1])) {
+                            $photoData = base64_decode($parts[1]);
+                            $stmt->bindParam(':profile_photo', $photoData, PDO::PARAM_LOB);
+                        } else {
+                            $stmt->bindParam(':profile_photo', $null, PDO::PARAM_NULL);
+                        }
+                    } else if (is_string($data['profile_photo']) && preg_match('/^[a-zA-Z0-9\/\r\n+]*={0,2}$/', $data['profile_photo']) && base64_decode($data['profile_photo'], true) !== false) {
+                        $photoData = base64_decode($data['profile_photo']);
                         $stmt->bindParam(':profile_photo', $photoData, PDO::PARAM_LOB);
                     } else {
-                        $stmt->bindParam(':profile_photo', $null, PDO::PARAM_NULL);
+                        $stmt->bindParam(':profile_photo', $data['profile_photo'], PDO::PARAM_LOB);
                     }
                 } else {
-                    $photoData = base64_decode($data['profile_photo']);
-                    $stmt->bindParam(':profile_photo', $photoData, PDO::PARAM_LOB);
+
+                    $stmt->bindParam(':profile_photo', $null, PDO::PARAM_NULL);
                 }
             } else {
                 $stmt->bindParam(':profile_photo', $null, PDO::PARAM_NULL);
             }
             $stmt->bindParam(':name', $data['name']);
-            $stmt->bindParam(':username', $data['username']);
             $stmt->bindParam(':email', $data['email']);
             $stmt->bindParam(':role', $data['role']);
             $stmt->bindParam(':status', $data['status']);
             $stmt->bindParam(':id', $id);
+            
+            if(isset($data['username']) && !empty($data['username'])) {
+                $stmt->bindParam(':username', $data['username']);
+            }
             
             if(isset($data['password']) && !empty($data['password'])) {
                 $hashedPassword = password_hash($data['password'], PASSWORD_DEFAULT);
@@ -340,16 +384,16 @@ class AdviserModel {
 
     public function resetPassword($adviserId, $newPassword) {
         $query = "UPDATE " . $this->table_name . " 
-                  SET password = :password, otp_code = NULL, otp_expiry = NULL 
+                  SET password = :password 
                   WHERE id = :id";
 
         try {
             $stmt = $this->conn->prepare($query);
-            
+
             $hashedPassword = password_hash($newPassword, PASSWORD_DEFAULT);
             $stmt->bindParam(':password', $hashedPassword);
             $stmt->bindParam(':id', $adviserId);
-            
+
             if($stmt->execute()) {
                 return true;
             }

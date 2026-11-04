@@ -14,6 +14,8 @@ class StudentAuthRoutes {
         
         if ($method === 'POST' && $uri === '/api/student/login') {
             $this->controller->login();
+        } elseif ($method === 'POST' && $uri === '/api/student/lookup') {
+            $this->controller->lookupAccount();
         } elseif ($method === 'POST' && $uri === '/api/student/logout') {
             $this->controller->logout();
         } elseif ($method === 'GET' && $uri === '/api/student/verify') {

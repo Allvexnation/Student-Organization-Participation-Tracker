@@ -1,9 +1,9 @@
 import { API_ROUTES } from '../server/api.js';
-import { getToken } from '../../utils/jwt.js';
+import { getToken, setUserData } from '../../utils/jwt.js';
 
 export async function getAdviserProfile() {
     try {
-        const token = getToken('adviser') || getToken('admin') || localStorage.getItem('adviserToken') || localStorage.getItem('adminToken') || localStorage.getItem('token');
+        const token = getToken('adviser');
         const headers = {
             'Content-Type': 'application/json'
         };
@@ -31,7 +31,7 @@ export async function getAdviserProfile() {
 
 export async function updateAdviserProfile(profileData) {
     try {
-        const token = getToken('adviser') || getToken('admin') || localStorage.getItem('adviserToken') || localStorage.getItem('adminToken') || localStorage.getItem('token');
+        const token = getToken('adviser');
         const headers = {
             'Content-Type': 'application/json'
         };
@@ -52,7 +52,7 @@ export async function updateAdviserProfile(profileData) {
         }
 
         if (data.adviser) {
-            localStorage.setItem('adviserData', JSON.stringify(data.adviser));
+            setUserData(data.adviser, 'adviser');
         }
 
         return data;

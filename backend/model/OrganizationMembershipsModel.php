@@ -7,7 +7,7 @@ class OrganizationMembershipsModel {
     private $table_name = "organization_memberships";
 
     public function __construct() {
-        $database = new Database();
+        $database = Database::getInstance();
         $this->conn = $database->getConnection();
         if (!$this->conn) {
             error_log("Failed to establish database connection in OrganizationMembershipsModel");
@@ -112,6 +112,34 @@ class OrganizationMembershipsModel {
             return $stmt->fetch(PDO::FETCH_ASSOC);
         } catch(PDOException $e) {
             echo "Error reading organization membership by student and organization: " . $e->getMessage();
+            return false;
+        }
+    }
+
+    public function readByStudentId($student_id) {
+        if (!$this->conn) {
+            error_log("Database connection is null");
+            return false;
+        }
+
+        $query = "SELECT om.id, om.organization_id, om.student_id, om.date_joined, om.role_id, om.membership_status, om.updated_at, om.created_at,
+                         o.name as organization_name, o.description as organization_description,
+                         r.role_name
+                  FROM " . $this->table_name . " om
+                  LEFT JOIN organizations o ON om.organization_id = o.id
+                  LEFT JOIN roles r ON om.role_id = r.id
+                  WHERE om.student_id = :student_id AND om.membership_status = 'active'
+                  ORDER BY om.created_at DESC";
+
+        try {
+            $stmt = $this->conn->prepare($query);
+            $stmt->bindParam(':student_id', $student_id);
+            $stmt->execute();
+            $results = $stmt->fetchAll(PDO::FETCH_ASSOC);
+
+            return $results;
+        } catch(PDOException $e) {
+            error_log("Error reading organization memberships by student: " . $e->getMessage());
             return false;
         }
     }

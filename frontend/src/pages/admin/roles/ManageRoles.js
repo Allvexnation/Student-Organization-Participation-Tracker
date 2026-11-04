@@ -1,12 +1,15 @@
 import { AdminNavbar, initAdminNavbar } from '../../../components/Navbar/AdminNavbar.js';
 import { protectAdminRoute } from '../../../middleware/AdminMiddleware.js';
 import * as RolesAPI from '../../../api/admin/roles/ManageRoles.js';
+import { CacheService } from '../../../../cache/CacheService.js';
 import { initManageRolesAnimations, animateTableRows } from '../../../provider/Animation/ManageRolesAnimation.js';
 import { openManageRolesModal, openViewRolesModal } from '../../../components/Modal/ManageRolesModal.js';
 import { openConfirmDialog } from '../../../components/Dialog/ConfirmDialog.js';
 import { showToast } from '../../../components/ToastMessage.js';
 import { CrudMenu } from '../../../components/CrudMenu.js';
 import { skeletonTableRows } from '../../../components/SkeletonLoading.js';
+import { logChange } from '../../../api/AuditLogs/AuditLogs.js';
+import { decodeToken, getToken } from '../../../utils/jwt.js';
 
 export function ManageRoles() {
     return `
@@ -60,41 +63,48 @@ export async function initManageRoles() {
     protectAdminRoute();
     await initAdminNavbar();
 
+    const adminToken = getToken('admin');
+    const adminUser = decodeToken(adminToken) || {};
+
     initManageRolesAnimations();
 
     let roles = [];
     let hasLoaded = false;
-
     async function loadRoles(forceRefresh = false) {
-        const cachedData = localStorage.getItem('cachedRoles');
-        if (cachedData && !forceRefresh) {
+        if (!forceRefresh) {
             try {
-                roles = JSON.parse(cachedData);
-                renderRoles(roles);
-                hasLoaded = true;
-                return;
+                const cachedData = await CacheService.get('cachedRoles');
+                if (cachedData && Array.isArray(cachedData) && cachedData.length > 0) {
+                    roles = cachedData;
+                    renderRoles(roles);
+                    hasLoaded = true;
+                }
             } catch (e) {
-                console.error('Error parsing cached roles:', e);
+                console.error('Error reading cached roles:', e);
             }
         }
 
         try {
-            roles = await RolesAPI.getAllRoles();
-            localStorage.setItem('cachedRoles', JSON.stringify(roles));
-            localStorage.setItem('cachedRolesTimestamp', Date.now().toString());
-            renderRoles(roles);
-            hasLoaded = true;
+            const freshData = await RolesAPI.getAllRoles();
+            if (freshData) {
+                roles = freshData;
+                await CacheService.set('cachedRoles', roles);
+                renderRoles(roles);
+                hasLoaded = true;
+            }
         } catch (error) {
             console.error('Error loading roles:', error);
-            const tbody = document.getElementById('roleTableBody');
-            if (tbody) {
-                tbody.innerHTML = `
-                    <tr>
-                        <td colspan="6" class="px-5 py-12 text-center text-red-500">Failed to load roles</td>
-                    </tr>
-                `;
+            if (!hasLoaded) {
+                const tbody = document.getElementById('roleTableBody');
+                if (tbody) {
+                    tbody.innerHTML = `
+                        <tr>
+                            <td colspan="6" class="px-5 py-12 text-center text-red-500">Failed to load roles</td>
+                        </tr>
+                    `;
+                }
+                showToast('Failed to load roles', 'error');
             }
-            showToast('Failed to load roles', 'error');
         }
     }
 
@@ -168,7 +178,21 @@ export async function initManageRoles() {
                 if (id) {
                     await RolesAPI.updateRole(id, data);
                 } else {
-                    await RolesAPI.createRole(data);
+                    const response = await RolesAPI.createRole(data);
+                    try {
+                        await logChange({
+                            user_id: adminUser.user_id,
+                            user_type: 'admin',
+                            action: 'create',
+                            table_name: 'roles',
+                            record_id: response.id,
+                            field_name: 'all',
+                            old_value: null,
+                            new_value: `Role: ${data.role_name}`
+                        });
+                    } catch (error) {
+                        console.error('Failed to log role creation:', error);
+                    }
                 }
                 loadRoles(true);
             }
@@ -180,7 +204,29 @@ export async function initManageRoles() {
             mode: 'edit',
             roleId: id,
             onSubmit: async (id, data) => {
+                const oldRole = roles.find(r => r.id === id);
                 await RolesAPI.updateRole(id, data);
+
+                const fieldsToLog = ['role_name', 'description'];
+                for (const field of fieldsToLog) {
+                    if (oldRole && oldRole[field] !== data[field]) {
+                        try {
+                            await logChange({
+                                user_id: adminUser.user_id,
+                                user_type: 'admin',
+                                action: 'update',
+                                table_name: 'roles',
+                                record_id: id,
+                                field_name: field,
+                                old_value: oldRole[field] || 'None',
+                                new_value: data[field] || 'Removed'
+                            });
+                        } catch (error) {
+                            console.error(`Failed to log role ${field} change:`, error);
+                        }
+                    }
+                }
+
                 loadRoles(true);
             }
         });
@@ -199,7 +245,24 @@ export async function initManageRoles() {
             type: 'danger',
             onConfirm: async () => {
                 try {
+                    const oldRole = roles.find(r => r.id === id);
                     await RolesAPI.deleteRole(id);
+
+                    try {
+                        await logChange({
+                            user_id: adminUser.user_id,
+                            user_type: 'admin',
+                            action: 'delete',
+                            table_name: 'roles',
+                            record_id: id,
+                            field_name: 'all',
+                            old_value: `Role: ${oldRole?.role_name || 'Unknown'}`,
+                            new_value: null
+                        });
+                    } catch (error) {
+                        console.error('Failed to log role deletion:', error);
+                    }
+
                     loadRoles(true);
                     showToast('Role deleted successfully', 'success');
                 } catch (error) {

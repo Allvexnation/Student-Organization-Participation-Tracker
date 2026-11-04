@@ -2,6 +2,7 @@
 
 require_once __DIR__ . '/../model/RoleModel.php';
 require_once __DIR__ . '/../config/jwt.php';
+require_once __DIR__ . '/../cache/CacheService.php';
 
 class RoleController {
     private $roleModel;
@@ -22,7 +23,9 @@ class RoleController {
             return;
         }
 
-        $roles = $this->roleModel->readAll();
+        $roles = CacheService::remember('roles_all', 300, function() {
+            return $this->roleModel->readAll();
+        });
 
         if ($roles !== false) {
             http_response_code(200);
@@ -83,6 +86,9 @@ class RoleController {
         }
 
         $result = $this->roleModel->create($data);
+        if ($result) {
+            CacheService::forget('roles_all');
+        }
 
         if ($result) {
             http_response_code(201);
@@ -120,6 +126,10 @@ class RoleController {
         }
 
         $result = $this->roleModel->update($id, $data);
+        if ($result) {
+            CacheService::forget('roles_all');
+            CacheService::forget('role_' . $id);
+        }
 
         if ($result) {
             $role = $this->roleModel->readOne($id);
@@ -147,6 +157,10 @@ class RoleController {
         }
 
         $result = $this->roleModel->delete($id);
+        if ($result) {
+            CacheService::forget('roles_all');
+            CacheService::forget('role_' . $id);
+        }
 
         if ($result) {
             http_response_code(200);

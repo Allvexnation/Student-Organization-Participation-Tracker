@@ -1,0 +1,393 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Login | CRT Student Organization Participation Tracker</title>
+    <meta
+      name="description"
+      content="Sign in to the CRT Student Organization Participation Tracker as an administrator, adviser or student."
+    />
+    <link rel="icon" href="assets/crt-logo.png" />
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;500;600;700;800&display=swap"
+      rel="stylesheet"
+    />
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script
+      src="https://unpkg.com/lucide@0.469.0/dist/umd/lucide.min.js"
+      defer
+    ></script>
+    <script type="module" src="js/auth/login.js"></script>
+  </head>
+  <body class="font-sans antialiased" style="background-color: #f5f7fb; color: #46546a; font-family: Poppins, system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif;">
+    <a
+      href="#main"
+      class="absolute left-3 top-2 z-50 -translate-y-20 rounded-lg px-4 py-2 text-sm text-white focus:translate-y-0" style="background-color: #163a63;"
+      >Skip to login form</a
+    >
+
+    <div data-auth-shell class="grid min-h-screen lg:grid-cols-[5fr_6fr]">
+      <!-- BRAND PANEL -->
+      <aside class="relative lg:sticky lg:top-0 lg:h-screen">
+        <div
+          class="absolute inset-0 hidden lg:block lg:[clip-path:polygon(0_0,100%_0,90%_100%,0_100%)]" style="background-color: #facc15;"
+        ></div>
+
+        <div
+          class="relative flex h-full flex-col overflow-hidden rounded-b-[2rem] px-5 py-5 text-white sm:px-10 lg:rounded-none lg:px-12 lg:py-10 lg:[clip-path:polygon(0_0,98.5%_0,88.5%_100%,0_100%)]" style="background-color: #163a63;"
+        >
+          <div
+            class="pointer-events-none absolute inset-0 bg-[linear-gradient(rgba(255,255,255,0.05)_1px,transparent_1px),linear-gradient(90deg,rgba(255,255,255,0.05)_1px,transparent_1px)] bg-[size:36px_36px] [mask-image:linear-gradient(to_bottom,#000,transparent_85%)]"
+          ></div>
+
+          <!-- Brand -->
+          <a
+            href="index.html"
+            class="relative flex items-center gap-3"
+            aria-label="CRT home"
+          >
+            <span
+              class="grid h-12 w-12 flex-none place-items-center rounded-full bg-white p-0.5"
+            >
+              <img
+                src="assets/crt-logo.png"
+                alt="CRT logo"
+                width="44"
+                height="44"
+                class="h-11 w-11"
+              />
+            </span>
+            <span class="flex flex-col leading-tight">
+              <strong class="text-sm font-bold sm:text-lg"
+                >College for Research and Technology</strong
+              >
+              <small class="text-xs text-white/70"
+                >Student Organization Participation Tracker</small
+              >
+            </span>
+          </a>
+
+          <!-- Photo -->
+          <div class="relative mt-6 hidden min-h-[160px] flex-1 lg:block">
+            <div
+              class="absolute left-[10%] top-[10%] h-[58%] w-[40%] rounded-[2rem] ring-1 ring-white/10" style="background: linear-gradient(to bottom right, #2563eb, #0f2c4c);"
+            ></div>
+            <div
+              class="absolute right-[8%] top-[26%] h-[46%] w-[22%] rounded-[1.6rem]" style="background: linear-gradient(to bottom, #ffd93a, #f5b900);"
+            ></div>
+            <div
+              class="absolute inset-x-[6%] bottom-[8%] top-0 rounded-full border border-white/15"
+            ></div>
+            <img
+              src="assets/hero-students.png"
+              alt="Two CRT students"
+              width="1200"
+              height="876"
+              class="absolute bottom-0 left-1/2 h-full w-auto max-w-none -translate-x-1/2 object-contain object-bottom drop-shadow-2xl [mask-image:linear-gradient(to_bottom,#000_74%,transparent_99%)]"
+            />
+          </div>
+
+          <!-- Role detect -->
+          <div class="relative mt-6 hidden lg:block">
+            <h2 class="text-3xl font-extrabold leading-tight tracking-tight">
+              Manage. Participate. Achieve.
+            </h2>
+
+            <ul
+              class="mt-6 grid max-w-md grid-cols-3 gap-2"
+              aria-label="Portals"
+            >
+              <li
+                data-role-card="administrator"
+                data-active="false"
+                class="group flex flex-col gap-2 rounded-2xl border border-white/15 bg-white/10 p-2 transition-all duration-300 data-[active=true]:-translate-y-1 data-[active=true]:bg-white" style="--tw-border-opacity: 0.15; --tw-bg-opacity: 0.1;"
+              >
+                <span
+                  class="grid h-7 w-7 place-items-center rounded-lg bg-white/15 transition-colors duration-300 group-data-[active=true]" style="--tw-bg-opacity: 0.15;"
+                  ><i data-lucide="shield-check" class="h-4 w-4"></i
+                ></span>
+                <span class="text-xs font-semibold">Administrator</span>
+              </li>
+              <li
+                data-role-card="adviser"
+                data-active="false"
+                class="group flex flex-col gap-2 rounded-2xl border border-white/15 bg-white/10 p-2 transition-all duration-300 data-[active=true]:-translate-y-1 data-[active=true]:bg-white" style="--tw-border-opacity: 0.15; --tw-bg-opacity: 0.1;"
+              >
+                <span
+                  class="grid h-7 w-7 place-items-center rounded-lg bg-white/15 transition-colors duration-300 group-data-[active=true]" style="--tw-bg-opacity: 0.15;"
+                  ><i data-lucide="user-cog" class="h-4 w-4"></i
+                ></span>
+                <span class="text-xs font-semibold">Adviser</span>
+              </li>
+              <li
+                data-role-card="student"
+                data-active="false"
+                class="group flex flex-col gap-2 rounded-2xl border border-white/15 bg-white/10 p-2 transition-all duration-300 data-[active=true]:-translate-y-1 data-[active=true]:bg-white" style="--tw-border-opacity: 0.15; --tw-bg-opacity: 0.1;"
+              >
+                <span
+                  class="grid h-7 w-7 place-items-center rounded-lg bg-white/15 transition-colors duration-300 group-data-[active=true]" style="--tw-bg-opacity: 0.15;"
+                  ><i data-lucide="graduation-cap" class="h-4 w-4"></i
+                ></span>
+                <span class="text-xs font-semibold">Student</span>
+              </li>
+            </ul>
+
+            <p
+              data-role-caption
+              aria-live="polite"
+              class="mt-4 min-h-[2.75rem] text-sm" style="color: rgba(255, 255, 255, 0.7);"
+            >
+              Enter your username and we will open the portal that matches your
+              role.
+            </p>
+          </div>
+        </div>
+      </aside>
+
+      <!-- FORM PANEL -->
+      <main
+        id="main"
+        class="flex flex-col px-5 py-8 sm:px-10 lg:min-h-screen lg:px-[clamp(2rem,6vw,6rem)] lg:py-10"
+      >
+        <div class="w-full max-w-[560px] mx-auto">
+          <a
+            href="index.html"
+            class="inline-flex items-center gap-2 text-sm font-semibold transition focus-visible:outline focus-visible:outline-[3px] focus-visible:outline-offset-4" style="color: #163a63;" onmouseover="this.style.color='#2563eb'" onmouseout="this.style.color='#163a63'"
+          >
+            <i data-lucide="arrow-left" class="h-4 w-4"></i> Back to home
+          </a>
+        </div>
+
+        <div class="flex flex-1 items-center justify-center py-10">
+          <div class="mx-auto w-full max-w-[560px]">
+            <!-- Progress -->
+            <div data-progress class="mb-8">
+              <div
+                data-progress-bar
+                class="flex gap-2"
+                aria-hidden="true"
+              ></div>
+              <p
+                data-progress-label
+                class="mt-3 text-sm font-medium" style="color: #7a889c;"
+                aria-live="polite"
+              ></p>
+            </div>
+
+            <!-- LOGIN FORM -->
+            <form id="login-form" novalidate>
+              <!-- Step 1: account -->
+              <section data-step aria-labelledby="step-account-title">
+                <h1
+                  id="step-account-title"
+                  class="text-4xl font-extrabold tracking-tight" style="color: #0f1b2d;"
+                >
+                  Welcome back
+                </h1>
+                <p class="mt-3 max-w-[40ch]">
+                  Sign in with your CRT account. We will take you to the portal
+                  that matches your role.
+                </p>
+
+                <div data-field id="username-field" class="mt-8">
+                  <label
+                    for="username"
+                    class="mb-2 block text-sm font-semibold" style="color: #0f1b2d;"
+                    >Email or username</label
+                  >
+                  <div
+                    data-control
+                    class="group flex items-center gap-3 rounded-2xl border-2 bg-white px-4 transition-all duration-200 focus-within:ring-4 data-[invalid=true]:ring-4" style="border-color: #e3e8f0;"
+                  >
+                    <i
+                      data-lucide="user"
+                      class="h-5 w-5 flex-none transition-colors" style="color: #7a889c;"
+                    ></i>
+                    <input
+                      id="username"
+                      name="username"
+                      type="text"
+                      autocomplete="username"
+                      autocapitalize="none"
+                      spellcheck="false"
+                      placeholder="you@crt.edu.ph"
+                      data-autofocus
+                      aria-describedby="username-error"
+                      class="h-14 w-full min-w-0 bg-transparent text-[0.95rem] outline-none" style="color: #0f1b2d;"
+                    />
+                  </div>
+                  <p
+                    id="username-error"
+                    data-error
+                    role="alert"
+                    class="mt-2 hidden items-start gap-1.5 text-sm font-medium" style="color: #b91c1c;"
+                  ></p>
+                </div>
+
+                <div data-actions class="mt-8">
+                  <button
+                    id="next-button"
+                    type="submit"
+                    class="inline-flex h-14 w-full items-center justify-center gap-2.5 rounded-full px-7 text-[0.95rem] font-semibold text-white transition duration-200 hover:-translate-y-0.5 focus-visible:outline focus-visible:outline-[3px] focus-visible:outline-offset-2 disabled:pointer-events-none disabled:opacity-70" style="background-color: #2563eb; box-shadow: 0 8px 20px rgba(37,99,235,0.32);" onmouseover="this.style.backgroundColor='#1d4fd0'; this.style.boxShadow='0 12px 26px rgba(37,99,235,0.4)'" onmouseout="this.style.backgroundColor='#2563eb'; this.style.boxShadow='0 8px 20px rgba(37,99,235,0.32)'"
+                  >
+                    <svg
+                      data-spinner
+                      class="hidden h-5 w-5 animate-spin"
+                      viewBox="0 0 24 24"
+                      fill="none"
+                      stroke="currentColor"
+                      stroke-width="2.5"
+                      stroke-linecap="round"
+                      aria-hidden="true"
+                    >
+                      <path d="M21 12a9 9 0 1 1-6.219-8.56" />
+                    </svg>
+                    <span data-label>Next</span>
+                    <span data-icon
+                      ><i data-lucide="arrow-right" class="h-5 w-5"></i
+                    ></span>
+                  </button>
+                </div>
+              </section>
+
+              <!-- Step 2: password -->
+              <section data-step hidden aria-labelledby="step-password-title">
+                <h1
+                  id="step-password-title"
+                  class="text-4xl font-extrabold tracking-tight" style="color: #0f1b2d;"
+                >
+                  Enter your password
+                </h1>
+
+                <div
+                  class="mt-6 flex items-center gap-3 rounded-2xl border bg-white p-3" style="border-color: #e3e8f0;"
+                >
+                  <span
+                    class="grid h-11 w-11 flex-none place-items-center rounded-xl" style="background-color: #eaf1ff; color: #2563eb;"
+                  >
+                    <i data-lucide="circle-user-round" class="h-6 w-6"></i>
+                  </span>
+                  <div class="min-w-0 flex-1">
+                    <p
+                      data-account-name
+                      class="truncate text-sm font-semibold" style="color: #0f1b2d;"
+                    ></p>
+                    <p
+                      data-account-role
+                      class="truncate text-xs" style="color: #7a889c;"
+                    ></p>
+                  </div>
+                  <span
+                    data-role-badge
+                    class="hidden flex-none rounded-full px-3 py-1 text-xs font-semibold" style="background-color: #fff3cd; color: #8a6500;"
+                  ></span>
+                </div>
+
+                <div data-field id="password-field" class="mt-6">
+                  <div class="mb-2 flex items-center justify-between gap-3">
+                    <label for="password" class="text-sm font-semibold" style="color: #0f1b2d;"
+                      >Password</label
+                    >
+                    <a
+                      href="forgot-password.html"
+                      class="text-sm font-semibold transition hover:underline focus-visible:outline focus-visible:outline-[3px] focus-visible:outline-offset-2" style="color: #2563eb;" onmouseover="this.style.color='#1d4fd0'" onmouseout="this.style.color='#2563eb'"
+                      >Forgot password?</a
+                    >
+                  </div>
+                  <div
+                    data-control
+                    class="group flex items-center gap-3 rounded-2xl border-2 bg-white pl-4 pr-2 transition-all duration-200 focus-within:ring-4 data-[invalid=true]:ring-4" style="border-color: #e3e8f0;"
+                  >
+                    <i
+                      data-lucide="lock-keyhole"
+                      class="h-5 w-5 flex-none transition-colors" style="color: #7a889c;"
+                    ></i>
+                    <input
+                      id="password"
+                      name="password"
+                      type="password"
+                      autocomplete="current-password"
+                      placeholder="Your password"
+                      data-autofocus
+                      aria-describedby="password-error"
+                      class="h-14 w-full min-w-0 bg-transparent text-[0.95rem] outline-none" style="color: #0f1b2d;"
+                    />
+                    <button
+                      type="button"
+                      data-toggle-password="password"
+                      aria-label="Show password"
+                      aria-pressed="false"
+                      class="grid h-10 w-10 flex-none place-items-center rounded-xl transition focus-visible:outline focus-visible:outline-[3px]" style="color: #7a889c;" onmouseover="this.style.backgroundColor='#f5f7fb'; this.style.color='#2563eb'" onmouseout="this.style.backgroundColor='transparent'; this.style.color='#7a889c'"
+                    >
+                      <span data-eye
+                        ><i data-lucide="eye" class="h-5 w-5"></i
+                      ></span>
+                      <span data-eye-off class="hidden"
+                        ><i data-lucide="eye-off" class="h-5 w-5"></i
+                      ></span>
+                    </button>
+                  </div>
+                  <p
+                    id="password-error"
+                    data-error
+                    role="alert"
+                    class="mt-2 hidden items-start gap-1.5 text-sm font-medium" style="color: #b91c1c;"
+                  ></p>
+                </div>
+
+                <div data-actions class="mt-8 flex gap-3">
+                  <button
+                    type="button"
+                    data-prev
+                    class="inline-flex h-14 flex-none items-center justify-center gap-2 rounded-full border-2 bg-white px-6 text-[0.95rem] font-semibold transition duration-200 focus-visible:outline focus-visible:outline-[3px] focus-visible:outline-offset-2 disabled:pointer-events-none disabled:opacity-60" style="border-color: #e3e8f0; color: #163a63;" onmouseover="this.style.borderColor='#2563eb'; this.style.color='#2563eb'" onmouseout="this.style.borderColor='#e3e8f0'; this.style.color='#163a63'"
+                  >
+                    <i data-lucide="arrow-left" class="h-5 w-5"></i>
+                    <span>Back</span>
+                  </button>
+                  <button
+                    id="login-button"
+                    type="submit"
+                    class="inline-flex h-14 min-w-0 flex-1 items-center justify-center gap-2.5 rounded-full px-7 text-[0.95rem] font-semibold text-white transition duration-200 hover:-translate-y-0.5 focus-visible:outline focus-visible:outline-[3px] focus-visible:outline-offset-2 disabled:pointer-events-none disabled:opacity-70" style="background-color: #2563eb; box-shadow: 0 8px 20px rgba(37,99,235,0.32);" onmouseover="this.style.backgroundColor='#1d4fd0'; this.style.boxShadow='0 12px 26px rgba(37,99,235,0.4)'" onmouseout="this.style.backgroundColor='#2563eb'; this.style.boxShadow='0 8px 20px rgba(37,99,235,0.32)'"
+                  >
+                    <svg
+                      data-spinner
+                      class="hidden h-5 w-5 animate-spin"
+                      viewBox="0 0 24 24"
+                      fill="none"
+                      stroke="currentColor"
+                      stroke-width="2.5"
+                      stroke-linecap="round"
+                      aria-hidden="true"
+                    >
+                      <path d="M21 12a9 9 0 1 1-6.219-8.56" />
+                    </svg>
+                    <span data-label>Login</span>
+                    <span data-icon
+                      ><i data-lucide="log-in" class="h-5 w-5"></i
+                    ></span>
+                  </button>
+                </div>
+              </section>
+            </form>
+
+            <p class="mt-8 flex items-start gap-2 text-sm" style="color: #7a889c;">
+              <i data-lucide="info" class="mt-0.5 h-4 w-4 flex-none"></i>
+              <span
+                >No account yet? Accounts are created by administrators.</span
+              >
+            </p>
+          </div>
+        </div>
+
+        <!-- FOOTER -->
+        <p class="text-center text-xs" style="color: #7a889c;">
+          &copy; <span id="year">2026</span> College for Research and
+          Technology. All rights reserved.
+        </p>
+      </main>
+    </div>
+  </body>
+</html>

@@ -1,12 +1,15 @@
 import { AdminNavbar, initAdminNavbar } from '../../../components/Navbar/AdminNavbar.js';
 import { protectAdminRoute } from '../../../middleware/AdminMiddleware.js';
 import * as OrgMembershipsAPI from '../../../api/admin/OrgMemberships/ManageOrgMemberships.js';
+import { CacheService } from '../../../../cache/CacheService.js';
 import { initManageOrgMemAnimations, animateTableRows } from '../../../provider/Animation/ManageOrgMemAnimation.js';
 import { openManageOrgMemModal, openViewOrgMemModal } from '../../../components/Modal/ManageOrgMemModal.js';
 import { openConfirmDialog } from '../../../components/Dialog/ConfirmDialog.js';
 import { showToast } from '../../../components/ToastMessage.js';
 import { CrudMenu } from '../../../components/CrudMenu.js';
 import { skeletonTableRows } from '../../../components/SkeletonLoading.js';
+import { logChange } from '../../../api/AuditLogs/AuditLogs.js';
+import { getUserId, getUserData } from '../../../utils/jwt.js';
 
 export function ManageOrgMemberships() {
     return `
@@ -65,37 +68,41 @@ export async function initManageOrgMemberships() {
 
     let orgMemberships = [];
     let hasLoaded = false;
-
     async function loadOrgMemberships(forceRefresh = false) {
-        const cachedData = localStorage.getItem('cachedOrgMemberships');
-        if (cachedData && !forceRefresh) {
+        if (!forceRefresh) {
             try {
-                orgMemberships = JSON.parse(cachedData);
-                renderOrgMemberships(orgMemberships);
-                hasLoaded = true;
-                return;
+                const cachedData = await CacheService.get('cachedOrgMemberships');
+                if (cachedData && Array.isArray(cachedData) && cachedData.length > 0) {
+                    orgMemberships = cachedData;
+                    renderOrgMemberships(orgMemberships);
+                    hasLoaded = true;
+                }
             } catch (e) {
-                console.error('Error parsing cached org memberships:', e);
+                console.error('Error reading cached org memberships:', e);
             }
         }
 
         try {
-            orgMemberships = await OrgMembershipsAPI.getAllOrgMemberships();
-            localStorage.setItem('cachedOrgMemberships', JSON.stringify(orgMemberships));
-            localStorage.setItem('cachedOrgMembershipsTimestamp', Date.now().toString());
-            renderOrgMemberships(orgMemberships);
-            hasLoaded = true;
+            const freshData = await OrgMembershipsAPI.getAllOrgMemberships();
+            if (freshData) {
+                orgMemberships = freshData;
+                await CacheService.set('cachedOrgMemberships', orgMemberships);
+                renderOrgMemberships(orgMemberships);
+                hasLoaded = true;
+            }
         } catch (error) {
             console.error('Error loading organization memberships:', error);
-            const tbody = document.getElementById('orgMemTableBody');
-            if (tbody) {
-                tbody.innerHTML = `
-                    <tr>
-                        <td colspan="7" class="px-5 py-12 text-center text-red-500">Failed to load memberships</td>
-                    </tr>
-                `;
+            if (!hasLoaded) {
+                const tbody = document.getElementById('orgMemTableBody');
+                if (tbody) {
+                    tbody.innerHTML = `
+                        <tr>
+                            <td colspan="7" class="px-5 py-12 text-center text-red-500">Failed to load memberships</td>
+                        </tr>
+                    `;
+                }
+                showToast('Failed to load memberships', 'error');
             }
-            showToast('Failed to load memberships', 'error');
         }
     }
 
@@ -166,9 +173,59 @@ export async function initManageOrgMemberships() {
             mode: 'add',
             onSubmit: async (id, data) => {
                 if (id) {
+                    const oldMem = await OrgMembershipsAPI.getOrgMembership(id);
                     await OrgMembershipsAPI.updateOrgMembership(id, data);
+                    const user = getUserData('admin');
+                    
+                    const fields = ['student_id', 'organization_id', 'role_id', 'membership_status', 'date_joined'];
+                    for (const field of fields) {
+                        const oldVal = String(oldMem[field] || '');
+                        const newVal = String(data[field] || '');
+                        
+                        if (oldVal !== newVal) {
+                            let oldValue = oldVal;
+                            let newValue = newVal;
+                            
+                            if (field === 'student_id') {
+                                oldValue = oldMem.student_name || oldVal || 'Unknown';
+                                newValue = data.student_name || newVal || 'Unknown';
+                            }
+                            if (field === 'organization_id') {
+                                oldValue = oldMem.organization_name || oldVal || 'Unknown';
+                                newValue = data.organization_name || newVal || 'Unknown';
+                            }
+                            if (field === 'role_id') {
+                                oldValue = oldMem.role_name || oldVal || 'Unknown';
+                                newValue = data.role_name || newVal || 'Unknown';
+                            }
+                            
+                            await logChange({
+                                user_id: getUserId('admin'),
+                                user_type: 'admin',
+                                user_name: user?.name || user?.email || 'Unknown',
+                                action: 'UPDATE',
+                                table_name: 'organization_memberships',
+                                record_id: id,
+                                field_name: field,
+                                old_value: oldValue,
+                                new_value: newValue
+                            });
+                        }
+                    }
                 } else {
-                    await OrgMembershipsAPI.createOrgMembership(data);
+                    const result = await OrgMembershipsAPI.createOrgMembership(data);
+                    const user = getUserData('admin');
+                    await logChange({
+                        user_id: getUserId('admin'),
+                        user_type: 'admin',
+                        user_name: user?.name || user?.email || 'Unknown',
+                        action: 'CREATE',
+                        table_name: 'organization_memberships',
+                        record_id: result?.id || null,
+                        field_name: 'organization_membership',
+                        old_value: null,
+                        new_value: data.student_name || data.student_id || 'Unknown'
+                    });
                 }
                 loadOrgMemberships(true);
             }
@@ -180,7 +237,45 @@ export async function initManageOrgMemberships() {
             mode: 'edit',
             membershipId: id,
             onSubmit: async (id, data) => {
+                const oldMem = await OrgMembershipsAPI.getOrgMembership(id);
                 await OrgMembershipsAPI.updateOrgMembership(id, data);
+                const user = getUserData('admin');
+                
+                const fields = ['student_id', 'organization_id', 'role_id', 'membership_status', 'date_joined'];
+                for (const field of fields) {
+                    const oldVal = String(oldMem[field] || '');
+                    const newVal = String(data[field] || '');
+                    
+                    if (oldVal !== newVal) {
+                        let oldValue = oldVal;
+                        let newValue = newVal;
+                        
+                        if (field === 'student_id') {
+                            oldValue = oldMem.student_name || oldVal || 'Unknown';
+                            newValue = data.student_name || newVal || 'Unknown';
+                        }
+                        if (field === 'organization_id') {
+                            oldValue = oldMem.organization_name || oldVal || 'Unknown';
+                            newValue = data.organization_name || newVal || 'Unknown';
+                        }
+                        if (field === 'role_id') {
+                            oldValue = oldMem.role_name || oldVal || 'Unknown';
+                            newValue = data.role_name || newVal || 'Unknown';
+                        }
+                        
+                        await logChange({
+                            user_id: getUserId('admin'),
+                            user_type: 'admin',
+                            user_name: user?.name || user?.email || 'Unknown',
+                            action: 'UPDATE',
+                            table_name: 'organization_memberships',
+                            record_id: id,
+                            field_name: field,
+                            old_value: oldValue,
+                            new_value: newValue
+                        });
+                    }
+                }
                 loadOrgMemberships(true);
             }
         });
@@ -200,6 +295,18 @@ export async function initManageOrgMemberships() {
             onConfirm: async () => {
                 try {
                     await OrgMembershipsAPI.deleteOrgMembership(id);
+                    const user = getUserData('admin');
+                    await logChange({
+                        user_id: getUserId('admin'),
+                        user_type: 'admin',
+                        user_name: user?.name || user?.email || 'Unknown',
+                        action: 'DELETE',
+                        table_name: 'organization_memberships',
+                        record_id: id,
+                        field_name: 'organization_membership',
+                        old_value: deleteLabel || 'Unknown',
+                        new_value: null
+                    });
                     loadOrgMemberships(true);
                     showToast('Membership deleted successfully', 'success');
                 } catch (error) {

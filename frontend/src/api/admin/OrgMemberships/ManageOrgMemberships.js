@@ -2,11 +2,14 @@ import { API_ROUTES } from '../../server/api.js';
 import { getToken } from '../../../utils/jwt.js';
 
 async function getHeaders() {
-    const token = getToken();
-    return {
-        'Content-Type': 'application/json',
-        'Authorization': `Bearer ${token}`
+    const token = getToken('admin');
+    const headers = {
+        'Content-Type': 'application/json'
     };
+    if (token && token !== 'null' && token !== 'undefined') {
+        headers['Authorization'] = `Bearer ${token}`;
+    }
+    return headers;
 }
 
 export async function getAllOrgMemberships() {
