@@ -189,7 +189,7 @@ export function createUpdatesModal(update) {
         `;
 
     const modalContent = `
-        <div class="space-y-4">
+        <div class="manage-modal-form space-y-4">
             ${modalHero({
                 photo: '',
                 fallback: '<i data-lucide="tag" class="w-8 h-8"></i>',
