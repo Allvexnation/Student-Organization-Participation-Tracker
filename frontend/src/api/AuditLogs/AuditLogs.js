@@ -97,17 +97,24 @@ export async function logChange(data, role = 'admin') {
         ...deviceInfo
     };
 
-    const response = await fetch(`${API_BASE_URL}/api/audit-logs/log`, {
-        method: 'POST',
-        headers: getAuthHeaders(role),
-        body: JSON.stringify(logData)
-    });
+    try {
+        const response = await fetch(`${API_BASE_URL}/api/audit-logs/log`, {
+            method: 'POST',
+            headers: getAuthHeaders(role),
+            body: JSON.stringify(logData)
+        });
 
-    if (!response.ok) {
-        throw new Error('Failed to log change');
+        if (!response.ok) {
+            const errorText = await response.text();
+            console.error('Audit log failed:', response.status, errorText);
+            throw new Error(`Failed to log change: ${response.status} ${errorText}`);
+        }
+
+        return await response.json();
+    } catch (error) {
+        console.error('Audit log error:', error);
+        throw error;
     }
-
-    return await response.json();
 }
 
 export async function getAllAuditLogs(filters = {}, role = 'admin') {
