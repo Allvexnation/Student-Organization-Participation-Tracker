@@ -71,8 +71,8 @@ const PUBLIC_NAV = {
     },
     notfound: {
         title: 'College for Research & Technology',
-        mobileTitle: 'CRT',
-        subtitle: 'Student Organization Participation Tracker',
+        mobileTitle: 'CRT - 404',
+        subtitle: 'Student Organization Participation Tracker - 404',
         storageKey: 'homepageStripBarState',
         variant: 'login',
         loginPath: '/auth/admin/login',
@@ -80,8 +80,8 @@ const PUBLIC_NAV = {
     },
     support: {
         title: 'College for Research & Technology',
-        mobileTitle: 'CRT',
-        subtitle: 'Student Organization Participation Tracker',
+        mobileTitle: 'CRT - Contact',
+        subtitle: 'Student Organization Participation Tracker - Contact',
         storageKey: 'homepageStripBarState',
         variant: 'login',
         loginPath: '/auth/admin/login',
@@ -89,8 +89,8 @@ const PUBLIC_NAV = {
     },
     events: {
         title: 'College for Research & Technology',
-        mobileTitle: 'CRT',
-        subtitle: 'Student Organization Participation Tracker',
+        mobileTitle: 'CRT - Events',
+        subtitle: 'Student Organization Participation Tracker - Events',
         storageKey: 'homepageStripBarState',
         variant: 'login',
         loginPath: '/auth/admin/login',
@@ -98,8 +98,8 @@ const PUBLIC_NAV = {
     },
     banned: {
         title: 'College for Research & Technology',
-        mobileTitle: 'CRT',
-        subtitle: 'Student Organization Participation Tracker',
+        mobileTitle: 'CRT - Banned',
+        subtitle: 'Student Organization Participation Tracker - Banned',
         storageKey: 'homepageStripBarState',
         variant: 'login-disabled',
         loginPath: '/auth/admin/login',
