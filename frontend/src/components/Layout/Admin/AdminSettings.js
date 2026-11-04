@@ -177,9 +177,22 @@ function getInitials(name) {
 
 function getPhotoPreview(profilePhoto, initials) {
     if (profilePhoto) {
-        return `<img src="${profilePhoto}" alt="Profile" class="w-full h-full object-cover rounded-full">`;
+        const isValidPhoto = profilePhoto && 
+                           profilePhoto.length > 0 &&
+                           (profilePhoto.startsWith('data:image/') || 
+                            profilePhoto.startsWith('http'));
+        
+        if (!isValidPhoto) {
+            return `<div class="w-full h-full rounded-full overflow-hidden">${getDefaultProfileSVG('100%', '100%')}</div>`;
+        }
+        
+        const photoUrl = profilePhoto.startsWith('data:') 
+            ? profilePhoto 
+            : `${profilePhoto}${profilePhoto.includes('?') ? '&' : '?'}_t=${Date.now()}`;
+
+        return `<img id="profile-photo-img" src="${photoUrl}" alt="Profile" class="w-full h-full object-cover rounded-full" crossorigin="anonymous" onerror="handleProfileImageError(this)">`;
     }
-    return getDefaultProfileSVG(initials);
+    return `<div class="w-full h-full rounded-full overflow-hidden">${getDefaultProfileSVG('100%', '100%')}</div>`;
 }
 
 export function AdminSettings() {
