@@ -199,7 +199,7 @@ async function refreshBanCheck() {
 export async function render(root, routes, initFunctions) {
     let route = getCurrentRoute();
 
-    if (route === '/app.js') {
+    if (route === '/app.js' || route.startsWith('/src/')) {
         navigate('/404');
         return;
     }

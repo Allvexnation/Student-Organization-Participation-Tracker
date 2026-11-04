@@ -9,7 +9,7 @@
   "routes": [
     {
       "src": "/src/(.*)",
-      "status": 403
+      "dest": "/index.html"
     },
     {
       "handle": "filesystem"

@@ -9,8 +9,8 @@
 
 [[redirects]]
   from = "/src/*"
-  to = "/403.html"
-  status = 403
+  to = "/index.html"
+  status = 200
   force = true
 
 [[redirects]]
