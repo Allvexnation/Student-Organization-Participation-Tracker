@@ -12,7 +12,7 @@ export function Statistics(data = null) {
 
     return `
       <section class="stats" aria-label="System statistics">
-        <div class="container" style="display: grid; grid-template-columns: repeat(5, 1fr); gap: 2rem; padding: 3rem 0;">
+        <div class="container stats-grid">
           <div class="stat reveal">
             <i data-lucide="graduation-cap"></i
             ><strong data-count="${stats.total_students}">0</strong><span>Total Students</span>

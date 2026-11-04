@@ -1168,7 +1168,7 @@ h2 {
 
 .stats-grid {
     display: grid;
-    grid-template-columns: repeat(4, 1fr);
+    grid-template-columns: repeat(5, 1fr);
     gap: 20px;
     padding: 56px 0;
     position: relative;
@@ -1194,7 +1194,7 @@ h2 {
 
 .stat strong {
     display: block;
-    font-size: clamp(2rem, 4vw, 3rem);
+    font-size: clamp(1.5rem, 4vw, 3rem);
     font-weight: 800;
     letter-spacing: -0.03em;
     line-height: 1.1;
@@ -1808,6 +1808,16 @@ h2 {
 }
 
 @media (max-width: 1024px) {
+    .stats-grid {
+        grid-template-columns: repeat(3, 1fr);
+        gap: 24px 12px;
+        padding: 48px 0;
+    }
+
+    .stat:nth-child(3n) {
+        border-right: 0;
+    }
+
     .hero-grid {
         grid-template-columns: 1fr;
         gap: 28px;
@@ -1991,11 +2001,33 @@ h2 {
 
     .stats-grid {
         grid-template-columns: repeat(2, 1fr);
-        gap: 28px 12px;
+        gap: 20px 8px;
+        padding: 36px 0;
     }
 
-    .stat:nth-child(2) {
+    .stat {
         border-right: 0;
+        padding: 12px 8px;
+    }
+
+    .stat:nth-child(odd) {
+        border-right: 1px solid rgba(255, 255, 255, 0.14);
+    }
+
+    .stat:last-child:nth-child(odd) {
+        grid-column: 1 / -1;
+        border-right: 0;
+    }
+
+    .stat i,
+    .stat svg {
+        width: 22px;
+        height: 22px;
+        margin-bottom: 8px;
+    }
+
+    .stat span {
+        font-size: 0.78rem;
     }
 
     .steps {

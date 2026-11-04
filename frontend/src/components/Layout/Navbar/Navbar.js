@@ -62,7 +62,7 @@ const PORTAL_NAV = {
 const PUBLIC_NAV = {
     homepage: {
         title: 'College for Research & Technology',
-        mobileTitle: 'CRT',
+        mobileTitle: 'CRT - Home',
         subtitle: 'Student Organization Participation Tracker',
         storageKey: 'homepageStripBarState',
         variant: 'login',
