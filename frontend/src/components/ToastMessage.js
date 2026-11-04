@@ -55,7 +55,7 @@ function ensureToastStyles() {
             width: calc(100% - 2rem);
             max-width: 22rem;
             pointer-events: none;
-            bottom: max(1rem, env(safe-area-inset-bottom));
+            top: max(1rem, env(safe-area-inset-top));
         }
 
         @media (min-width: 768px) {
