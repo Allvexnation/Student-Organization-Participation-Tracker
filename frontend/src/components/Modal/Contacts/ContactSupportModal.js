@@ -177,6 +177,25 @@ function setupFormHandlers() {
     }
 }
 
+const FORM_LAYOUT_CLASSES = [
+    'manage-modal-scroll-parent',
+    'flex',
+    'flex-col',
+    'flex-1',
+    'min-h-0',
+    'overflow-hidden',
+    'h-full'
+];
+
+function setSupportFormVisible(form, visible) {
+    if (!form) return;
+    form.classList.toggle('hidden', !visible);
+    if (!visible) {
+        // `flex` overrides Tailwind `hidden` — strip layout classes when hiding.
+        form.classList.remove(...FORM_LAYOUT_CLASSES);
+    }
+}
+
 window.switchModalTab = function(tab) {
     const contactTab = document.getElementById('modalContactTab');
     const reportTab = document.getElementById('modalReportTab');
@@ -189,8 +208,8 @@ window.switchModalTab = function(tab) {
     const isContact = tab === 'contact';
     contactTab.className = isContact ? TAB_ACTIVE : TAB_IDLE;
     reportTab.className = isContact ? TAB_IDLE : TAB_ACTIVE;
-    contactForm.classList.toggle('hidden', !isContact);
-    reportForm.classList.toggle('hidden', isContact);
+    setSupportFormVisible(contactForm, isContact);
+    setSupportFormVisible(reportForm, !isContact);
     if (heading) heading.textContent = isContact ? 'Contact Us' : 'Report a Problem';
 
     applyModalDomino(isContact ? contactForm : reportForm);

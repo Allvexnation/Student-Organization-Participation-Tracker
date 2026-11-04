@@ -136,8 +136,12 @@ export function pinManageModalActions(root) {
 
     const forms = body.querySelectorAll('.manage-modal-form');
     if (forms.length) {
-        forms.forEach((form) => pinActionsInParent(form));
-        
+        forms.forEach((form) => {
+            // Skip hidden forms — Tailwind `flex` would override `hidden` (same specificity).
+            if (form.classList.contains('hidden') || form.hasAttribute('hidden')) return;
+            pinActionsInParent(form);
+        });
+
         if (body.querySelector('.manage-modal-form-body')) {
             body.classList.remove('overflow-y-auto');
             body.classList.add('overflow-hidden');
