@@ -8,37 +8,7 @@
   autoLaunch = false
 
 [[redirects]]
-  from = "/src/api/*"
-  to = "/403.html"
-  status = 403
-  force = true
-
-[[redirects]]
-  from = "/src/components/*"
-  to = "/403.html"
-  status = 403
-  force = true
-
-[[redirects]]
-  from = "/src/pages/*"
-  to = "/403.html"
-  status = 403
-  force = true
-
-[[redirects]]
-  from = "/src/middleware/*"
-  to = "/403.html"
-  status = 403
-  force = true
-
-[[redirects]]
-  from = "/src/provider/*"
-  to = "/403.html"
-  status = 403
-  force = true
-
-[[redirects]]
-  from = "/src/static/*"
+  from = "/src/*"
   to = "/403.html"
   status = 403
   force = true

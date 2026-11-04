@@ -8,27 +8,7 @@
   ],
   "routes": [
     {
-      "src": "/src/api/(.*)",
-      "status": 403
-    },
-    {
-      "src": "/src/components/(.*)",
-      "status": 403
-    },
-    {
-      "src": "/src/pages/(.*)",
-      "status": 403
-    },
-    {
-      "src": "/src/middleware/(.*)",
-      "status": 403
-    },
-    {
-      "src": "/src/provider/(.*)",
-      "status": 403
-    },
-    {
-      "src": "/src/static/(.*)",
+      "src": "/src/(.*)",
       "status": 403
     },
     {
