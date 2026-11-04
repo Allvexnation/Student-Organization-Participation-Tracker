@@ -1,4 +1,4 @@
-export const API_BASE_URL = 'http://localhost:8001';
+export const API_BASE_URL = 'https://crtsopt-dev-server.onrender.com';
 
 export const API_ROUTES = {
     ADMIN: {
