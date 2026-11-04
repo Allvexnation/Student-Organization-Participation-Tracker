@@ -38,16 +38,22 @@ const TOAST_TYPES = {
 };
 
 function ensureToastStyles() {
-    if (document.getElementById('toast-message-styles')) return;
+    let style = document.getElementById('toast-message-styles');
+    if (!style) {
+        style = document.createElement('style');
+        style.id = 'toast-message-styles';
+        document.head.appendChild(style);
+    }
 
-    const style = document.createElement('style');
-    style.id = 'toast-message-styles';
     style.textContent = `
         #toast-container {
             position: fixed;
+            top: max(1rem, env(safe-area-inset-top));
+            right: auto;
+            bottom: auto;
             left: 50%;
             transform: translateX(-50%);
-            z-index: 100000;
+            z-index: 2147483647;
             display: flex;
             flex-direction: column;
             align-items: stretch;
@@ -55,16 +61,6 @@ function ensureToastStyles() {
             width: calc(100% - 2rem);
             max-width: 22rem;
             pointer-events: none;
-            bottom: max(1rem, env(safe-area-inset-bottom));
-        }
-
-        @media (min-width: 768px) {
-            #toast-container {
-                top: 1rem;
-                bottom: auto;
-                width: auto;
-                max-width: 22rem;
-            }
         }
 
         .toast-card,
@@ -76,13 +72,7 @@ function ensureToastStyles() {
         }
 
         .toast-card {
-            transform-origin: 50% 100%;
-        }
-
-        @media (min-width: 768px) {
-            .toast-card {
-                transform-origin: 50% 0%;
-            }
+            transform-origin: 50% 0%;
         }
 
         @keyframes toast-spin {
@@ -99,17 +89,20 @@ function ensureToastStyles() {
             animation: toast-spin 0.8s linear infinite;
         }
     `;
-    document.head.appendChild(style);
 }
 
 function ensureToastContainer() {
     ensureToastStyles();
 
-    if (toastContainer?.isConnected) return toastContainer;
+    if (!toastContainer || !toastContainer.isConnected) {
+        toastContainer = document.createElement('div');
+        toastContainer.id = 'toast-container';
+    }
 
-    toastContainer = document.createElement('div');
-    toastContainer.id = 'toast-container';
-    document.body.appendChild(toastContainer);
+    if (toastContainer.parentElement !== document.body) {
+        document.body.appendChild(toastContainer);
+    }
+
     return toastContainer;
 }
 

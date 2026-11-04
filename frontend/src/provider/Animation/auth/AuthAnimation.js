@@ -216,6 +216,35 @@ export function playAuthDominoEnter(root = document, { direction = 0 } = {}) {
     return true;
 }
 
+async function fadeAuthChips(chips, leaving) {
+    if (!chips) return;
+
+    chips.style.pointerEvents = leaving ? 'none' : '';
+
+    if (!duration(1)) {
+        chips.style.opacity = leaving ? '0' : '';
+        return;
+    }
+
+    try {
+        await chips.animate(
+            leaving
+                ? [{ opacity: 1, transform: 'translate3d(0, 0, 0)' }, { opacity: 0, transform: 'translate3d(0, -8px, 0)' }]
+                : [{ opacity: 0, transform: 'translate3d(0, -8px, 0)' }, { opacity: 1, transform: 'translate3d(0, 0, 0)' }],
+            {
+                ...ANIMATE_OPTS,
+                duration: leaving ? 280 : 420,
+                easing: leaving ? DOMINO_LEAVE_EASE : DOMINO_EASE,
+            },
+        ).finished;
+    } catch {
+
+    }
+
+    chips.style.opacity = leaving ? '0' : '';
+    chips.style.transform = '';
+}
+
 export async function playAuthDominoLeave(root = document, { direction = 1 } = {}) {
     const items = visibleEnterItems(root);
     if (!items.length || !duration(1)) return false;
@@ -362,9 +391,14 @@ export async function navigateAuthRoute(path) {
         ]);
     } else if (keepScene && panel) {
         const asideCopy = document.querySelector('[data-auth-aside]');
+        const chips =
+            fromKind?.page === 'login' && toKind?.page === 'forgot-password'
+                ? document.querySelector('[data-auth-chips]')
+                : null;
         await Promise.all([
             playAuthDominoLeave(panel, { direction }),
             asideCopy ? playAuthDominoLeave(asideCopy, { direction }) : Promise.resolve(),
+            fadeAuthChips(chips, true),
         ]);
     } else if (authShell?.querySelector('[data-auth-enter]')) {
         await playAuthDominoLeave(authShell, { direction });
@@ -467,6 +501,9 @@ export function playAuthPageEnter() {
         playAuthDominoEnter(panel, { direction });
         const asideCopy = document.querySelector('[data-auth-aside]');
         if (asideCopy) playAuthDominoEnter(asideCopy, { direction });
+        if (fromKind?.page === 'forgot-password' && toKind?.page === 'login') {
+            fadeAuthChips(document.querySelector('[data-auth-chips]'), false);
+        }
         return;
     }
 
