@@ -73,6 +73,11 @@ class EventTaskController {
         $task = $this->eventTaskModel->readOne($id);
 
         if ($task) {
+            if (intval($task['student_id']) !== intval($studentId)) {
+                http_response_code(403);
+                echo json_encode(['message' => 'Forbidden']);
+                return;
+            }
             http_response_code(200);
             echo json_encode(['task' => $task]);
         } else {
@@ -103,21 +108,42 @@ class EventTaskController {
             return;
         }
 
-        $validStatuses = ['pending', 'completed', 'overdue', 'not_completed', 'not_finished'];
+        $validStatuses = ['completed', 'not_completed'];
         if (!in_array($data['status'], $validStatuses)) {
             http_response_code(400);
-            echo json_encode(['message' => 'Invalid status']);
+            echo json_encode(['message' => 'Invalid status. Students can mark tasks as completed or not_completed.']);
             return;
         }
 
-        $result = $this->eventTaskModel->updateStatus($id, $data['status']);
+        $task = $this->eventTaskModel->readOne($id);
+        if (!$task) {
+            http_response_code(404);
+            echo json_encode(['message' => 'Task not found']);
+            return;
+        }
+
+        if (intval($task['student_id']) !== intval($studentId)) {
+            http_response_code(403);
+            echo json_encode(['message' => 'Forbidden: Task does not belong to you']);
+            return;
+        }
+
+        $endDate = !empty($task['student_end_date']) ? $task['student_end_date'] : $task['end_date'];
+        $today = date('Y-m-d');
+        if ($endDate < $today) {
+            http_response_code(400);
+            echo json_encode(['message' => 'The time for this task has ended. It is automatically marked as not finished.']);
+            return;
+        }
+
+        $result = $this->eventTaskModel->updateStatus($id, $data['status'], 'student');
 
         if ($result) {
-            $task = $this->eventTaskModel->readOne($id);
+            $updated = $this->eventTaskModel->readOne($id);
             http_response_code(200);
             echo json_encode([
-                'message' => 'Task status updated successfully',
-                'task' => $task
+                'message' => 'Task marked successfully',
+                'task' => $updated
             ]);
         } else {
             http_response_code(500);
@@ -147,16 +173,49 @@ class EventTaskController {
             return;
         }
 
-        $validStatuses = ['pending', 'completed', 'not_completed', 'not_finished'];
+        $validStatuses = ['completed', 'not_completed', 'pending'];
         if (!in_array($data['status'], $validStatuses)) {
             http_response_code(400);
-            echo json_encode(['message' => 'Invalid status']);
+            echo json_encode(['message' => 'Invalid status. Students can mark schedules as completed, not_completed, or pending.']);
             return;
         }
 
         require_once __DIR__ . '/../../model/MemberTasksModel.php';
         $memberTasksModel = new MemberTasksModel();
-        $result = $memberTasksModel->updateScheduleStatus($schedule_id, $data['status']);
+
+        $database = Database::getInstance();
+        $conn = $database->getConnection();
+        $schStmt = $conn->prepare("SELECT ds.id, ds.task_id, ds.student_id, ds.schedule_date, ds.end_time, mt.student_id as task_student_id
+                                   FROM task_daily_schedules ds
+                                   JOIN member_tasks mt ON ds.task_id = mt.id
+                                   WHERE ds.id = :id");
+        $schStmt->bindParam(':id', $schedule_id);
+        $schStmt->execute();
+        $sch = $schStmt->fetch(PDO::FETCH_ASSOC);
+
+        if (!$sch) {
+            http_response_code(404);
+            echo json_encode(['message' => 'Schedule not found']);
+            return;
+        }
+
+        $assignedStudent = $sch['student_id'] ? $sch['student_id'] : $sch['task_student_id'];
+        if (intval($assignedStudent) !== intval($studentId)) {
+            http_response_code(403);
+            echo json_encode(['message' => 'Forbidden: Schedule does not belong to you']);
+            return;
+        }
+
+        $today = date('Y-m-d');
+        $nowTime = date('H:i:s');
+        $isPastTime = ($sch['schedule_date'] < $today) || ($sch['schedule_date'] === $today && $nowTime > $sch['end_time']);
+        if ($isPastTime) {
+            http_response_code(400);
+            echo json_encode(['message' => 'The time for this schedule has ended. It is automatically marked as not finished.']);
+            return;
+        }
+
+        $result = $memberTasksModel->updateScheduleStatus($schedule_id, $data['status'], 'student');
 
         if ($result) {
             http_response_code(200);

@@ -1,12 +1,15 @@
 import { AdminNavbar, initAdminNavbar } from '../../components/Navbar/AdminNavbar.js';
 import { getAdminData } from '../../api/admin/AdminLogin.js';
-import { setUserData } from '../../utils/jwt.js';
+import { setUserData, isCrtAdmin } from '../../utils/jwt.js';
 import { getAdminProfile, updateAdminProfile } from '../../api/admin/AdminProfile.js';
 import { protectAdminRoute } from '../../middleware/AdminMiddleware.js';
 import { openConfirmDialog } from '../../components/Dialog/ConfirmDialog.js';
 import { showToast, updateToast } from '../../components/ToastMessage.js';
 import { ProfileValidator } from '../../validator/ProfileValidator.js';
 import { getDefaultProfileSVG } from '../../static/Profile/DefaultProfile.js';
+import { logChange } from '../../api/AuditLogs/AuditLogs.js';
+import { decodeToken, getToken } from '../../utils/jwt.js';
+import { initProfileAnimations } from '../../provider/Animation/ProfileAnimation.js';
 
 export function AdminProfile() {
     const adminData = getAdminData() || {};
@@ -15,147 +18,121 @@ export function AdminProfile() {
     const email = adminData.email || '';
     const role = adminData.role || 'Administrator';
     const profilePhoto = adminData.profile_photo || '';
-    
+    const isCrtAdminUser = isCrtAdmin('admin') || adminData.is_crt_admin;
+
     const initials = getInitials(name);
 
     return `
-        <div class="min-h-screen bg-gray-50">
+        <div id="admin-profile-page" data-domino-page class="profile-page min-h-screen bg-surface font-sans text-ink pb-24 md:pb-10">
             ${AdminNavbar()}
 
-            <main class="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
-                <div class="mb-6">
-                    <h1 class="text-2xl font-semibold text-gray-900">Manage Account & Profile</h1>
-                    <p class="text-sm text-gray-500 mt-1">Update your administrator credentials, personal details, and account security.</p>
-                </div>
+            <main class="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 py-5 sm:py-8">
+                <header class="reveal mb-5 sm:mb-7" data-domino-enter>
+                    <span class="inline-flex items-center gap-2 rounded-full border border-line bg-white px-3 py-1 text-[11px] font-semibold uppercase tracking-[0.16em] text-blue-600">
+                        <span class="h-1.5 w-1.5 rounded-full bg-yellow"></span>
+                        Admin account
+                    </span>
+                    <div class="mt-3">
+                        <h1 class="text-[1.65rem] sm:text-3xl font-semibold tracking-tight text-ink leading-tight">Manage Account &amp; Profile</h1>
+                        <p class="mt-1.5 max-w-2xl text-sm text-body">Update your administrator credentials, personal details, and account security.</p>
+                    </div>
+                </header>
 
                 <form id="edit-profile-form">
                     <input type="hidden" name="id" id="settingsId" value="${adminData.id || ''}">
 
-                    <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
-                        <div class="lg:col-span-1">
-                            <div class="bg-white border border-gray-200 rounded-lg p-5 sm:p-6 shadow-sm flex flex-col items-center text-center">
-                                <div class="w-full flex items-center gap-2 mb-4 pb-3 border-b border-gray-100 text-left">
-                                    <svg xmlns="http://www.w3.org/2000/svg" class="w-4 h-4 text-blue-900" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
-                                    </svg>
-                                    <h2 class="text-sm font-semibold text-gray-900 uppercase tracking-wider">Profile Photo</h2>
+                    <div class="grid grid-cols-1 lg:grid-cols-12 gap-5 lg:gap-6">
+                        <aside class="lg:col-span-4">
+                            <section class="profile-identity reveal rounded-2xl border border-line bg-white p-5 sm:p-6 flex flex-col items-center text-center" data-domino-enter>
+                                <div class="profile-identity-heading w-full flex items-center gap-2 mb-4 pb-3 border-b border-line text-left">
+                                    <i data-lucide="user-round" class="w-4 h-4 text-blue-600"></i>
+                                    <h2 class="text-sm font-semibold text-ink uppercase tracking-wider">Profile Photo</h2>
                                 </div>
 
-                                <div class="relative group my-3">
-                                    <div id="profilePhotoPreview" class="w-28 h-28 rounded-full border-2 border-dashed border-gray-300 p-1 flex items-center justify-center overflow-hidden bg-gray-50 shadow-inner">
-                                        ${getPhotoPreview(profilePhoto, initials)}
-                                    </div>
+                                <div id="profilePhotoPreview" class="profile-photo-ring w-28 h-28 rounded-full border-2 border-dashed border-line p-1 flex items-center justify-center overflow-hidden bg-surface">
+                                    ${getPhotoPreview(profilePhoto, initials)}
                                 </div>
 
-                                <div class="mb-4">
-                                    <h3 class="text-base font-semibold text-gray-900" id="profileFullNameDisplay">${name}</h3>
-                                    <span class="inline-flex items-center gap-1.5 px-2.5 py-0.5 mt-1 rounded-full text-xs font-medium bg-blue-50 text-blue-900 border border-blue-200">
+                                <div class="mt-4 mb-1">
+                                    <h3 class="text-base font-semibold text-ink" id="profileFullNameDisplay">${name}</h3>
+                                    <span class="profile-role-badge inline-flex items-center gap-1.5 px-2.5 py-0.5 mt-1.5 rounded-full text-xs font-medium bg-blue-50 text-blue-600 border border-blue-200">
                                         <span class="w-1.5 h-1.5 rounded-full bg-blue-600"></span>
                                         ${role}
                                     </span>
                                 </div>
+                                <p class="profile-identity-meta mt-2 text-xs text-muted break-all">${email || username}</p>
 
-                                <label for="profilePhoto" class="w-full cursor-pointer px-4 py-2 text-xs font-medium text-blue-900 bg-blue-50 hover:bg-blue-100 border border-blue-200 rounded-md transition flex items-center justify-center gap-2">
-                                    <svg xmlns="http://www.w3.org/2000/svg" class="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 9a2 2 0 012-2h.93a2 2 0 001.664-.89l.812-1.22A2 2 0 0110.07 4h3.86a2 2 0 011.664.89l.812 1.22A2 2 0 0018.07 7H19a2 2 0 012 2v9a2 2 0 01-2 2H5a2 2 0 01-2-2V9z" />
-                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 13a3 3 0 11-6 0 3 3 0 016 0z" />
-                                    </svg>
-                                    <span>Upload New Photo</span>
-                                </label>
-                                <input 
-                                    type="file" 
-                                    id="profilePhoto" 
-                                    name="profilePhoto" 
-                                    accept="image/png,image/jpeg,image/webp" 
-                                    class="hidden">
+                                <div class="profile-photo-actions w-full mt-4">
+                                    <label for="profilePhoto" class="profile-upload-btn w-full cursor-pointer px-4 py-2.5 text-xs font-medium text-blue-600 bg-blue-50 hover:bg-blue-100 border border-blue-200 rounded-xl transition flex items-center justify-center gap-2">
+                                        <i data-lucide="camera" class="w-3.5 h-3.5"></i>
+                                        <span>Upload Photo</span>
+                                    </label>
+                                    <input type="file" id="profilePhoto" name="profilePhoto" accept="image/png,image/jpeg,image/webp" class="hidden">
 
-                                <button 
-                                    type="button" 
-                                    id="removeProfilePhotoBtn" 
-                                    class="w-full mt-2 px-4 py-2 text-xs font-medium text-red-600 bg-red-50 hover:bg-red-100 border border-red-200 rounded-md transition flex items-center justify-center gap-2">
-                                    <svg xmlns="http://www.w3.org/2000/svg" class="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
-                                    </svg>
-                                    <span>Remove Profile Photo</span>
-                                </button>
+                                    <button type="button" id="removeProfilePhotoBtn" class="profile-remove-btn w-full mt-2 md:mt-2 px-4 py-2.5 text-xs font-medium text-red-600 bg-red-50 hover:bg-red-100 border border-red-200 rounded-xl transition flex items-center justify-center gap-2">
+                                        <svg xmlns="http://www.w3.org/2000/svg" class="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                                        </svg>
+                                        <span>Remove Photo</span>
+                                    </button>
+                                </div>
+                                <p class="profile-identity-hint text-[11px] text-muted mt-2">JPG, PNG, or WEBP up to 2MB</p>
+                            </section>
+                        </aside>
 
-                                <p class="text-[11px] text-gray-400 mt-2">JPG, PNG, or WEBP up to 2MB</p>
-                            </div>
-                        </div>
-
-                        <div class="lg:col-span-2 space-y-6">
-                            <div class="bg-white border border-gray-200 rounded-lg p-5 sm:p-6 shadow-sm">
-                                <div class="flex items-center gap-2 mb-4 pb-3 border-b border-gray-100">
-                                    <svg xmlns="http://www.w3.org/2000/svg" class="w-4 h-4 text-blue-900" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
-                                    </svg>
-                                    <h2 class="text-sm font-semibold text-gray-900 uppercase tracking-wider">Personal Information</h2>
+                        <div class="lg:col-span-8 space-y-5">
+                            <section class="profile-card reveal rounded-2xl border border-line bg-white p-5 sm:p-6" data-domino-enter>
+                                <div class="flex items-center gap-2 mb-4 pb-3 border-b border-line">
+                                    <i data-lucide="id-card" class="w-4 h-4 text-blue-600"></i>
+                                    <h2 class="text-sm font-semibold text-ink uppercase tracking-wider">Personal Information</h2>
                                 </div>
 
                                 <div class="space-y-4">
                                     <div>
-                                        <label for="settingsName" class="block text-xs font-medium text-gray-700 uppercase tracking-wide mb-1.5">
+                                        <label for="settingsName" class="block text-[11px] font-semibold uppercase tracking-[0.12em] text-muted mb-1.5">
                                             Full Name <span class="text-red-500">*</span>
                                         </label>
-                                        <input 
-                                            type="text" 
-                                            name="name" 
-                                            id="settingsName" 
-                                            value="${name}" 
-                                            required 
-                                            class="w-full px-3.5 py-2.5 text-sm border border-gray-200 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition">
+                                        <input type="text" name="name" id="settingsName" value="${name}" required class="profile-input">
                                     </div>
 
                                     <div>
-                                        <label for="settingsUsername" class="block text-xs font-medium text-gray-700 uppercase tracking-wide mb-1.5">
+                                        <label for="settingsUsername" class="block text-[11px] font-semibold uppercase tracking-[0.12em] text-muted mb-1.5">
                                             Username <span class="text-red-500">*</span>
                                         </label>
-                                        <input 
-                                            type="text" 
-                                            name="username" 
-                                            id="settingsUsername" 
-                                            value="${username}" 
-                                            required 
-                                            class="w-full px-3.5 py-2.5 text-sm border border-gray-200 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition">
+                                        <input type="text" name="username" id="settingsUsername" value="${username}" ${isCrtAdminUser ? 'disabled' : ''} required class="profile-input ${isCrtAdminUser ? 'cursor-not-allowed' : ''}">
                                     </div>
 
                                     <div>
-                                        <label for="settingsEmail" class="block text-xs font-medium text-gray-700 uppercase tracking-wide mb-1.5">
+                                        <label for="settingsEmail" class="block text-[11px] font-semibold uppercase tracking-[0.12em] text-muted mb-1.5">
                                             Email <span class="text-red-500">*</span>
                                         </label>
-                                        <input 
-                                            type="email" 
-                                            name="email" 
-                                            id="settingsEmail" 
-                                            value="${email}" 
-                                            required 
-                                            class="w-full px-3.5 py-2.5 text-sm border border-gray-200 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition">
+                                        <input type="email" name="email" id="settingsEmail" value="${email}" ${isCrtAdminUser ? 'disabled' : ''} required class="profile-input ${isCrtAdminUser ? 'cursor-not-allowed' : ''}">
                                     </div>
                                 </div>
-                            </div>
+                            </section>
 
-                            <div class="bg-white border border-gray-200 rounded-lg p-5 sm:p-6 shadow-sm">
-                                <div class="flex items-center gap-2 mb-2 pb-3 border-b border-gray-100">
-                                    <svg xmlns="http://www.w3.org/2000/svg" class="w-4 h-4 text-blue-900" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 7a2 2 0 012 2m4 0a6 6 0 01-7.743 5.743L11 17H9v2H7v2H4a1 1 0 01-1-1v-2.586a1 1 0 01.293-.707l5.964-5.964A6 6 0 1121 9z" />
-                                    </svg>
-                                    <h2 class="text-sm font-semibold text-gray-900 uppercase tracking-wider">Change Password</h2>
+                            <section class="profile-card reveal rounded-2xl border border-line bg-white p-5 sm:p-6" data-domino-enter>
+                                <div class="flex items-center gap-2 mb-2 pb-3 border-b border-line">
+                                    <i data-lucide="key-round" class="w-4 h-4 text-blue-600"></i>
+                                    <h2 class="text-sm font-semibold text-ink uppercase tracking-wider">Change Password</h2>
                                 </div>
-                                <p class="text-xs text-gray-500 mb-4">Leave password fields blank if you do not wish to change your current password.</p>
+                                ${isCrtAdminUser ? `
+                                <div class="bg-yellow-50 border border-yellow-200 rounded-xl px-4 py-3 mb-4">
+                                    <p class="text-xs text-yellow-800 flex items-start gap-2">
+                                        <i data-lucide="triangle-alert" class="w-4 h-4 mt-0.5 shrink-0"></i>
+                                        <span>Password change is disabled for this account.</span>
+                                    </p>
+                                </div>
+                                ` : `
+                                <p class="text-xs text-muted mb-4">Leave password fields blank if you do not wish to change your current password.</p>
+                                `}
 
                                 <div class="space-y-4">
                                     <div>
-                                        <label for="settingsOldPassword" class="block text-xs font-medium text-gray-700 uppercase tracking-wide mb-1.5">
-                                            Current (Old) Password
-                                        </label>
+                                        <label for="settingsOldPassword" class="block text-[11px] font-semibold uppercase tracking-[0.12em] text-muted mb-1.5">Current Password</label>
                                         <div class="relative">
-                                            <input 
-                                                type="password" 
-                                                name="old_password" 
-                                                id="settingsOldPassword" 
-                                                placeholder="Enter current password to verify"
-                                                class="w-full px-3.5 py-2.5 text-sm border border-gray-200 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition pr-10">
-                                            <button type="button" onclick="togglePassword('settingsOldPassword')" class="absolute right-2 top-0 bottom-0 flex items-center justify-center text-gray-400 hover:text-gray-600 focus:outline-none px-2">
+                                            <input type="password" name="old_password" id="settingsOldPassword" placeholder="Enter current password to verify" ${isCrtAdminUser ? 'disabled' : ''} class="profile-input pr-11 ${isCrtAdminUser ? 'cursor-not-allowed' : ''}">
+                                            <button type="button" onclick="togglePassword('settingsOldPassword')" class="absolute right-2 top-0 bottom-0 flex items-center justify-center text-muted hover:text-ink focus:outline-none px-2" ${isCrtAdminUser ? 'disabled' : ''}>
                                                 <svg id="settingsOldPassword-eye-icon" xmlns="http://www.w3.org/2000/svg" class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                                                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
                                                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" />
@@ -165,17 +142,10 @@ export function AdminProfile() {
                                     </div>
 
                                     <div>
-                                        <label for="settingsPassword" class="block text-xs font-medium text-gray-700 uppercase tracking-wide mb-1.5">
-                                            New Password
-                                        </label>
+                                        <label for="settingsPassword" class="block text-[11px] font-semibold uppercase tracking-[0.12em] text-muted mb-1.5">New Password</label>
                                         <div class="relative">
-                                            <input 
-                                                type="password" 
-                                                name="password" 
-                                                id="settingsPassword" 
-                                                placeholder="Minimum 6 characters"
-                                                class="w-full px-3.5 py-2.5 text-sm border border-gray-200 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition pr-10">
-                                            <button type="button" onclick="togglePassword('settingsPassword')" class="absolute right-2 top-0 bottom-0 flex items-center justify-center text-gray-400 hover:text-gray-600 focus:outline-none px-2">
+                                            <input type="password" name="password" id="settingsPassword" placeholder="Minimum 6 characters" ${isCrtAdminUser ? 'disabled' : ''} class="profile-input pr-11 ${isCrtAdminUser ? 'cursor-not-allowed' : ''}">
+                                            <button type="button" onclick="togglePassword('settingsPassword')" class="absolute right-2 top-0 bottom-0 flex items-center justify-center text-muted hover:text-ink focus:outline-none px-2" ${isCrtAdminUser ? 'disabled' : ''}>
                                                 <svg id="settingsPassword-eye-icon" xmlns="http://www.w3.org/2000/svg" class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                                                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
                                                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" />
@@ -184,21 +154,12 @@ export function AdminProfile() {
                                         </div>
                                     </div>
                                 </div>
-                            </div>
+                            </section>
                         </div>
                     </div>
 
-                    <div class="mt-6 bg-white border border-gray-200 rounded-lg p-4 shadow-sm flex flex-col-reverse sm:flex-row items-center justify-end gap-3">
-                        <button 
-                            type="button" 
-                            id="resetProfileBtn" 
-                            class="w-full sm:w-auto px-4 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-md hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-gray-200 transition">
-                            Reset Changes
-                        </button>
-                        <button 
-                            type="submit" 
-                            id="saveSettings" 
-                            class="w-full sm:w-auto px-6 py-2 text-sm font-medium text-white bg-blue-900 hover:bg-blue-800 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 transition flex items-center justify-center gap-2">
+                    <div class="profile-actions reveal mt-5 md:mt-6 rounded-2xl border border-line bg-white p-3.5 sm:p-4 flex justify-end" data-domino-enter>
+                        <button type="submit" id="saveSettings" class="w-full sm:w-auto px-6 py-2.5 text-sm font-medium text-white bg-blue-600 hover:bg-blue-800 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-600/30 transition flex items-center justify-center gap-2">
                             <svg xmlns="http://www.w3.org/2000/svg" class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7H5a2 2 0 00-2 2v9a2 2 0 002 2h14a2 2 0 002-2V9a2 2 0 00-2-2h-3m-1 4l-3 3m0 0l-3-3m3 3V4" />
                             </svg>
@@ -248,6 +209,11 @@ export function AdminProfile() {
 export function initAdminProfile() {
     protectAdminRoute();
     initAdminNavbar();
+    initProfileAnimations();
+    if (typeof lucide !== 'undefined') lucide.createIcons();
+
+    const adminToken = getToken('admin');
+    const adminUser = decodeToken(adminToken) || {};
 
     let adminData = getAdminData() || {};
     let selectedPhoto = null;
@@ -303,6 +269,21 @@ export function initAdminProfile() {
                         if (result.admin) {
                             setUserData(result.admin, 'admin');
                             adminData = result.admin;
+                        }
+
+                        try {
+                            await logChange({
+                                user_id: adminUser.user_id,
+                                user_type: 'admin',
+                                action: 'UPDATE',
+                                table_name: 'admins',
+                                record_id: adminData.id,
+                                field_name: 'profile_photo',
+                                old_value: adminData.profile_photo ? 'Base64 image data' : 'None',
+                                new_value: 'Removed'
+                            });
+                        } catch (logError) {
+                            console.error('Failed to log change:', logError);
                         }
 
                         const initials = getInitials(adminData.name || '');
@@ -385,9 +366,65 @@ export function initAdminProfile() {
                             <span>Saving...</span>
                         `;
 
+                        const changes = [];
+                        if (name !== adminData.name) {
+                            changes.push({
+                                field_name: 'name',
+                                old_value: adminData.name,
+                                new_value: name
+                            });
+                        }
+                        if (username !== adminData.username) {
+                            changes.push({
+                                field_name: 'username',
+                                old_value: adminData.username,
+                                new_value: username
+                            });
+                        }
+                        if (email !== adminData.email) {
+                            changes.push({
+                                field_name: 'email',
+                                old_value: adminData.email,
+                                new_value: email
+                            });
+                        }
+                        if (selectedPhoto && selectedPhoto !== adminData.profile_photo) {
+                            changes.push({
+                                field_name: 'profile_photo',
+                                old_value: adminData.profile_photo ? 'Base64 image data' : 'None',
+                                new_value: 'Base64 image data'
+                            });
+                        }
+                        if (password) {
+                            changes.push({
+                                field_name: 'password',
+                                old_value: '******',
+                                new_value: 'Updated'
+                            });
+                        }
+
                         const result = await updateAdminProfile(profileData);
                         if (result.admin) {
                             setUserData(result.admin, 'admin');
+                        }
+
+                        if (changes.length > 0) {
+                            for (const change of changes) {
+                                try {
+                                    await logChange({
+                                        user_id: adminUser.user_id,
+                                        user_type: 'admin',
+                                        action: 'UPDATE',
+                                        table_name: 'admins',
+                                        record_id: adminData.id,
+                                        field_name: change.field_name,
+                                        old_value: change.old_value,
+                                        new_value: change.new_value
+                                    });
+                                } catch (logError) {
+                                    console.error('Failed to log change:', logError);
+                                }
+                            }
                         }
 
                         const navUsername = document.getElementById('navUsername');
@@ -441,21 +478,29 @@ export function initAdminProfile() {
         });
     }
 
-    const resetBtn = document.getElementById('resetProfileBtn');
-    if (resetBtn) {
-        resetBtn.addEventListener('click', () => {
-            document.getElementById('settingsName').value = adminData.name || '';
-            document.getElementById('settingsUsername').value = adminData.username || '';
-            document.getElementById('settingsEmail').value = adminData.email || '';
-            document.getElementById('settingsPassword').value = '';
-            document.getElementById('settingsOldPassword').value = '';
+    const isCrtAdminUser = isCrtAdmin('admin') || adminData.is_crt_admin;
+    if (isCrtAdminUser) {
+        const usernameInput = document.getElementById('settingsUsername');
+        const emailInput = document.getElementById('settingsEmail');
+        const oldPasswordInput = document.getElementById('settingsOldPassword');
+        const newPasswordInput = document.getElementById('settingsPassword');
 
-            selectedPhoto = null;
-            const initials = getInitials(adminData.name || '');
-            if (profilePhotoPreview) {
-                profilePhotoPreview.innerHTML = getPhotoPreview(adminData.profile_photo || '', initials);
-            }
-        });
+        if (usernameInput) {
+            usernameInput.disabled = true;
+            usernameInput.classList.add('bg-gray-100', 'cursor-not-allowed');
+        }
+        if (emailInput) {
+            emailInput.disabled = true;
+            emailInput.classList.add('bg-gray-100', 'cursor-not-allowed');
+        }
+        if (oldPasswordInput) {
+            oldPasswordInput.disabled = true;
+            oldPasswordInput.classList.add('bg-gray-100', 'cursor-not-allowed');
+        }
+        if (newPasswordInput) {
+            newPasswordInput.disabled = true;
+            newPasswordInput.classList.add('bg-gray-100', 'cursor-not-allowed');
+        }
     }
 
     const successModal = document.getElementById('successModal');

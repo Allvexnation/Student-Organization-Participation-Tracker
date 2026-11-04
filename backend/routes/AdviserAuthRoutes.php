@@ -14,6 +14,8 @@ class AdviserAuthRoutes {
         
         if ($method === 'POST' && $uri === '/api/adviser/login') {
             $this->controller->login();
+        } elseif ($method === 'POST' && $uri === '/api/adviser/lookup') {
+            $this->controller->lookupAccount();
         } elseif ($method === 'POST' && $uri === '/api/adviser/logout') {
             $this->controller->logout();
         } elseif ($method === 'POST' && $uri === '/api/adviser/forgot-password') {

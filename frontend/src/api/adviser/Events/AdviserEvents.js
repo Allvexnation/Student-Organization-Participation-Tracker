@@ -50,9 +50,13 @@ export async function getTasksByOrganization(orgId) {
     }
 }
 
-export async function getTasksByEvent(eventId) {
+export async function getTasksByEvent(eventId, orgId = null) {
     try {
-        const response = await fetch(API_ROUTES.ADVISER.TASKS_GET_BY_EVENT(eventId), {
+        let url = API_ROUTES.ADVISER.TASKS_GET_BY_EVENT(eventId);
+        if (orgId) {
+            url += "?organization_id=" + encodeURIComponent(orgId);
+        }
+        const response = await fetch(url, {
             method: 'GET',
             headers: await getHeaders()
         });
@@ -69,9 +73,13 @@ export async function getTasksByEvent(eventId) {
     }
 }
 
-export async function getRegisteredEvents() {
+export async function getRegisteredEvents(organizationId = null) {
     try {
-        const response = await fetch(API_ROUTES.ADVISER.REGISTERED_EVENTS, {
+        let url = API_ROUTES.ADVISER.REGISTERED_EVENTS;
+        if (organizationId) {
+            url += `?organization_id=${organizationId}`;
+        }
+        const response = await fetch(url, {
             method: 'GET',
             headers: await getHeaders()
         });
@@ -84,6 +92,25 @@ export async function getRegisteredEvents() {
         return data.events || [];
     } catch (error) {
         console.error('Error fetching registered events:', error);
+        throw error;
+    }
+}
+
+export async function getEvent(eventId) {
+    try {
+        const response = await fetch(API_ROUTES.ADVISER.EVENT_GET(eventId), {
+            method: 'GET',
+            headers: await getHeaders()
+        });
+        
+        if (!response.ok) {
+            throw new Error('Failed to fetch event');
+        }
+        
+        const data = await response.json();
+        return data;
+    } catch (error) {
+        console.error('Error fetching event:', error);
         throw error;
     }
 }
@@ -263,6 +290,47 @@ export async function updateScheduleStatus(scheduleId, status) {
         return result;
     } catch (error) {
         console.error('Error updating schedule status:', error);
+        throw error;
+    }
+}
+
+
+export async function voidTask(id, reason = 'Voided by adviser') {
+    try {
+        const response = await fetch(API_ROUTES.ADVISER.TASKS_VOID(id), {
+            method: 'POST',
+            headers: await getHeaders(),
+            body: JSON.stringify({ reason })
+        });
+        
+        if (!response.ok) {
+            const err = await response.json().catch(() => ({}));
+            throw new Error(err.message || 'Failed to void task marking');
+        }
+        
+        return await response.json();
+    } catch (error) {
+        console.error('Error voiding task:', error);
+        throw error;
+    }
+}
+
+export async function voidScheduleStatus(scheduleId, reason = 'Voided by adviser') {
+    try {
+        const response = await fetch(API_ROUTES.ADVISER.SCHEDULE_VOID(scheduleId), {
+            method: 'POST',
+            headers: await getHeaders(),
+            body: JSON.stringify({ reason })
+        });
+        
+        if (!response.ok) {
+            const err = await response.json().catch(() => ({}));
+            throw new Error(err.message || 'Failed to void schedule marking');
+        }
+        
+        return await response.json();
+    } catch (error) {
+        console.error('Error voiding schedule status:', error);
         throw error;
     }
 }

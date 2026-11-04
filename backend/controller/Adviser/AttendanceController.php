@@ -88,7 +88,14 @@ class AttendanceController {
             return;
         }
 
-        $event = $this->attendanceModel->getEventForAdviser($event_id, $adviser_id);
+        $organizationId = isset($_GET['organization_id']) && $_GET['organization_id'] !== ''
+            ? (int)$_GET['organization_id']
+            : null;
+        $scheduleDate = isset($_GET['date']) && $_GET['date'] !== ''
+            ? trim($_GET['date'])
+            : null;
+
+        $event = $this->attendanceModel->getEventForAdviser($event_id, $adviser_id, $organizationId);
         if (!$event) {
             http_response_code(404);
             echo json_encode([
@@ -98,10 +105,9 @@ class AttendanceController {
             return;
         }
 
-        $scheduleDate = isset($_GET['date']) ? trim($_GET['date']) : null;
-
-        $students = $this->attendanceModel->getStudentsForEvent($event_id, $adviser_id);
-        $attendance = $this->attendanceModel->getAttendanceByEvent($event_id, $scheduleDate);
+        $resolvedOrgId = !empty($event['organization_id']) ? (int)$event['organization_id'] : $organizationId;
+        $students = $this->attendanceModel->getStudentsForEvent($event_id, $adviser_id, $resolvedOrgId);
+        $attendance = $this->attendanceModel->getAttendanceByEvent($event_id, $scheduleDate, $resolvedOrgId);
 
         http_response_code(200);
         echo json_encode([

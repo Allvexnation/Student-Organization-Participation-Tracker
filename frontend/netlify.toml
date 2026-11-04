@@ -8,6 +8,18 @@
   autoLaunch = false
 
 [[redirects]]
+  from = "/src/*"
+  to = "/403.html"
+  status = 403
+  force = true
+
+[[redirects]]
+  from = "/app.js"
+  to = "/403.html"
+  status = 403
+  force = true
+
+[[redirects]]
   from = "/*"
   to = "/index.html"
   status = 200

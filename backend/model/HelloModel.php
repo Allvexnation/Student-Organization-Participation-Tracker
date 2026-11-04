@@ -11,9 +11,6 @@ class HelloModel {
         $this->conn = $database->getConnection();
     }
 
-    /**
-     * Get all records
-     */
     public function readAll() {
         $query = "SELECT * FROM " . $this->table;
         $stmt = $this->conn->prepare($query);
@@ -21,9 +18,6 @@ class HelloModel {
         return $stmt->fetchAll(PDO::FETCH_ASSOC);
     }
 
-    /**
-     * Get single record by ID
-     */
     public function readOne($id) {
         $query = "SELECT * FROM " . $this->table . " WHERE id = :id LIMIT 0,1";
         $stmt = $this->conn->prepare($query);
@@ -32,9 +26,6 @@ class HelloModel {
         return $stmt->fetch(PDO::FETCH_ASSOC);
     }
 
-    /**
-     * Create new record
-     */
     public function create($data) {
         $query = "INSERT INTO " . $this->table . " SET ";
 
@@ -56,9 +47,6 @@ class HelloModel {
         return false;
     }
 
-    /**
-     * Update record
-     */
     public function update($id, $data) {
         $query = "UPDATE " . $this->table . " SET ";
 
@@ -81,9 +69,6 @@ class HelloModel {
         return false;
     }
 
-    /**
-     * Delete record
-     */
     public function delete($id) {
         $query = "DELETE FROM " . $this->table . " WHERE id = :id";
         $stmt = $this->conn->prepare($query);

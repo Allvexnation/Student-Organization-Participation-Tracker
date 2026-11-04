@@ -8,7 +8,7 @@ class Create_updates_table extends Migration {
             'id INT AUTO_INCREMENT PRIMARY KEY',
             'version VARCHAR(50) NOT NULL',
             'name VARCHAR(255) NOT NULL',
-            'branch VARCHAR(100) NOT NULL DEFAULT "main"',
+            "branch VARCHAR(100) NOT NULL DEFAULT 'main'",
             'readme_content LONGTEXT NOT NULL',
             'readme_filename VARCHAR(255) DEFAULT NULL',
             'assets LONGTEXT DEFAULT NULL',

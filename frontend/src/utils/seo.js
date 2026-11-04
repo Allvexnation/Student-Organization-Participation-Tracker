@@ -149,6 +149,90 @@ export const seoConfig = {
         keywords: 'updates, news, CRT',
         canonical: 'https://crtsopt.vercel.app/updates'
     },
+    '/auth/admin/forgot-password': {
+        title: 'Admin Forgot Password - CRT',
+        description: 'Reset your admin account password.',
+        keywords: 'forgot password, admin password reset, CRT',
+        canonical: 'https://crtsopt.vercel.app/auth/admin/forgot-password'
+    },
+    '/admin/settings': {
+        title: 'Admin Settings - CRT',
+        description: 'Manage admin settings and configurations.',
+        keywords: 'admin settings, CRT configuration',
+        canonical: 'https://crtsopt.vercel.app/admin/settings'
+    },
+    '/admin/audit-logs': {
+        title: 'Admin Audit Logs - CRT',
+        description: 'View system audit logs and activity history.',
+        keywords: 'audit logs, system activity, CRT',
+        canonical: 'https://crtsopt.vercel.app/admin/audit-logs'
+    },
+    '/admin/banned': {
+        title: 'Manage Banned Users - CRT',
+        description: 'View and manage banned users and accounts.',
+        keywords: 'banned users, account management, CRT',
+        canonical: 'https://crtsopt.vercel.app/admin/banned'
+    },
+    '/admin/analytics': {
+        title: 'Web Analytics - CRT',
+        description: 'View web analytics and platform usage statistics.',
+        keywords: 'web analytics, platform statistics, CRT',
+        canonical: 'https://crtsopt.vercel.app/admin/analytics'
+    },
+    '/admin/users': {
+        title: 'Manage Users - CRT',
+        description: 'Manage platform users and their accounts.',
+        keywords: 'manage users, user accounts, CRT',
+        canonical: 'https://crtsopt.vercel.app/admin/users'
+    },
+    '/admin/admins': {
+        title: 'Manage Admins - CRT',
+        description: 'Manage admin accounts and permissions.',
+        keywords: 'manage admins, admin accounts, CRT',
+        canonical: 'https://crtsopt.vercel.app/admin/admins'
+    },
+    '/admin/contacts': {
+        title: 'Manage Contacts - CRT',
+        description: 'View and manage contact requests and support messages.',
+        keywords: 'manage contacts, support messages, CRT',
+        canonical: 'https://crtsopt.vercel.app/admin/contacts'
+    },
+    '/adviser/audit-logs': {
+        title: 'Adviser Audit Logs - CRT',
+        description: 'View your activity logs and history.',
+        keywords: 'adviser audit logs, activity history, CRT',
+        canonical: 'https://crtsopt.vercel.app/adviser/audit-logs'
+    },
+    '/student/audit-logs': {
+        title: 'Student Audit Logs - CRT',
+        description: 'View your activity logs and history.',
+        keywords: 'student audit logs, activity history, CRT',
+        canonical: 'https://crtsopt.vercel.app/student/audit-logs'
+    },
+    '/banned': {
+        title: 'Account Banned - CRT',
+        description: 'Your account has been banned from the platform.',
+        keywords: 'account banned, suspended account, CRT',
+        canonical: 'https://crtsopt.vercel.app/banned'
+    },
+    '/banned-contacts': {
+        title: 'Banned Contacts - CRT',
+        description: 'View banned contact information and details.',
+        keywords: 'banned contacts, contact restrictions, CRT',
+        canonical: 'https://crtsopt.vercel.app/banned-contacts'
+    },
+    '/support': {
+        title: 'Contact Support - CRT',
+        description: 'Get help and support for the platform.',
+        keywords: 'contact support, help center, CRT',
+        canonical: 'https://crtsopt.vercel.app/support'
+    },
+    '/events': {
+        title: 'Campus Events - CRT',
+        description: 'Browse registered campus events, schedules, venues, and participating organizations.',
+        keywords: 'campus events, event calendar, student organizations, CRT',
+        canonical: 'https://crtsopt.vercel.app/events'
+    },
     '404': {
         title: 'Page Not Found - CRT',
         description: 'The page you are looking for does not exist.',

@@ -27,9 +27,17 @@ class AdviserEmail {
 
     public function sendOtp($to, $name, $otpCode) {
         $subject = 'Your Password Reset OTP Code';
-        
+
         $message = $this->buildOtpTemplate($name, $otpCode);
-        
+
+        return $this->emailService->send($to, $subject, $message, true);
+    }
+
+    public function sendStatusChange($to, $name, $status) {
+        $subject = 'Your Adviser Account Status Has Changed';
+
+        $message = $this->buildStatusTemplate($name, $status);
+
         return $this->emailService->send($to, $subject, $message, true);
     }
 
@@ -122,24 +130,68 @@ class AdviserEmail {
         <div style='background: linear-gradient(135deg, #1e3a8a 0%, #1e40af 100%); padding: 30px; text-align: center; border-radius: 8px 8px 0 0;'>
             <h1 style='color: white; margin: 0; font-size: 24px;'>Student Organization Tracker</h1>
         </div>
-        
+
         <div style='background: #f9fafb; padding: 30px; border: 1px solid #e5e7eb; border-top: none; border-radius: 0 0 8px 8px;'>
             <h2 style='color: #1f2937; margin-top: 0;'>Password Reset Request</h2>
-            
+
             <p style='color: #4b5563;'>Dear {$name},</p>
-            
+
             <p style='color: #4b5563;'>You have requested to reset your password. Use the following One-Time Password (OTP) to proceed:</p>
-            
+
             <div style='background: white; border: 2px solid #1e40af; border-radius: 8px; padding: 25px; margin: 25px 0; text-align: center;'>
                 <p style='margin: 0; font-size: 36px; font-weight: bold; color: #1e40af; letter-spacing: 8px;'>{$otpCode}</p>
             </div>
-            
+
             <div style='background: #fef3c7; border-left: 4px solid #f59e0b; padding: 15px; margin: 20px 0;'>
                 <p style='margin: 0; color: #92400e;'><strong>Important:</strong> This OTP will expire in 10 minutes. Do not share this code with anyone.</p>
             </div>
-            
+
             <p style='color: #4b5563;'>If you did not request this password reset, please ignore this email or contact support immediately.</p>
-            
+
+            <div style='text-align: center; margin-top: 30px; padding-top: 20px; border-top: 1px solid #e5e7eb;'>
+                <p style='color: #6b7280; font-size: 12px; margin: 0;'>This is an automated email. Please do not reply.</p>
+            </div>
+        </div>
+    </div>
+</body>
+</html>";
+    }
+
+    private function buildStatusTemplate($name, $status) {
+        $statusDisplay = ucfirst($status);
+        $statusColor = $status === 'active' ? '#10b981' : '#ef4444';
+        $message = $status === 'active'
+            ? 'Your adviser account has been set to <strong>Active</strong>. You can now log in to the system.'
+            : 'Your adviser account has been set to <strong>Inactive</strong>. You will not be able to log in to the system until your account is reactivated.';
+
+        return "
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset='UTF-8'>
+    <title>Account Status Change</title>
+</head>
+<body style='font-family: Arial, sans-serif; line-height: 1.6; color: #333;'>
+    <div style='max-width: 600px; margin: 0 auto; padding: 20px;'>
+        <div style='background: linear-gradient(135deg, #1e3a8a 0%, #1e40af 100%); padding: 30px; text-align: center; border-radius: 8px 8px 0 0;'>
+            <h1 style='color: white; margin: 0; font-size: 24px;'>Student Organization Tracker</h1>
+        </div>
+
+        <div style='background: #f9fafb; padding: 30px; border: 1px solid #e5e7eb; border-top: none; border-radius: 0 0 8px 8px;'>
+            <h2 style='color: #1f2937; margin-top: 0;'>Account Status Change</h2>
+
+            <p style='color: #4b5563;'>Dear {$name},</p>
+
+            <div style='background: white; border: 2px solid {$statusColor}; border-radius: 8px; padding: 25px; margin: 25px 0; text-align: center;'>
+                <p style='margin: 0; font-size: 24px; font-weight: bold; color: {$statusColor};'>{$statusDisplay}</p>
+            </div>
+
+            <p style='color: #4b5563;'>{$message}</p>
+
+            <div style='background: #fef3c7; border-left: 4px solid #f59e0b; padding: 15px; margin: 20px 0;'>
+                <p style='margin: 0; color: #92400e;'><strong>Note:</strong> If you believe this is an error or have any questions, please contact your system administrator immediately.</p>
+            </div>
+
             <div style='text-align: center; margin-top: 30px; padding-top: 20px; border-top: 1px solid #e5e7eb;'>
                 <p style='color: #6b7280; font-size: 12px; margin: 0;'>This is an automated email. Please do not reply.</p>
             </div>

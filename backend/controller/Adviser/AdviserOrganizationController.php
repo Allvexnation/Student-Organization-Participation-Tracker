@@ -52,6 +52,28 @@ class AdviserOrganizationController {
         return isset($payload['user_id']) ? $payload['user_id'] : null;
     }
 
+    private function resolveOwnedOrganizationId($adviser_id, $requested_id, $fallback_id = null) {
+        $organizations = $this->adviserOrganizationModel->getAllOrganizationsByAdviserId($adviser_id);
+        if (!$organizations) {
+            return $fallback_id;
+        }
+
+        $ownedIds = [];
+        foreach ($organizations as $org) {
+            $ownedIds[(string)$org['id']] = $org['id'];
+        }
+
+        if ($requested_id !== null && $requested_id !== '' && isset($ownedIds[(string)$requested_id])) {
+            return $ownedIds[(string)$requested_id];
+        }
+
+        if ($fallback_id !== null && $fallback_id !== '' && isset($ownedIds[(string)$fallback_id])) {
+            return $ownedIds[(string)$fallback_id];
+        }
+
+        return null;
+    }
+
     public function getOrganization() {
         header('Content-Type: application/json');
         
@@ -196,7 +218,8 @@ class AdviserOrganizationController {
 
         if ($memberships !== false) {
             http_response_code(200);
-            echo json_encode(['organization_memberships' => $memberships]);
+            $json = json_encode(['organization_memberships' => $memberships], JSON_INVALID_UTF8_SUBSTITUTE);
+            echo ($json !== false) ? $json : json_encode(['organization_memberships' => []]);
         } else {
             http_response_code(500);
             echo json_encode(['message' => 'Failed to fetch organization memberships']);
@@ -280,7 +303,12 @@ class AdviserOrganizationController {
             return;
         }
 
-        $data['organization_id'] = $organization['id'];
+        $data['organization_id'] = $this->resolveOwnedOrganizationId($adviser_id, $data['organization_id'] ?? null, $organization['id']);
+        if (!$data['organization_id']) {
+            http_response_code(403);
+            echo json_encode(['message' => 'You do not have access to this organization']);
+            return;
+        }
         $result = $this->adviserOrganizationModel->createMembership($data);
         if ($result) {
             CacheService::forget('org_memberships_all');
@@ -328,7 +356,12 @@ class AdviserOrganizationController {
             return;
         }
 
-        $data['organization_id'] = $organization['id'];
+        $data['organization_id'] = $this->resolveOwnedOrganizationId($adviser_id, $data['organization_id'] ?? null, $organization['id']);
+        if (!$data['organization_id']) {
+            http_response_code(403);
+            echo json_encode(['message' => 'You do not have access to this organization']);
+            return;
+        }
         $result = $this->adviserOrganizationModel->updateMembership($id, $data);
         if ($result) {
             CacheService::forget('org_memberships_all');
@@ -400,13 +433,19 @@ class AdviserOrganizationController {
             return;
         }
 
-        require_once __DIR__ . '/../../model/OrganizationMembershipsModel.php';
-        $orgMembershipsModel = new OrganizationMembershipsModel();
-        $memberships = $orgMembershipsModel->readByOrganizationId($organization_id);
+        $ownedId = $this->resolveOwnedOrganizationId($adviser_id, $organization_id, null);
+        if (!$ownedId) {
+            http_response_code(403);
+            echo json_encode(['message' => 'You do not have access to this organization']);
+            return;
+        }
+
+        $memberships = $this->adviserOrganizationModel->getMembershipsByOrganizationId($ownedId);
 
         if ($memberships !== false) {
             http_response_code(200);
-            echo json_encode(['organization_memberships' => $memberships]);
+            $json = json_encode(['organization_memberships' => $memberships], JSON_INVALID_UTF8_SUBSTITUTE);
+            echo ($json !== false) ? $json : json_encode(['organization_memberships' => []]);
         } else {
             http_response_code(500);
             echo json_encode(['message' => 'Failed to fetch organization memberships']);

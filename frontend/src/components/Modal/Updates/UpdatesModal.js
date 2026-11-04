@@ -1,5 +1,6 @@
 import { openModal, closeModal } from '../../../utils/modal.js';
 import { getAssetDownloadUrl } from '../../../api/web/Updates.js';
+import { modalSection, modalHero, modalBadge, applyModalDomino } from '../modalUi.js';
 
 function basename(url) {
     if (!url) return '';
@@ -158,100 +159,74 @@ export function createUpdatesModal(update) {
     const branchName = update.branch || 'main';
     const assets = parseUpdateAssets(update);
 
+    const badges = [
+        modalBadge(`v${escapeHtml(update.version)}`, 'green'),
+        modalBadge('Latest Release', 'navy')
+    ];
+    if (isUpdated) badges.push(modalBadge('Updated', 'purple'));
+
+    const assetsHtml = assets.length > 0
+        ? `<div class="space-y-2">${assets.map(asset => {
+            const isZip = asset.type === 'zip' || asset.name.endsWith('.zip');
+            return `
+                <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2 p-3 rounded-xl bg-surface border border-line text-xs">
+                    <div class="flex items-center gap-2 font-mono min-w-0">
+                        <i data-lucide="${isZip ? 'archive' : 'file-text'}" class="w-4 h-4 shrink-0 ${isZip ? 'text-navy' : 'text-success'}"></i>
+                        <span class="truncate">${escapeHtml(asset.name)}</span>
+                        ${asset.size ? `<span class="text-muted font-sans">(${asset.size})</span>` : ''}
+                    </div>
+                    <a href="${asset.download_url}" download="${escapeHtml(asset.name)}" class="w-full sm:w-auto px-3 py-2 text-xs font-semibold text-navy bg-white hover:bg-blue-50 rounded-xl border border-line transition inline-flex items-center justify-center gap-1.5">
+                        <i data-lucide="download" class="w-3.5 h-3.5"></i> Download
+                    </a>
+                </div>
+            `;
+        }).join('')}</div>`
+        : `
+            <div class="p-3 rounded-xl bg-surface border border-line text-xs text-muted italic flex items-center gap-2">
+                <i data-lucide="info" class="w-3.5 h-3.5"></i>
+                <span>No assets available for this release</span>
+            </div>
+        `;
+
     const modalContent = `
-        <div class="px-6 py-4 bg-[#f6f8fa] border-b border-[#d0d7de] flex items-center justify-between gap-4">
-            <div class="flex items-center gap-3">
-                <div class="w-8 h-8 rounded-md bg-blue-50 text-blue-600 flex items-center justify-center font-bold text-xs shadow-sm">
-                    <i data-lucide="tag" class="w-4 h-4"></i>
+        <div class="space-y-4">
+            ${modalHero({
+                photo: '',
+                fallback: '<i data-lucide="tag" class="w-8 h-8"></i>',
+                name: escapeHtml(update.name),
+                subtitle: `Released ${formatDate(update.created_at)} · ${timeAgo(update.created_at)}`,
+                badges
+            })}
+            ${modalSection('Release Notes', `
+                <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2 mb-3 text-xs text-muted">
+                    <span class="inline-flex items-center gap-1.5">
+                        <i data-lucide="calendar" class="w-3.5 h-3.5"></i>
+                        ${formatDate(update.created_at)}
+                    </span>
+                    <span class="inline-flex items-center gap-1.5 font-mono text-[11px] bg-surface px-2 py-1 rounded-lg border border-line self-start">
+                        <i data-lucide="git-branch" class="w-3 h-3"></i> ${escapeHtml(branchName)}
+                    </span>
                 </div>
-                <div>
-                    <div class="flex items-center gap-2">
-                        <span class="font-mono text-xs font-semibold px-2 py-0.5 rounded-full bg-[#dafbe1] text-[#1a7f37] border border-[#2da44e]/30">
-                            v${escapeHtml(update.version)}
-                        </span>
-                        <span class="text-xs font-semibold text-gray-500">Latest Release</span>
-                        ${isUpdated ? `
-                            <span class="px-2 py-0.5 rounded-full text-[11px] font-semibold bg-purple-100 text-purple-800 border border-purple-300">
-                                Updated
-                            </span>
-                        ` : ''}
-                    </div>
-                    <h3 class="text-sm sm:text-base font-bold text-[#1f2328] mt-0.5 truncate max-w-md">
-                        ${escapeHtml(update.name)}
-                    </h3>
+                <div id="modal-markdown-content" class="github-markdown-body text-sm">
+                    ${parseMarkdown(update.readme_content)}
                 </div>
+            `)}
+            ${modalSection(`Attached Downloads${assets.length ? ` (${assets.length})` : ''}`, assetsHtml)}
+            <div class="manage-modal-actions reveal flex flex-col-reverse sm:flex-row sm:justify-between gap-2" data-domino-enter>
+                <button type="button" id="modal-view-all-link" class="w-full sm:w-auto px-4 py-2.5 text-sm font-medium text-navy bg-surface hover:bg-line rounded-xl transition inline-flex items-center justify-center gap-1.5">
+                    <i data-lucide="external-link" class="w-4 h-4"></i>
+                    <span>View all releases</span>
+                </button>
+                <button type="button" id="modal-dismiss-btn" class="w-full sm:w-auto px-5 py-2.5 text-sm font-medium text-white bg-navy hover:bg-navy-700 rounded-xl transition inline-flex items-center justify-center gap-1.5">
+                    <i data-lucide="check" class="w-4 h-4"></i>
+                    <span>Got it</span>
+                </button>
             </div>
-        </div>
-
-        <div class="p-6 overflow-y-auto flex-1 github-markdown-body bg-white text-sm">
-            <div class="mb-4 pb-3 border-b border-gray-100 flex items-center justify-between text-xs text-gray-500">
-                <span class="inline-flex items-center gap-1">
-                    <i data-lucide="calendar" class="w-3.5 h-3.5"></i>
-                    Released ${formatDate(update.created_at)} (${timeAgo(update.created_at)})
-                </span>
-                <span class="inline-flex items-center gap-1 font-mono text-[11px] bg-gray-100 px-2 py-0.5 rounded border border-gray-200">
-                    <i data-lucide="git-branch" class="w-3 h-3 text-gray-500"></i> ${escapeHtml(branchName)}
-                </span>
-            </div>
-
-            <div id="modal-markdown-content">
-                ${parseMarkdown(update.readme_content)}
-            </div>
-
-            ${assets.length > 0 ? `
-                <div class="mt-6 pt-4 border-t border-[#d0d7de]">
-                    <h4 class="text-xs font-bold text-gray-700 uppercase tracking-wider mb-2 flex items-center gap-1.5">
-                        <i data-lucide="package" class="w-3.5 h-3.5"></i> Attached Downloads (${assets.length})
-                    </h4>
-                    <div class="space-y-1.5">
-                        ${assets.map(asset => {
-                            const isZip = asset.type === 'zip' || asset.name.endsWith('.zip');
-                            return `
-                                <div class="flex items-center justify-between p-2 rounded bg-gray-50 border border-gray-200 text-xs">
-                                    <div class="flex items-center gap-2 font-mono truncate">
-                                        <i data-lucide="${isZip ? 'archive' : 'file-text'}" class="w-3.5 h-3.5 ${isZip ? 'text-[#0969da]' : 'text-emerald-600'}"></i>
-                                        <span class="truncate">${escapeHtml(asset.name)}</span>
-                                        ${asset.size ? `<span class="text-gray-400 font-sans text-[11px]">(${asset.size})</span>` : ''}
-                                    </div>
-                                    <a 
-                                        href="${asset.download_url}" 
-                                        download="${escapeHtml(asset.name)}" 
-                                        class="px-2.5 py-1 text-xs font-semibold text-[#0969da] hover:bg-white rounded border border-transparent hover:border-gray-200 transition flex items-center gap-1"
-                                    >
-                                        <i data-lucide="download" class="w-3 h-3"></i> Download
-                                    </a>
-                                </div>
-                            `;
-                        }).join('')}
-                    </div>
-                </div>
-            ` : `
-                <div class="mt-6 pt-4 border-t border-[#d0d7de]">
-                    <h4 class="text-xs font-bold text-gray-700 uppercase tracking-wider mb-2 flex items-center gap-1.5">
-                        <i data-lucide="package" class="w-3.5 h-3.5"></i> Attached Downloads
-                    </h4>
-                    <div class="p-3 rounded bg-gray-50 border border-gray-200 text-xs text-gray-500 italic flex items-center gap-2">
-                        <i data-lucide="info" class="w-3.5 h-3.5"></i>
-                        <span>No assets available for this release</span>
-                    </div>
-                </div>
-            `}
-        </div>
-
-        <div class="px-6 py-3.5 bg-[#f6f8fa] border-t border-[#d0d7de] flex items-center justify-between gap-3">
-            <button id="modal-view-all-link" class="text-xs sm:text-sm font-medium text-[#0969da] hover:underline flex items-center gap-1.5 transition">
-                <i data-lucide="external-link" class="w-4 h-4"></i>
-                <span>View all releases</span>
-            </button>
-
-            <button id="modal-dismiss-btn" class="px-4 py-2 bg-[#2da44e] hover:bg-[#2c974b] text-white text-xs sm:text-sm font-semibold rounded-md shadow-sm transition flex items-center gap-1.5">
-                <i data-lucide="check" class="w-4 h-4"></i>
-                <span>Got it</span>
-            </button>
         </div>
     `;
 
     openModal('New Release Available', modalContent, 'large', 'z-[9999]', 'scale');
+    applyModalDomino();
 
     setTimeout(() => {
         const dismissBtn = document.getElementById('modal-dismiss-btn');

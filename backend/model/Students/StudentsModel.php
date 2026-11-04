@@ -15,6 +15,10 @@ class StudentsModel {
         }
     }
 
+    public function getConnection() {
+        return $this->conn;
+    }
+
     public function create($data) {
         $query = "INSERT INTO " . $this->table_name . " 
                   (profile_photo, student_number, first_name, last_name, program, year_level, username, email, password) 

@@ -1,122 +1,38 @@
-import { adviserLogout, getAdviserData } from '../../api/adviser/AdviserAuth/AdviserAuth.js';
+import { getAdviserData } from '../../api/adviser/AdviserAuth/AdviserAuth.js';
 import { AdviserNavbar, initAdviserNavbar } from '../../components/Navbar/AdviserNavbar.js';
 import { isAuthenticated, getUserRole } from '../../utils/jwt.js';
 import { navigate } from '../../utils/navigation.js';
-import { skeletonStatCard } from '../../components/SkeletonLoading.js';
 import { getDashboardCounts } from '../../api/adviser/Dashboard/AdviserDashboard.js';
-import { dashboardImages } from '../../static/Dashboard/Dashboard.js';
-
-function getGreeting() {
-    const hour = new Date().getHours();
-    if (hour < 12) return 'Good morning';
-    if (hour < 18) return 'Good afternoon';
-    return 'Good evening';
-}
-
-function formatDate() {
-    const options = { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' };
-    return new Date().toLocaleDateString('en-US', options);
-}
+import { AdviserAuditLogsEmbedded, initAdviserAuditLogsEmbedded } from './AdviserAuditLogs.js';
+import { DashboardLayout, fillDashboardStats, initDashboardTransition } from '../../components/Layout/Dashboard/Dashboard.js';
 
 export function AdviserDashboard() {
     const adviserData = getAdviserData();
     const displayName = adviserData?.firstName || 'Adviser';
-    
-    return `
-        <div class="min-h-screen bg-gray-50" style="overflow: auto;">
-            ${AdviserNavbar()}
 
-            <main class="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
-                <div class="mb-6">
-                    <h1 class="text-2xl font-semibold text-gray-900">${getGreeting()}, ${displayName}</h1>
-                    <p class="text-sm text-gray-500 mt-1">${formatDate()}</p>
-                </div>
-
-                <div class="grid grid-cols-1 sm:grid-cols-3 gap-4 mb-4" id="primary-stats">
-                    ${skeletonStatCard('primary')}
-                    ${skeletonStatCard('primary')}
-                    ${skeletonStatCard('primary')}
-                </div>
-
-                <div class="grid grid-cols-1 sm:grid-cols-3 gap-4 mb-6" id="secondary-stats">
-                    ${skeletonStatCard('secondary')}
-                    ${skeletonStatCard('secondary')}
-                    ${skeletonStatCard('secondary')}
-                </div>
-            </main>
-        </div>
-    `;
+    return DashboardLayout({
+        navbar: AdviserNavbar(),
+        displayName,
+        badge: 'Adviser portal',
+        subtitle: 'Track your organizations, events, memberships, and pending requests.',
+        extra: AdviserAuditLogsEmbedded()
+    });
 }
 
-function renderPrimaryStats(stats) {
-    const studentsImageUrl = dashboardImages.students.path;
-    const organizationsImageUrl = dashboardImages.organizations.path;
-    const eventsImageUrl = dashboardImages.events.path;
-    
-    return `
-        <a href="#students" class="block rounded-lg p-5 text-white hover:bg-blue-800 transition-colors relative overflow-hidden" style="background-image: url('${studentsImageUrl}'); background-size: cover; background-position: center;">
-            <div style="position: absolute; top: 0; left: 0; right: 0; bottom: 0; background-color: rgba(30, 58, 138, 0.7); z-index: 0;"></div>
-            <div class="flex items-center justify-between relative z-10">
-                <div>
-                    <p class="text-blue-200 text-xs font-medium uppercase tracking-wide">Total Students</p>
-                    <p class="text-3xl font-bold mt-1" id="total-students">${stats.totalStudents || 0}</p>
-                </div>
-                <i data-lucide="users" class="w-8 h-8 text-blue-300 opacity-60"></i>
-            </div>
-        </a>
-        <a href="#organizations" class="block rounded-lg p-5 text-white hover:bg-blue-800 transition-colors relative overflow-hidden" style="background-image: url('${organizationsImageUrl}'); background-size: cover; background-position: center;">
-            <div style="position: absolute; top: 0; left: 0; right: 0; bottom: 0; background-color: rgba(30, 58, 138, 0.7); z-index: 0;"></div>
-            <div class="flex items-center justify-between relative z-10">
-                <div>
-                    <p class="text-blue-200 text-xs font-medium uppercase tracking-wide">Organizations</p>
-                    <p class="text-3xl font-bold mt-1" id="total-organizations">${stats.totalOrganizations || 0}</p>
-                </div>
-                <i data-lucide="building-2" class="w-8 h-8 text-blue-300 opacity-60"></i>
-            </div>
-        </a>
-        <a href="#events" class="block rounded-lg p-5 text-white hover:bg-blue-800 transition-colors relative overflow-hidden" style="background-image: url('${eventsImageUrl}'); background-size: cover; background-position: center;">
-            <div style="position: absolute; top: 0; left: 0; right: 0; bottom: 0; background-color: rgba(30, 58, 138, 0.7); z-index: 0;"></div>
-            <div class="flex items-center justify-between relative z-10">
-                <div>
-                    <p class="text-blue-200 text-xs font-medium uppercase tracking-wide">Active Events</p>
-                    <p class="text-3xl font-bold mt-1" id="active-events">${stats.activeEvents || 0}</p>
-                </div>
-                <i data-lucide="calendar" class="w-8 h-8 text-blue-300 opacity-60"></i>
-            </div>
-        </a>
-    `;
+function getPrimaryCards(stats) {
+    return [
+        { href: '/adviser/organization', imageKey: 'students', label: 'Total Students', value: stats.totalStudents, valueId: 'total-students', icon: 'users' },
+        { href: '/adviser/organization', imageKey: 'organizations', label: 'Organizations', value: stats.totalOrganizations, valueId: 'total-organizations', icon: 'building-2' },
+        { href: '/adviser/events', imageKey: 'events', label: 'Active Events', value: stats.activeEvents, valueId: 'active-events', icon: 'calendar' }
+    ];
 }
 
-function renderSecondaryStats(stats) {
-    return `
-        <a href="#registrations" class="block bg-white border border-gray-200 rounded-lg p-5 hover:border-blue-300 transition-colors">
-            <div class="flex items-center justify-between">
-                <div>
-                    <p class="text-gray-500 text-xs font-medium uppercase tracking-wide">Event Registrations</p>
-                    <p class="text-2xl font-bold text-gray-900 mt-1" id="event-registrations">${stats.eventRegistrations || 0}</p>
-                </div>
-                <i data-lucide="clipboard-list" class="w-6 h-6 text-gray-400"></i>
-            </div>
-        </a>
-        <a href="#memberships" class="block bg-white border border-gray-200 rounded-lg p-5 hover:border-blue-300 transition-colors">
-            <div class="flex items-center justify-between">
-                <div>
-                    <p class="text-gray-500 text-xs font-medium uppercase tracking-wide">Org Memberships</p>
-                    <p class="text-2xl font-bold text-gray-900 mt-1" id="org-memberships">${stats.orgMemberships || 0}</p>
-                </div>
-                <i data-lucide="user-check" class="w-6 h-6 text-gray-400"></i>
-            </div>
-        </a>
-        <a href="#pending" class="block bg-white border border-gray-200 rounded-lg p-5 hover:border-blue-300 transition-colors">
-            <div class="flex items-center justify-between">
-                <div>
-                    <p class="text-gray-500 text-xs font-medium uppercase tracking-wide">Pending Requests</p>
-                    <p class="text-2xl font-bold text-gray-900 mt-1" id="pending-requests">${stats.pendingRequests || 0}</p>
-                </div>
-                <i data-lucide="clock" class="w-6 h-6 text-gray-400"></i>
-            </div>
-        </a>
-    `;
+function getSecondaryCards(stats) {
+    return [
+        { href: '/adviser/events', label: 'Event Registrations', value: stats.eventRegistrations, valueId: 'event-registrations', icon: 'clipboard-list' },
+        { href: '/adviser/organization', label: 'Org Memberships', value: stats.orgMemberships, valueId: 'org-memberships', icon: 'user-check' },
+        { href: '/adviser/organization', label: 'Pending Requests', value: stats.pendingRequests, valueId: 'pending-requests', icon: 'clock' }
+    ];
 }
 
 export async function initAdviserDashboard() {
@@ -126,24 +42,18 @@ export async function initAdviserDashboard() {
         return;
     }
     await initAdviserNavbar();
+    const finishDashboardEnter = initDashboardTransition();
 
     try {
         const counts = await getDashboardCounts();
-
-        const primaryStats = document.getElementById('primary-stats');
-        if (primaryStats) {
-            primaryStats.innerHTML = renderPrimaryStats(counts);
-        }
-
-        const secondaryStats = document.getElementById('secondary-stats');
-        if (secondaryStats) {
-            secondaryStats.innerHTML = renderSecondaryStats(counts);
-        }
-
-        if (typeof lucide !== 'undefined') {
-            lucide.createIcons();
-        }
+        fillDashboardStats({
+            primary: getPrimaryCards(counts),
+            secondary: getSecondaryCards(counts)
+        });
+        initAdviserAuditLogsEmbedded();
     } catch (error) {
         console.error('Error loading dashboard data:', error);
+    } finally {
+        finishDashboardEnter();
     }
 }

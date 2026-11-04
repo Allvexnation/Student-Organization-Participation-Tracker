@@ -14,67 +14,105 @@ class AttendanceModel {
         }
     }
 
+    private function generateSchedulesFromRange($eventDayStart, $eventDayEnd) {
+        if (empty($eventDayStart) || empty($eventDayEnd)) {
+            return [];
+        }
+
+        try {
+            $start = new DateTime($eventDayStart);
+            $end = new DateTime($eventDayEnd);
+            $end->modify('+1 day');
+            $period = new DatePeriod($start, new DateInterval('P1D'), $end);
+
+            $generated = [];
+            foreach ($period as $dt) {
+                $generated[] = [
+                    'id' => null,
+                    'schedule_date' => $dt->format('Y-m-d'),
+                    'start_time' => '08:00:00',
+                    'end_time' => '17:00:00'
+                ];
+            }
+            return $generated;
+        } catch (Exception $e) {
+            return [];
+        }
+    }
+
+    private function attachDailySchedules(array &$events) {
+        if (empty($events)) {
+            return;
+        }
+
+        $eventIds = array_values(array_unique(array_map(function ($event) {
+            return (int)($event['id'] ?? $event['event_id'] ?? 0);
+        }, $events)));
+        $eventIds = array_values(array_filter($eventIds));
+
+        $schedulesByEvent = [];
+        if (!empty($eventIds)) {
+            $placeholders = implode(',', array_fill(0, count($eventIds), '?'));
+            $schedQuery = "SELECT id, event_id, schedule_date, start_time, end_time
+                           FROM event_daily_schedules
+                           WHERE event_id IN ($placeholders)
+                           ORDER BY schedule_date ASC";
+            $schedStmt = $this->conn->prepare($schedQuery);
+            $schedStmt->execute($eventIds);
+            $allSchedules = $schedStmt->fetchAll(PDO::FETCH_ASSOC);
+
+            foreach ($allSchedules as $schedule) {
+                $schedulesByEvent[(int)$schedule['event_id']][] = [
+                    'id' => $schedule['id'],
+                    'schedule_date' => $schedule['schedule_date'],
+                    'start_time' => $schedule['start_time'],
+                    'end_time' => $schedule['end_time']
+                ];
+            }
+        }
+
+        foreach ($events as &$event) {
+            $eventId = (int)($event['id'] ?? $event['event_id'] ?? 0);
+            $schedules = $schedulesByEvent[$eventId] ?? [];
+            if (empty($schedules)) {
+                $schedules = $this->generateSchedulesFromRange(
+                    $event['event_day_start'] ?? null,
+                    $event['event_day_end'] ?? null
+                );
+            }
+            $event['daily_schedules'] = $schedules;
+        }
+        unset($event);
+    }
+
     public function getRegisteredEventsForAdviser($adviser_id) {
         if (!$this->conn) return false;
 
-        $query = "SELECT DISTINCT e.id, e.title, e.description, e.event_day_start, e.event_day_end, 
-                                 e.venue, e.event_category, o.id as organization_id, o.name as organization_name
+        $query = "SELECT e.id, e.id as event_id, e.title, e.description, e.event_day_start, e.event_day_end,
+                         e.venue, e.event_category, o.id as organization_id, o.name as organization_name
                   FROM events e
                   INNER JOIN event_organizations eo ON eo.event_id = e.id
                   INNER JOIN organizations o ON eo.organization_id = o.id
-                  LEFT JOIN advisers a ON a.id = :adviser_id
-                  WHERE (o.adviser_id = :adviser_id OR o.id = a.current_organization_id)
-                  ORDER BY e.event_day_start DESC, e.id DESC";
+                  LEFT JOIN advisers a ON a.id = :adviser_id_1
+                  WHERE (o.adviser_id = :adviser_id_2 OR o.id = a.current_organization_id OR eo.approver_id = :adviser_id_3)
+                  ORDER BY
+                    CASE WHEN a.current_organization_id IS NOT NULL AND o.id = a.current_organization_id THEN 0 ELSE 1 END,
+                    e.event_day_start DESC,
+                    e.id DESC,
+                    o.name ASC";
 
         try {
             $stmt = $this->conn->prepare($query);
-            $stmt->bindParam(':adviser_id', $adviser_id);
+            $stmt->bindValue(':adviser_id_1', $adviser_id);
+            $stmt->bindValue(':adviser_id_2', $adviser_id);
+            $stmt->bindValue(':adviser_id_3', $adviser_id);
             $stmt->execute();
-            $events = $stmt->fetchAll(PDO::FETCH_ASSOC);
-
-            if (empty($events)) {
-                $fallbackQuery = "SELECT DISTINCT e.id, e.title, e.description, e.event_day_start, e.event_day_end, 
-                                                 e.venue, e.event_category, o.id as organization_id, o.name as organization_name
-                                  FROM events e
-                                  INNER JOIN organizations o ON e.organization_id = o.id
-                                  WHERE o.adviser_id = :adviser_id
-                                  ORDER BY e.event_day_start DESC, e.id DESC";
-                $fallbackStmt = $this->conn->prepare($fallbackQuery);
-                $fallbackStmt->bindParam(':adviser_id', $adviser_id);
-                $fallbackStmt->execute();
-                $events = $fallbackStmt->fetchAll(PDO::FETCH_ASSOC);
-            }
+            $events = $stmt->fetchAll(PDO::FETCH_ASSOC) ?: [];
 
             foreach ($events as &$event) {
-                $schedQuery = "SELECT id, schedule_date, start_time, end_time 
-                               FROM event_daily_schedules 
-                               WHERE event_id = :event_id 
-                               ORDER BY schedule_date ASC";
-                $schedStmt = $this->conn->prepare($schedQuery);
-                $schedStmt->bindParam(':event_id', $event['id']);
-                $schedStmt->execute();
-                $schedules = $schedStmt->fetchAll(PDO::FETCH_ASSOC);
-
-                if (empty($schedules) && !empty($event['event_day_start']) && !empty($event['event_day_end'])) {
-                    $start = new DateTime($event['event_day_start']);
-                    $end = new DateTime($event['event_day_end']);
-                    $end->modify('+1 day');
-                    $period = new DatePeriod($start, new DateInterval('P1D'), $end);
-
-                    $generated = [];
-                    foreach ($period as $dt) {
-                        $generated[] = [
-                            'id' => null,
-                            'schedule_date' => $dt->format('Y-m-d'),
-                            'start_time' => '08:00:00',
-                            'end_time' => '17:00:00'
-                        ];
-                    }
-                    $schedules = $generated;
-                }
-
-                $event['daily_schedules'] = $schedules;
+                $event['daily_schedules'] = [];
             }
+            unset($event);
 
             return $events;
         } catch (PDOException $e) {
@@ -83,82 +121,62 @@ class AttendanceModel {
         }
     }
 
-    public function getEventForAdviser($event_id, $adviser_id) {
+    public function getEventForAdviser($event_id, $adviser_id, $organization_id = null) {
         if (!$this->conn) return false;
 
-        $query = "SELECT DISTINCT e.id, e.title, e.description, e.event_day_start, e.event_day_end, 
-                                 e.venue, e.event_category, o.id as organization_id, o.name as organization_name
+        $query = "SELECT e.id, e.id as event_id, e.title, e.description, e.event_day_start, e.event_day_end,
+                         e.venue, e.event_category, o.id as organization_id, o.name as organization_name
                   FROM events e
                   INNER JOIN event_organizations eo ON eo.event_id = e.id
                   INNER JOIN organizations o ON eo.organization_id = o.id
-                  LEFT JOIN advisers a ON a.id = :adviser_id
-                  WHERE e.id = :event_id AND (o.adviser_id = :adviser_id OR o.id = a.current_organization_id)
-                  LIMIT 1";
+                  LEFT JOIN advisers a ON a.id = :adviser_id_1
+                  WHERE e.id = :event_id
+                    AND (o.adviser_id = :adviser_id_2 OR o.id = a.current_organization_id OR eo.approver_id = :adviser_id_3)";
+
+        if (!empty($organization_id)) {
+            $query .= " AND o.id = :organization_id";
+        }
+
+        $query .= " ORDER BY
+                      CASE WHEN a.current_organization_id IS NOT NULL AND o.id = a.current_organization_id THEN 0 ELSE 1 END,
+                      o.name ASC
+                    LIMIT 1";
 
         try {
             $stmt = $this->conn->prepare($query);
-            $stmt->bindParam(':event_id', $event_id);
-            $stmt->bindParam(':adviser_id', $adviser_id);
+            $stmt->bindValue(':event_id', $event_id);
+            $stmt->bindValue(':adviser_id_1', $adviser_id);
+            $stmt->bindValue(':adviser_id_2', $adviser_id);
+            $stmt->bindValue(':adviser_id_3', $adviser_id);
+
+            if (!empty($organization_id)) {
+                $stmt->bindValue(':organization_id', (int)$organization_id);
+            }
+
             $stmt->execute();
             $event = $stmt->fetch(PDO::FETCH_ASSOC);
 
             if (!$event) {
-                $fallbackQuery = "SELECT DISTINCT e.id, e.title, e.description, e.event_day_start, e.event_day_end, 
-                                                 e.venue, e.event_category, o.id as organization_id, o.name as organization_name
-                                  FROM events e
-                                  INNER JOIN organizations o ON e.organization_id = o.id
-                                  WHERE e.id = :event_id AND o.adviser_id = :adviser_id
-                                  LIMIT 1";
-                $fallbackStmt = $this->conn->prepare($fallbackQuery);
-                $fallbackStmt->bindParam(':event_id', $event_id);
-                $fallbackStmt->bindParam(':adviser_id', $adviser_id);
-                $fallbackStmt->execute();
-                $event = $fallbackStmt->fetch(PDO::FETCH_ASSOC);
+                return false;
             }
 
-            if ($event) {
-                $schedQuery = "SELECT id, schedule_date, start_time, end_time 
-                               FROM event_daily_schedules 
-                               WHERE event_id = :event_id 
-                               ORDER BY schedule_date ASC";
-                $schedStmt = $this->conn->prepare($schedQuery);
-                $schedStmt->bindParam(':event_id', $event['id']);
-                $schedStmt->execute();
-                $schedules = $schedStmt->fetchAll(PDO::FETCH_ASSOC);
-
-                if (empty($schedules) && !empty($event['event_day_start']) && !empty($event['event_day_end'])) {
-                    $start = new DateTime($event['event_day_start']);
-                    $end = new DateTime($event['event_day_end']);
-                    $end->modify('+1 day');
-                    $period = new DatePeriod($start, new DateInterval('P1D'), $end);
-
-                    $generated = [];
-                    foreach ($period as $dt) {
-                        $generated[] = [
-                            'id' => null,
-                            'schedule_date' => $dt->format('Y-m-d'),
-                            'start_time' => '08:00:00',
-                            'end_time' => '17:00:00'
-                        ];
-                    }
-                    $schedules = $generated;
-                }
-
-                $event['daily_schedules'] = $schedules;
-            }
-
-            return $event;
+            $events = [$event];
+            $this->attachDailySchedules($events);
+            return $events[0];
         } catch (PDOException $e) {
             error_log("Error fetching event for adviser: " . $e->getMessage());
             return false;
         }
     }
 
-    public function getStudentsForEvent($event_id, $adviser_id) {
+    public function getStudentsForEvent($event_id, $adviser_id, $organization_id = null) {
         if (!$this->conn) return false;
 
-        $event = $this->getEventForAdviser($event_id, $adviser_id);
-        $orgId = $event && !empty($event['organization_id']) ? (int)$event['organization_id'] : 0;
+        $orgId = !empty($organization_id) ? (int)$organization_id : 0;
+        if ($orgId <= 0) {
+            $event = $this->getEventForAdviser($event_id, $adviser_id);
+            $orgId = $event && !empty($event['organization_id']) ? (int)$event['organization_id'] : 0;
+        }
 
         $query = "SELECT DISTINCT s.id as student_id, s.student_number, s.first_name, s.last_name,
                          CONCAT(s.first_name, ' ', s.last_name) as student_name,
@@ -167,21 +185,24 @@ class AttendanceModel {
                   INNER JOIN event_registrations er ON er.student_id = s.id AND er.event_id = :event_id";
 
         if ($orgId > 0) {
-            $query .= " UNION 
+            $query .= " UNION
                        SELECT DISTINCT s.id as student_id, s.student_number, s.first_name, s.last_name,
                               CONCAT(s.first_name, ' ', s.last_name) as student_name,
                               s.email, s.program, s.year_level
                        FROM students s
-                       INNER JOIN organization_memberships om ON om.student_id = s.id AND om.organization_id = :org_id";
+                       INNER JOIN organization_memberships om
+                         ON om.student_id = s.id
+                        AND om.organization_id = :org_id
+                        AND (om.membership_status = 'active' OR om.membership_status IS NULL OR om.membership_status = '')";
         }
 
         $query .= " ORDER BY last_name ASC, first_name ASC";
 
         try {
             $stmt = $this->conn->prepare($query);
-            $stmt->bindParam(':event_id', $event_id);
+            $stmt->bindValue(':event_id', $event_id);
             if ($orgId > 0) {
-                $stmt->bindParam(':org_id', $orgId);
+                $stmt->bindValue(':org_id', $orgId);
             }
             $stmt->execute();
             return $stmt->fetchAll(PDO::FETCH_ASSOC);
@@ -191,7 +212,7 @@ class AttendanceModel {
         }
     }
 
-    public function getAttendanceByEvent($event_id, $schedule_date = null) {
+    public function getAttendanceByEvent($event_id, $schedule_date = null, $organization_id = null) {
         if (!$this->conn) return false;
 
         $query = "SELECT a.*, 
@@ -206,14 +227,20 @@ class AttendanceModel {
         if ($schedule_date) {
             $query .= " AND a.schedule_date = :schedule_date";
         }
+        if (!empty($organization_id)) {
+            $query .= " AND a.organization_id = :organization_id";
+        }
 
         $query .= " ORDER BY a.schedule_date ASC, s.last_name ASC";
 
         try {
             $stmt = $this->conn->prepare($query);
-            $stmt->bindParam(':event_id', $event_id);
+            $stmt->bindValue(':event_id', $event_id);
             if ($schedule_date) {
-                $stmt->bindParam(':schedule_date', $schedule_date);
+                $stmt->bindValue(':schedule_date', $schedule_date);
+            }
+            if (!empty($organization_id)) {
+                $stmt->bindValue(':organization_id', (int)$organization_id);
             }
             $stmt->execute();
             return $stmt->fetchAll(PDO::FETCH_ASSOC);

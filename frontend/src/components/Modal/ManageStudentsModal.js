@@ -1,10 +1,11 @@
 import { openModal, closeModal, setModalButtonLoading } from '../../utils/modal.js';
 import { openConfirmDialog } from '../Dialog/ConfirmDialog.js';
-import { animateModalOpen, animateModalClose, clearModalAnimations, animateFormElements, clearFormAnimations, animateViewModalElements } from '../../provider/ModalAnimation.js';
+import { animateModalClose, clearModalAnimations } from '../../provider/ModalAnimation.js';
 import * as StudentsAPI from '../../api/admin/Students/ManageStudents.js';
 import { showToast } from '../ToastMessage.js';
 import { skeletonStudentForm, skeletonStudentView } from '../SkeletonLoading.js';
 import { StudentCrudValidator } from '../../validator/StudentCrudValidator.js';
+import { FIELD_CLASS, LABEL_CLASS, modalSection, modalActions, modalViewClose, modalDetailTile, modalBadge, modalHero, modalPhotoField, applyModalDomino } from './modalUi.js';
 
 let croppedStudentImage = null;
 
@@ -16,74 +17,41 @@ export function openManageStudentsModal({ mode = 'add', student = null, studentI
     const existingImageUrl = isEdit && student?.profile_photo ? student.profile_photo : '';
 
     const formContent = `
-        <form id="studentForm" class="space-y-5">
+        <form id="studentForm" class="manage-modal-form space-y-4">
             ${isEdit ? `<input type="hidden" id="studentId" value="${student?.id || studentId || ''}">` : ''}
             ${isEdit && existingImageUrl ? `<input type="hidden" id="existingImageUrl" value="${existingImageUrl}">` : ''}
-
-            <fieldset>
-                <legend class="text-xs font-semibold text-gray-500 uppercase tracking-wider mb-3">Photo</legend>
-                <div class="space-y-3">
-                    <div class="flex flex-col sm:flex-row sm:items-center gap-4">
-                        <div id="imagePreviewContainer" class="flex-shrink-0 w-20 h-20 rounded-lg bg-gray-100 border-2 border-dashed border-gray-300 flex items-center justify-center overflow-hidden">
-                            ${existingImageUrl
-                                ? `<img src="${existingImageUrl}" alt="Preview" class="w-full h-full object-cover" id="imagePreview">`
-                                : `<i data-lucide="user" class="w-8 h-8 text-gray-400" id="imagePreviewIcon"></i>`
-                            }
-                        </div>
-                        <div class="flex-1 w-full">
-                            <label for="imageUpload" class="block text-sm font-medium text-gray-700 mb-1">Upload Photo</label>
-                            <input type="file" id="imageUpload" name="imageUpload" accept="image/jpeg,image/jpg,image/png,image/gif,image/webp"
-                                class="w-full text-sm text-gray-500 file:mr-3 file:py-2 file:px-3 file:rounded-md file:border-0 file:text-sm file:font-medium file:bg-blue-50 file:text-blue-900 hover:file:bg-blue-100 transition">
-                            <p class="text-xs text-gray-400 mt-1">JPG, PNG, GIF, or WebP (max 5MB)</p>
-                        </div>
-                    </div>
-                    <input type="hidden" id="imageUrl" name="imageUrl" value="${existingImageUrl}">
-                </div>
-            </fieldset>
-
-            <hr class="border-gray-100">
-
-            <fieldset>
-                <legend class="text-xs font-semibold text-gray-500 uppercase tracking-wider mb-3">Personal Information</legend>
+            ${modalSection('Photo', modalPhotoField(existingImageUrl))}
+            ${modalSection('Personal Information', `
                 <div class="space-y-3">
                     <div>
-                        <label for="studentNumber" class="block text-sm font-medium text-gray-700 mb-1">Student Number <span class="text-red-500">*</span></label>
+                        <label for="studentNumber" class="${LABEL_CLASS}">Student Number <span class="text-red-500">*</span></label>
                         <input type="text" id="studentNumber" name="studentNumber" value="${isEdit && student ? student.student_number : ''}" required
-                            placeholder="e.g. 2023-00001"
-                            class="w-full px-3 py-2 text-sm border border-gray-200 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-transparent transition">
+                            placeholder="e.g. 2023-00001" class="${FIELD_CLASS}">
                     </div>
-                    <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-3">
                         <div>
-                            <label for="firstName" class="block text-sm font-medium text-gray-700 mb-1">First Name <span class="text-red-500">*</span></label>
+                            <label for="firstName" class="${LABEL_CLASS}">First Name <span class="text-red-500">*</span></label>
                             <input type="text" id="firstName" name="firstName" value="${isEdit && student ? student.first_name : ''}" required
-                                placeholder="e.g. Juan"
-                                class="w-full px-3 py-2 text-sm border border-gray-200 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-transparent transition">
+                                placeholder="e.g. Juan" class="${FIELD_CLASS}">
                         </div>
                         <div>
-                            <label for="lastName" class="block text-sm font-medium text-gray-700 mb-1">Last Name <span class="text-red-500">*</span></label>
+                            <label for="lastName" class="${LABEL_CLASS}">Last Name <span class="text-red-500">*</span></label>
                             <input type="text" id="lastName" name="lastName" value="${isEdit && student ? student.last_name : ''}" required
-                                placeholder="e.g. Dela Cruz"
-                                class="w-full px-3 py-2 text-sm border border-gray-200 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-transparent transition">
+                                placeholder="e.g. Dela Cruz" class="${FIELD_CLASS}">
                         </div>
                     </div>
                 </div>
-            </fieldset>
-
-            <hr class="border-gray-100">
-
-            <fieldset>
-                <legend class="text-xs font-semibold text-gray-500 uppercase tracking-wider mb-3">Academic Information</legend>
-                <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
+            `)}
+            ${modalSection('Academic Information', `
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-3">
                     <div>
-                        <label for="program" class="block text-sm font-medium text-gray-700 mb-1">Program <span class="text-red-500">*</span></label>
+                        <label for="program" class="${LABEL_CLASS}">Program <span class="text-red-500">*</span></label>
                         <input type="text" id="program" name="program" value="${isEdit && student ? student.program : ''}" required
-                            placeholder="e.g. BSIT, BSCS"
-                            class="w-full px-3 py-2 text-sm border border-gray-200 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-transparent transition">
+                            placeholder="e.g. BSIT, BSCS" class="${FIELD_CLASS}">
                     </div>
                     <div>
-                        <label for="yearLevel" class="block text-sm font-medium text-gray-700 mb-1">Year Level <span class="text-red-500">*</span></label>
-                        <select id="yearLevel" name="yearLevel" required
-                            class="w-full px-3 py-2 text-sm border border-gray-200 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-transparent bg-white transition">
+                        <label for="yearLevel" class="${LABEL_CLASS}">Year Level <span class="text-red-500">*</span></label>
+                        <select id="yearLevel" name="yearLevel" required class="${FIELD_CLASS}">
                             <option value="">Select Year Level</option>
                             <option value="1st Year" ${isEdit && student?.year_level === '1st Year' ? 'selected' : ''}>1st Year</option>
                             <option value="2nd Year" ${isEdit && student?.year_level === '2nd Year' ? 'selected' : ''}>2nd Year</option>
@@ -93,63 +61,36 @@ export function openManageStudentsModal({ mode = 'add', student = null, studentI
                         </select>
                     </div>
                 </div>
-            </fieldset>
-
-            <hr class="border-gray-100">
-
-            <fieldset>
-                <legend class="text-xs font-semibold text-gray-500 uppercase tracking-wider mb-3">Account Information</legend>
+            `)}
+            ${modalSection('Account Information', `
                 <div class="space-y-3">
                     ${isEdit ? `
                     <div>
-                        <label for="username" class="block text-sm font-medium text-gray-700 mb-1">Username <span class="text-red-500">*</span></label>
+                        <label for="username" class="${LABEL_CLASS}">Username <span class="text-red-500">*</span></label>
                         <input type="text" id="username" name="username" value="${isEdit && student ? student.username : ''}" required
-                            placeholder="e.g. juandelacruz"
-                            class="w-full px-3 py-2 text-sm border border-gray-200 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-transparent transition">
+                            placeholder="e.g. juandelacruz" class="${FIELD_CLASS}">
                     </div>
                     ` : ``}
                     <div>
-                        <label for="email" class="block text-sm font-medium text-gray-700 mb-1">Email <span class="text-red-500">*</span></label>
+                        <label for="email" class="${LABEL_CLASS}">Email <span class="text-red-500">*</span></label>
                         <input type="email" id="email" name="email" value="${isEdit && student ? student.email : ''}" required
-                            placeholder="e.g. juan@example.com"
-                            class="w-full px-3 py-2 text-sm border border-gray-200 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-transparent transition">
+                            placeholder="e.g. juan@example.com" class="${FIELD_CLASS}">
                     </div>
                     ${!isEdit ? `
-                    <p class="text-xs text-gray-500 bg-blue-50 border border-blue-200 rounded-md px-3 py-2">
+                    <p class="text-xs text-muted bg-blue-50 border border-blue-100 rounded-xl px-3 py-2.5">
                         <i data-lucide="info" class="w-4 h-4 inline mr-1"></i>
                         Username and password will be auto-generated and sent to the student's email.
                     </p>
                     ` : ``}
                 </div>
-            </fieldset>
-
-            <div id="formError" class="hidden text-sm text-red-600 bg-red-50 border border-red-200 rounded-md px-3 py-2"></div>
-
-            <div class="flex justify-end pt-3 border-t border-gray-100 flex-row gap-2">
-                <button 
-                    type="button" 
-                    onclick="closeManageStudentsModal()" 
-                    class="px-4 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-md hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-gray-200 transition">
-                    Cancel
-                </button>
-                <button 
-                    type="submit" 
-                    id="submitBtn" 
-                    class="px-5 py-2 text-sm font-medium text-white bg-blue-900 hover:bg-blue-800 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-1 transition">
-                    ${buttonText}
-                </button>
-            </div>
+            `)}
+            <div id="formError" class="hidden text-sm text-red-700 bg-red-50 border border-red-200 rounded-xl px-3 py-2.5"></div>
+            ${modalActions({ cancelOnclick: 'closeManageStudentsModal()', submitText: buttonText })}
         </form>
     `;
 
     if (isEdit && !student && studentId) {
         openModal(title, skeletonStudentForm(), 'mid-large');
-
-        const modalOverlay = document.getElementById('modal-overlay');
-        const modalContent = document.getElementById('modal-content');
-        if (modalOverlay && modalContent) {
-            animateModalOpen(modalOverlay, modalContent, 'scale');
-        }
 
         setTimeout(async () => {
             try {
@@ -159,7 +100,7 @@ export function openManageStudentsModal({ mode = 'add', student = null, studentI
                     modalBody.innerHTML = formContent;
                     populateFormWithStudent(fetchedStudent);
                     setupFormHandlers(fetchedStudent.id, buttonText, onSubmit);
-                    if (typeof lucide !== 'undefined') lucide.createIcons();
+                    applyModalDomino();
                 }
             } catch (error) {
                 console.error('Error loading student:', error);
@@ -169,20 +110,7 @@ export function openManageStudentsModal({ mode = 'add', student = null, studentI
         }, 100);
     } else {
         openModal(title, formContent, 'mid-large');
-
-        const modalOverlay = document.getElementById('modal-overlay');
-        const modalContent = document.getElementById('modal-content');
-        if (modalOverlay && modalContent) {
-            animateModalOpen(modalOverlay, modalContent, 'scale');
-        }
-
-        setTimeout(() => {
-            const form = document.getElementById('studentForm');
-            if (form) {
-                animateFormElements(form);
-            }
-        }, 100);
-
+        applyModalDomino();
         setupFormHandlers(student?.id, buttonText, onSubmit);
     }
 }
@@ -233,12 +161,7 @@ function populateFormWithStudent(student) {
         }
     }
 
-    setTimeout(() => {
-        const formEl = document.getElementById('studentForm');
-        if (formEl) {
-            animateFormElements(formEl);
-        }
-    }, 50);
+    applyModalDomino();
 }
 
 function setupFormHandlers(studentId, buttonText, onSubmit) {
@@ -267,7 +190,7 @@ function handleImagePreview(e) {
             previewContainer.innerHTML = `<img src="${existingImageUrl}" alt="Preview" class="w-full h-full object-cover" id="imagePreview">`;
             imageUrlInput.value = existingImageUrl;
         } else {
-            previewContainer.innerHTML = `<i data-lucide="user" class="w-8 h-8 text-gray-400" id="imagePreviewIcon"></i>`;
+            previewContainer.innerHTML = `<i data-lucide="user" class="w-8 h-8 text-muted" id="imagePreviewIcon"></i>`;
             imageUrlInput.value = '';
         }
         croppedStudentImage = null;
@@ -397,6 +320,7 @@ async function closeManageStudentsModal() {
         await animateModalClose(modalOverlay, modalContent, 'scale');
         clearModalAnimations(modalOverlay, modalContent);
         modalOverlay.remove();
+        document.body.classList.remove('overflow-hidden');
         document.removeEventListener('keydown', (e) => {
             if (e.key === 'Escape') closeManageStudentsModal();
         });
@@ -410,12 +334,6 @@ window.closeManageStudentsModal = closeManageStudentsModal;
 export async function openViewStudentsModal(id) {
     openModal('Student Details', skeletonStudentView(), 'mid-large');
 
-    const modalOverlay = document.getElementById('modal-overlay');
-    const modalContent = document.getElementById('modal-content');
-    if (modalOverlay && modalContent) {
-        animateModalOpen(modalOverlay, modalContent, 'scale');
-    }
-
     try {
         const student = await StudentsAPI.getStudent(id);
         const dateCreated = new Date(student.created_at).toLocaleDateString('en-PH', {
@@ -426,77 +344,34 @@ export async function openViewStudentsModal(id) {
         });
 
         const content = `
-            <div class="space-y-5">
-                <div class="flex flex-col sm:flex-row sm:items-center gap-4 bg-gray-50 rounded-lg p-4 border border-gray-100">
-                    <div class="flex-shrink-0 w-24 h-24 sm:w-32 sm:h-32 rounded-lg bg-blue-900 text-blue-100 flex items-center justify-center text-sm font-bold shadow-sm overflow-hidden mx-auto sm:mx-0">
-                        ${student.profile_photo 
-                            ? `<img src="${student.profile_photo}" alt="${student.first_name} ${student.last_name}" class="w-full h-full object-cover">` 
-                            : `${student.first_name.charAt(0)}${student.last_name.charAt(0)}`
-                        }
-                    </div>
-                    <div class="text-center sm:text-left">
-                        <h3 class="text-lg font-semibold text-gray-900">${student.first_name} ${student.last_name}</h3>
-                        <p class="text-sm text-gray-500 mt-0.5">${student.student_number}</p>
-                        <span class="inline-flex items-center px-2.5 py-0.5 mt-0.5 rounded-full text-xs font-medium bg-blue-50 text-blue-900 border border-blue-200">
-                            ${student.year_level}
-                        </span>
-                    </div>
-                </div>
-
-                <div class="border-b border-gray-200 pb-4">
-                    <h4 class="text-xs font-semibold text-gray-500 uppercase tracking-wider mb-3">Personal Information</h4>
-                    <dl class="grid grid-cols-1 sm:grid-cols-2 gap-x-6 gap-y-3">
-                        <div>
-                            <dt class="text-xs text-gray-400 font-medium">Student Number</dt>
-                            <dd class="text-sm font-semibold text-gray-900 mt-0.5">${student.student_number}</dd>
-                        </div>
-                        <div>
-                            <dt class="text-xs text-gray-400 font-medium">Full Name</dt>
-                            <dd class="text-sm font-semibold text-gray-900 mt-0.5">${student.first_name} ${student.last_name}</dd>
-                        </div>
-                        <div>
-                            <dt class="text-xs text-gray-400 font-medium">Username</dt>
-                            <dd class="text-sm font-semibold text-gray-900 mt-0.5">${student.username}</dd>
-                        </div>
-                        <div>
-                            <dt class="text-xs text-gray-400 font-medium">Email</dt>
-                            <dd class="text-sm font-semibold text-gray-900 mt-0.5">${student.email}</dd>
-                        </div>
+            <div class="space-y-4">
+                ${modalHero({
+                    photo: student.profile_photo,
+                    fallback: `${student.first_name.charAt(0)}${student.last_name.charAt(0)}`,
+                    name: `${student.first_name} ${student.last_name}`,
+                    subtitle: student.student_number,
+                    badges: [modalBadge(student.year_level, 'navy')]
+                })}
+                ${modalSection('Personal Information', `
+                    <dl class="grid grid-cols-1 md:grid-cols-2 gap-2.5">
+                        ${modalDetailTile('Student Number', student.student_number)}
+                        ${modalDetailTile('Full Name', `${student.first_name} ${student.last_name}`)}
+                        ${modalDetailTile('Username', student.username)}
+                        ${modalDetailTile('Email', student.email)}
                     </dl>
-                </div>
-
-                <div class="border-b border-gray-200 pb-4">
-                    <h4 class="text-xs font-semibold text-gray-500 uppercase tracking-wider mb-3">Academic Information</h4>
-                    <dl class="grid grid-cols-1 sm:grid-cols-2 gap-x-6 gap-y-3">
-                        <div>
-                            <dt class="text-xs text-gray-400 font-medium">Program</dt>
-                            <dd class="text-sm font-semibold text-gray-900 mt-0.5">${student.program}</dd>
-                        </div>
-                        <div>
-                            <dt class="text-xs text-gray-400 font-medium">Year Level</dt>
-                            <dd class="text-sm font-semibold text-gray-900 mt-0.5">${student.year_level}</dd>
-                        </div>
+                `)}
+                ${modalSection('Academic Information', `
+                    <dl class="grid grid-cols-1 md:grid-cols-2 gap-2.5">
+                        ${modalDetailTile('Program', student.program)}
+                        ${modalDetailTile('Year Level', student.year_level)}
                     </dl>
-                </div>
-
-                <div class="border-b border-gray-200 pb-4">
-                    <h4 class="text-xs font-semibold text-gray-500 uppercase tracking-wider mb-3">Account Details</h4>
-                    <dl class="grid grid-cols-1 sm:grid-cols-2 gap-x-6 gap-y-3">
-                        <div>
-                            <dt class="text-xs text-gray-400 font-medium">Created At</dt>
-                            <dd class="text-sm font-semibold text-gray-900 mt-0.5">${dateCreated}</dd>
-                        </div>
+                `)}
+                ${modalSection('Account Details', `
+                    <dl class="grid grid-cols-1 md:grid-cols-2 gap-2.5">
+                        ${modalDetailTile('Created At', dateCreated)}
                     </dl>
-                </div>
-
-                <div class="flex justify-end pt-3 border-t border-gray-100 flex-col sm:flex-row gap-2">
-                    <button 
-                        type="button" 
-                        onclick="closeModal()" 
-                        class="px-4 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-md hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-gray-200 transition">
-                        Close
-                    </button>
-                </div>
+                `)}
+                ${modalViewClose()}
             </div>
         `;
 
@@ -504,13 +379,7 @@ export async function openViewStudentsModal(id) {
         if (modalBody) {
             modalBody.innerHTML = content;
         }
-
-        setTimeout(() => {
-            const modalContentEl = document.getElementById('modal-content');
-            if (modalContentEl) {
-                animateViewModalElements(modalContentEl);
-            }
-        }, 50);
+        applyModalDomino();
     } catch (error) {
         console.error('Error loading student:', error);
         showToast('Failed to load student', 'error');

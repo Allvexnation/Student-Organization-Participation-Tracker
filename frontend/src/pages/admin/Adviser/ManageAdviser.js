@@ -9,6 +9,8 @@ import { showToast } from '../../../components/ToastMessage.js';
 import { CrudMenu } from '../../../components/CrudMenu.js';
 import { skeletonTableRows } from '../../../components/SkeletonLoading.js';
 import { getDefaultProfileSVG } from '../../../static/Profile/DefaultProfile.js';
+import { logChange } from '../../../api/AuditLogs/AuditLogs.js';
+import { decodeToken, getToken } from '../../../utils/jwt.js';
 
 export function ManageAdviser() {
     return `
@@ -66,6 +68,9 @@ export async function initManageAdviser() {
     await initAdminNavbar();
 
     initManageAdviserAnimations();
+
+    const adminToken = getToken('admin');
+    const adminUser = decodeToken(adminToken) || {};
 
     let advisers = [];
     let hasLoaded = false;
@@ -190,6 +195,20 @@ export async function initManageAdviser() {
                     await AdviserAPI.updateAdviser(id, data);
                 } else {
                     const response = await AdviserAPI.createAdviser(data);
+                    try {
+                        await logChange({
+                            user_id: adminUser.user_id,
+                            user_type: 'admin',
+                            action: 'create',
+                            table_name: 'advisers',
+                            record_id: response.id,
+                            field_name: 'all',
+                            old_value: null,
+                            new_value: `Adviser: ${data.name}`
+                        });
+                    } catch (error) {
+                        console.error('Failed to log adviser creation:', error);
+                    }
                     loadAdvisers(true);
                     return response;
                 }
@@ -203,7 +222,46 @@ export async function initManageAdviser() {
             mode: 'edit',
             adviserId: id,
             onSubmit: async (id, data) => {
+                const oldAdviser = advisers.find(a => a.id === id);
                 await AdviserAPI.updateAdviser(id, data);
+
+                const fieldsToLog = ['name', 'username', 'email', 'role', 'status'];
+                for (const field of fieldsToLog) {
+                    if (oldAdviser && oldAdviser[field] !== data[field]) {
+                        try {
+                            await logChange({
+                                user_id: adminUser.user_id,
+                                user_type: 'admin',
+                                action: 'update',
+                                table_name: 'advisers',
+                                record_id: id,
+                                field_name: field,
+                                old_value: oldAdviser[field] || 'None',
+                                new_value: data[field] || 'Removed'
+                            });
+                        } catch (error) {
+                            console.error(`Failed to log adviser ${field} change:`, error);
+                        }
+                    }
+                }
+
+                if (oldAdviser && oldAdviser.profile_photo !== data.profile_photo) {
+                    try {
+                        await logChange({
+                            user_id: adminUser.user_id,
+                            user_type: 'admin',
+                            action: 'update',
+                            table_name: 'advisers',
+                            record_id: id,
+                            field_name: 'profile_photo',
+                            old_value: oldAdviser.profile_photo ? 'Base64 image data' : 'None',
+                            new_value: data.profile_photo ? 'Base64 image data' : 'Removed'
+                        });
+                    } catch (error) {
+                        console.error('Failed to log adviser profile photo change:', error);
+                    }
+                }
+
                 loadAdvisers(true);
             }
         });
@@ -223,7 +281,24 @@ export async function initManageAdviser() {
             showReason: true,
             onConfirm: async (reason) => {
                 try {
+                    const oldAdviser = advisers.find(a => a.id === id);
                     await AdviserAPI.deleteAdviser(id, reason);
+
+                    try {
+                        await logChange({
+                            user_id: adminUser.user_id,
+                            user_type: 'admin',
+                            action: 'delete',
+                            table_name: 'advisers',
+                            record_id: id,
+                            field_name: 'all',
+                            old_value: `Adviser: ${oldAdviser?.name || 'Unknown'}`,
+                            new_value: null
+                        });
+                    } catch (error) {
+                        console.error('Failed to log adviser deletion:', error);
+                    }
+
                     loadAdvisers(true);
                     showToast('Adviser deleted successfully', 'success');
                 } catch (error) {

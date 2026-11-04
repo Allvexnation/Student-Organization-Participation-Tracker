@@ -1,7 +1,29 @@
 import { API_ROUTES } from '../../server/api.js';
 import { setToken, removeToken, getToken, isAuthenticated as checkAuth, getUserData, setUserData } from '../../../utils/jwt.js';
-import { getDeviceInfo } from '../../../utils/DeviceInfo.js';
+import { getDeviceInfo, getDeviceFingerprint } from '../../../utils/DeviceInfo.js';
 import { CacheService } from '../../../../cache/CacheService.js';
+
+export async function adviserLookupAccount(usernameOrEmail) {
+    try {
+        const response = await fetch(API_ROUTES.ADVISER.LOOKUP, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({ username_or_email: usernameOrEmail })
+        });
+
+        const contentType = response.headers.get('content-type');
+        if (!contentType || !contentType.includes('application/json')) {
+            return { message: 'Server error: Invalid response format' };
+        }
+
+        return await response.json();
+    } catch (error) {
+        console.error('Lookup error:', error);
+        return { message: 'Network error: Unable to connect to server' };
+    }
+}
 
 export async function adviserLogin(Email, Password) {
     try {
@@ -15,6 +37,7 @@ export async function adviserLogin(Email, Password) {
             body: JSON.stringify({ 
                 username_or_email: Email, 
                 password: Password,
+                auth_type: 'password',
                 ...deviceInfo
             })
         });
@@ -45,10 +68,7 @@ export async function adviserLogin(Email, Password) {
 export async function adviserLogout(token) {
     try {
         const authToken = token || getToken('adviser');
-        let deviceInfo = {};
-        try {
-            deviceInfo = await getDeviceInfo();
-        } catch (e) {}
+        const fingerprint = getDeviceFingerprint() || '';
 
         await fetch(API_ROUTES.ADVISER.LOGOUT, {
             method: 'POST',
@@ -58,8 +78,7 @@ export async function adviserLogout(token) {
             },
             body: JSON.stringify({
                 token: authToken || '',
-                device_fingerprint: deviceInfo.device_fingerprint || '',
-                ...deviceInfo
+                device_fingerprint: fingerprint
             })
         });
     } catch (error) {

@@ -8,9 +8,10 @@ import {
     getStoredUser,
     removeStoredUser,
     getTokenKey,
-    getUserKey
+    getUserKey,
+    isValidJwt
 } from './TokenStore.js';
-import { getDeviceInfo, getDeviceFingerprint } from './DeviceInfo.js';
+import { getDeviceFingerprint } from './DeviceInfo.js';
 
 export { getTokenKey, getUserKey };
 
@@ -29,7 +30,11 @@ const inFlightValidation = {
 const VALIDATION_CACHE_TTL_MS = 30000;
 
 export function getToken(role = 'admin') {
-    return getStoredToken(role);
+    const token = getStoredToken(role);
+    if (token && typeof token === 'string' && isValidJwt(token)) {
+        return token.trim();
+    }
+    return null;
 }
 
 export function setToken(token, role = 'admin') {
@@ -41,10 +46,7 @@ export function setToken(token, role = 'admin') {
 
 export async function logoutSession(role = 'admin') {
     const token = getToken(role);
-    let deviceInfo = {};
-    try {
-        deviceInfo = await getDeviceInfo();
-    } catch (e) { }
+    const fingerprint = getDeviceFingerprint() || '';
 
     try {
         await fetch(API_ROUTES.SESSION.LOGOUT, {
@@ -57,8 +59,7 @@ export async function logoutSession(role = 'admin') {
                 token: token || '',
                 role: role,
                 user_type: role,
-                device_fingerprint: deviceInfo.device_fingerprint || getDeviceFingerprint() || '',
-                ...deviceInfo
+                device_fingerprint: fingerprint
             })
         });
     } catch (e) {
@@ -115,7 +116,11 @@ export function isTokenExpired(token) {
 
 export async function restoreSessionFromDevice(role = 'admin') {
     try {
-        const deviceInfo = await getDeviceInfo();
+        const fingerprint = getDeviceFingerprint() || '';
+        if (!fingerprint) {
+            return null;
+        }
+
         const response = await fetch(API_ROUTES.SESSION.RESTORE, {
             method: 'POST',
             headers: {
@@ -124,8 +129,7 @@ export async function restoreSessionFromDevice(role = 'admin') {
             body: JSON.stringify({
                 role: role,
                 user_type: role,
-                device_fingerprint: deviceInfo.device_fingerprint || getDeviceFingerprint() || '',
-                ...deviceInfo
+                device_fingerprint: fingerprint
             })
         });
 
@@ -161,8 +165,13 @@ export async function validateTokenWithDatabase(token, role = 'admin') {
                 ? `${API_ROUTES.SESSION.VALIDATE}?fingerprint=${encodeURIComponent(fingerprint)}`
                 : API_ROUTES.SESSION.VALIDATE;
 
+            const cleanToken = (token || '').trim();
+            if (!isValidJwt(cleanToken)) {
+                return { valid: false, networkError: false };
+            }
+
             const headers = {
-                'Authorization': `Bearer ${token}`
+                'Authorization': `Bearer ${cleanToken}`
             };
 
             const response = await fetch(url, {
@@ -261,6 +270,18 @@ export function getUserRole(role = 'admin') {
     return decoded ? decoded.role : null;
 }
 
+export function isCrtAdmin(role = 'admin') {
+    const token = getToken(role);
+    const decoded = decodeToken(token);
+    return decoded ? decoded.is_crt_admin : false;
+}
+
+export function isSuperAdmin(role = 'admin') {
+    const token = getToken(role);
+    const decoded = decodeToken(token);
+    return decoded ? decoded.is_crt_admin === true : false;
+}
+
 let networkListenerInitialized = false;
 
 export function initNetworkListener() {
@@ -272,20 +293,20 @@ export function initNetworkListener() {
 
     window.addEventListener('online', async () => {
         const roles = ['admin', 'adviser', 'student'];
+        const currentPath = window.location.pathname;
 
         for (const role of roles) {
             const token = getToken(role);
 
-            if (token && !isTokenExpired(token)) {
+            const isOnRoleRoute = currentPath.startsWith(`/${role}/`) || currentPath === `/${role}`;
+
+            if (token && !isTokenExpired(token) && isOnRoleRoute) {
                 try {
                     const { valid, networkError } = await validateTokenWithDatabase(token, role);
 
                     if (!networkError && !valid) {
                         removeToken(role);
-                        const currentPath = window.location.pathname;
-                        if (currentPath.includes(`/${role}`)) {
-                            navigate(`/auth/${role}/login`);
-                        }
+                        navigate(`/auth/${role}/login`);
                     }
                 } catch (error) {
                     console.error(`Error re-validating ${role} session:`, error);

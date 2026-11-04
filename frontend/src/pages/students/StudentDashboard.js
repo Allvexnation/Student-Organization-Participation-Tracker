@@ -1,121 +1,50 @@
-import { studentLogout, getStudentData } from '../../api/students/StudentAuth/StudentAuth.js';
+import { getStudentData } from '../../api/students/StudentAuth/StudentAuth.js';
 import { StudentNavbar, initStudentNavbar } from '../../components/Navbar/StudentNavbar.js';
 import { isAuthenticated, getUserRole } from '../../utils/jwt.js';
 import { navigate } from '../../utils/navigation.js';
-import { skeletonStatCard } from '../../components/SkeletonLoading.js';
-import { dashboardImages } from '../../static/Dashboard/Dashboard.js';
-
-function getGreeting() {
-    const hour = new Date().getHours();
-    if (hour < 12) return 'Good morning';
-    if (hour < 18) return 'Good afternoon';
-    return 'Good evening';
-}
-
-function formatDate() {
-    const options = { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' };
-    return new Date().toLocaleDateString('en-US', options);
-}
+import { getStudentProfile } from '../../api/students/StudentProfile.js';
+import { getStudentAttendanceEvents } from '../../api/students/Attendance/Attendance.js';
+import { StudentAuditLogsEmbedded, initStudentAuditLogsEmbedded } from '../AuditLogs/StudentAuditLogs.js';
+import { DashboardLayout, fillDashboardStats, initDashboardTransition } from '../../components/Layout/Dashboard/Dashboard.js';
 
 export function StudentDashboard() {
     const studentData = getStudentData();
     const displayName = studentData?.firstName || 'Student';
-    
-    return `
-        <div class="min-h-screen bg-gray-50" style="overflow: auto;">
-            ${StudentNavbar()}
 
-            <main class="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
-                <div class="mb-6">
-                    <h1 class="text-2xl font-semibold text-gray-900">${getGreeting()}, ${displayName}</h1>
-                    <p class="text-sm text-gray-500 mt-1">${formatDate()}</p>
-                </div>
-
-                <div class="grid grid-cols-1 sm:grid-cols-3 gap-4 mb-4" id="primary-stats">
-                    ${skeletonStatCard('primary')}
-                    ${skeletonStatCard('primary')}
-                    ${skeletonStatCard('primary')}
-                </div>
-
-                <div class="grid grid-cols-1 sm:grid-cols-3 gap-4 mb-6" id="secondary-stats">
-                    ${skeletonStatCard('secondary')}
-                    ${skeletonStatCard('secondary')}
-                    ${skeletonStatCard('secondary')}
-                </div>
-            </main>
-        </div>
-    `;
+    return DashboardLayout({
+        navbar: StudentNavbar(),
+        displayName,
+        badge: 'Student portal',
+        subtitle: 'See your organizations, events, tasks, and attendance in one view.',
+        extra: StudentAuditLogsEmbedded()
+    });
 }
 
-function renderPrimaryStats(stats) {
-    const organizationsImageUrl = dashboardImages.organizations.path;
-    const eventsImageUrl = dashboardImages.events.path;
-    const tasksImageUrl = dashboardImages.tasks.path;
-    
-    return `
-        <a href="#organizations" class="block rounded-lg p-5 text-white hover:bg-blue-800 transition-colors relative overflow-hidden" style="background-image: url('${organizationsImageUrl}'); background-size: cover; background-position: center;">
-            <div style="position: absolute; top: 0; left: 0; right: 0; bottom: 0; background-color: rgba(30, 58, 138, 0.7); z-index: 0;"></div>
-            <div class="flex items-center justify-between relative z-10">
-                <div>
-                    <p class="text-blue-200 text-xs font-medium uppercase tracking-wide">My Organizations</p>
-                    <p class="text-3xl font-bold mt-1" id="total-organizations">${stats.totalOrganizations || 0}</p>
-                </div>
-                <i data-lucide="building-2" class="w-8 h-8 text-blue-300 opacity-60"></i>
-            </div>
-        </a>
-        <a href="#events" class="block rounded-lg p-5 text-white hover:bg-blue-800 transition-colors relative overflow-hidden" style="background-image: url('${eventsImageUrl}'); background-size: cover; background-position: center;">
-            <div style="position: absolute; top: 0; left: 0; right: 0; bottom: 0; background-color: rgba(30, 58, 138, 0.7); z-index: 0;"></div>
-            <div class="flex items-center justify-between relative z-10">
-                <div>
-                    <p class="text-blue-200 text-xs font-medium uppercase tracking-wide">Registered Events</p>
-                    <p class="text-3xl font-bold mt-1" id="total-events">${stats.totalEvents || 0}</p>
-                </div>
-                <i data-lucide="calendar" class="w-8 h-8 text-blue-300 opacity-60"></i>
-            </div>
-        </a>
-        <a href="#tasks" class="block rounded-lg p-5 text-white hover:bg-blue-800 transition-colors relative overflow-hidden" style="background-image: url('${tasksImageUrl}'); background-size: cover; background-position: center;">
-            <div style="position: absolute; top: 0; left: 0; right: 0; bottom: 0; background-color: rgba(30, 58, 138, 0.7); z-index: 0;"></div>
-            <div class="flex items-center justify-between relative z-10">
-                <div>
-                    <p class="text-blue-200 text-xs font-medium uppercase tracking-wide">Completed Tasks</p>
-                    <p class="text-3xl font-bold mt-1" id="completed-tasks">${stats.completedTasks || 0}</p>
-                </div>
-                <i data-lucide="check-circle" class="w-8 h-8 text-blue-300 opacity-60"></i>
-            </div>
-        </a>
-    `;
+function getPrimaryCards(stats) {
+    return [
+        { href: '/student/profile', imageKey: 'organizations', label: 'My Organizations', value: stats.totalOrganizations, valueId: 'total-organizations', icon: 'building-2' },
+        { href: '/events', imageKey: 'events', label: 'Registered Events', value: stats.totalEvents, valueId: 'total-events', icon: 'calendar' },
+        { href: '/student/tasks', imageKey: 'tasks', label: 'Unfinished Tasks', value: stats.unfinishedTasks, valueId: 'unfinished-tasks', icon: 'clock' }
+    ];
 }
 
-function renderSecondaryStats(stats) {
-    return `
-        <a href="#upcoming" class="block bg-white border border-gray-200 rounded-lg p-5 hover:border-blue-300 transition-colors">
-            <div class="flex items-center justify-between">
-                <div>
-                    <p class="text-gray-500 text-xs font-medium uppercase tracking-wide">Upcoming Events</p>
-                    <p class="text-2xl font-bold text-gray-900 mt-1" id="upcoming-events">${stats.upcomingEvents || 0}</p>
-                </div>
-                <i data-lucide="calendar-clock" class="w-6 h-6 text-gray-400"></i>
-            </div>
-        </a>
-        <a href="#notifications" class="block bg-white border border-gray-200 rounded-lg p-5 hover:border-blue-300 transition-colors">
-            <div class="flex items-center justify-between">
-                <div>
-                    <p class="text-gray-500 text-xs font-medium uppercase tracking-wide">Notifications</p>
-                    <p class="text-2xl font-bold text-gray-900 mt-1" id="notifications">${stats.notifications || 0}</p>
-                </div>
-                <i data-lucide="bell" class="w-6 h-6 text-gray-400"></i>
-            </div>
-        </a>
-        <a href="#achievements" class="block bg-white border border-gray-200 rounded-lg p-5 hover:border-blue-300 transition-colors">
-            <div class="flex items-center justify-between">
-                <div>
-                    <p class="text-gray-500 text-xs font-medium uppercase tracking-wide">Achievements</p>
-                    <p class="text-2xl font-bold text-gray-900 mt-1" id="achievements">${stats.achievements || 0}</p>
-                </div>
-                <i data-lucide="award" class="w-6 h-6 text-gray-400"></i>
-            </div>
-        </a>
-    `;
+function getSecondaryCards(stats) {
+    return [
+        { href: '/events', label: 'Upcoming Events', value: stats.upcomingEvents, valueId: 'upcoming-events', icon: 'calendar-clock' },
+        { href: '/student/profile', label: 'Advisers', value: stats.adviserCount, valueId: 'advisers', icon: 'users' },
+        { href: '/student/attendance', label: 'Attendance', value: stats.attendance, valueId: 'attendance', icon: 'calendar-check' }
+    ];
+}
+
+function emptyStats() {
+    return {
+        totalOrganizations: 0,
+        totalEvents: 0,
+        unfinishedTasks: 0,
+        upcomingEvents: 0,
+        adviserCount: 0,
+        attendance: 0
+    };
 }
 
 export async function initStudentDashboard() {
@@ -124,31 +53,33 @@ export async function initStudentDashboard() {
         return;
     }
     await initStudentNavbar();
+    const finishDashboardEnter = initDashboardTransition();
 
     try {
+        const studentProfile = await getStudentProfile();
+        const attendanceEvents = await getStudentAttendanceEvents();
+
         const stats = {
-            totalOrganizations: 0,
-            totalEvents: 0,
-            completedTasks: 0,
-            upcomingEvents: 0,
-            notifications: 0,
-            achievements: 0
+            totalOrganizations: studentProfile?.organizations?.length || 0,
+            totalEvents: studentProfile?.events?.length || 0,
+            unfinishedTasks: studentProfile?.unfinishedTasks || 0,
+            upcomingEvents: studentProfile?.upcomingEvents?.length || 0,
+            adviserCount: studentProfile?.adviserCount || 0,
+            attendance: attendanceEvents?.length || 0
         };
 
-        const primaryStats = document.getElementById('primary-stats');
-        if (primaryStats) {
-            primaryStats.innerHTML = renderPrimaryStats(stats);
-        }
-
-        const secondaryStats = document.getElementById('secondary-stats');
-        if (secondaryStats) {
-            secondaryStats.innerHTML = renderSecondaryStats(stats);
-        }
-
-        if (typeof lucide !== 'undefined') {
-            lucide.createIcons();
-        }
+        fillDashboardStats({
+            primary: getPrimaryCards(stats),
+            secondary: getSecondaryCards(stats)
+        });
     } catch (error) {
         console.error('Error loading dashboard data:', error);
+        fillDashboardStats({
+            primary: getPrimaryCards(emptyStats()),
+            secondary: getSecondaryCards(emptyStats())
+        });
+    } finally {
+        initStudentAuditLogsEmbedded();
+        finishDashboardEnter();
     }
 }

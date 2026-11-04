@@ -50,7 +50,37 @@
     </script>
     
     <link rel="icon" type="image/x-icon" href="/public/favicon.ico">
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;500;600;700;800&display=swap" rel="stylesheet" />
     <script src="https://cdn.tailwindcss.com"></script>
+    <script>
+      tailwind.config = {
+        theme: {
+          extend: {
+            colors: {
+              navy: { DEFAULT: "#163a63", 700: "#0f2c4c" },
+              blue: { DEFAULT: "#2563eb", 50: "#eaf1ff", 700: "#1d4fd0" },
+              yellow: { DEFAULT: "#facc15", 50: "#fff3cd" },
+              ink: "#0f1b2d",
+              body: "#46546a",
+              muted: "#7a889c",
+              line: "#e3e8f0",
+              surface: "#f5f7fb",
+              danger: "#b91c1c",
+              success: "#0b7a4b",
+            },
+            fontFamily: {
+              sans: ["Poppins", "system-ui", "-apple-system", "Segoe UI", "Roboto", "sans-serif"],
+            },
+            boxShadow: {
+              lift: "0 10px 30px rgba(22, 58, 99, 0.12)",
+              "lift-lg": "0 24px 60px rgba(22, 58, 99, 0.18)",
+            },
+          },
+        },
+      };
+    </script>
     <script src="https://unpkg.com/lucide@latest"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/exceljs/4.4.0/exceljs.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/FileSaver.js/2.0.5/FileSaver.min.js"></script>

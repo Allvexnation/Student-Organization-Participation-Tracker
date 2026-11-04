@@ -67,7 +67,8 @@ class AdviserEventsController {
             return;
         }
 
-        $events = $this->eventOrganizationsModel->getRegisteredEventsByAdviserId($adviser_id);
+        $organization_id = isset($_GET['organization_id']) ? intval($_GET['organization_id']) : null;
+        $events = $this->eventOrganizationsModel->getRegisteredEventsByAdviserId($adviser_id, $organization_id);
 
         if ($events !== false) {
             http_response_code(200);
@@ -75,6 +76,29 @@ class AdviserEventsController {
         } else {
             http_response_code(500);
             echo json_encode(['message' => 'Failed to fetch registered events']);
+        }
+    }
+
+    public function getEvent($event_id) {
+        header('Content-Type: application/json');
+        
+        $adviser_id = $this->getAdviserIdFromToken();
+        if (!$adviser_id) {
+            http_response_code(401);
+            echo json_encode(['message' => 'Unauthorized']);
+            return;
+        }
+
+        require_once __DIR__ . '/../../model/EventsModel.php';
+        $eventsModel = new EventsModel();
+        $event = $eventsModel->readOne($event_id);
+
+        if ($event) {
+            http_response_code(200);
+            echo json_encode(['event' => $event]);
+        } else {
+            http_response_code(404);
+            echo json_encode(['message' => 'Event not found']);
         }
     }
 
@@ -109,7 +133,8 @@ class AdviserEventsController {
             return;
         }
 
-        $tasks = $this->memberTasksModel->readByEventId($event_id);
+        $organization_id = isset($_GET['organization_id']) && $_GET['organization_id'] !== '' ? intval($_GET['organization_id']) : null;
+        $tasks = $this->memberTasksModel->readByEventId($event_id, $organization_id);
 
         if ($tasks !== false) {
             http_response_code(200);
@@ -340,7 +365,14 @@ class AdviserEventsController {
             return;
         }
 
-        $result = $this->memberTasksModel->updateStatus($id, $data['status']);
+        $validStatuses = ['pending', 'completed', 'not_completed', 'not_finished'];
+        if (!in_array($data['status'], $validStatuses)) {
+            http_response_code(400);
+            echo json_encode(['message' => 'Invalid status']);
+            return;
+        }
+
+        $result = $this->memberTasksModel->updateStatus($id, $data['status'], 'adviser');
 
         if ($result) {
             http_response_code(200);
@@ -348,6 +380,30 @@ class AdviserEventsController {
         } else {
             http_response_code(500);
             echo json_encode(['message' => 'Failed to update task status']);
+        }
+    }
+
+    public function voidTask($id) {
+        header('Content-Type: application/json');
+        
+        $adviserId = $this->getAdviserIdFromToken();
+        if (!$adviserId) {
+            http_response_code(401);
+            echo json_encode(['message' => 'Unauthorized']);
+            return;
+        }
+
+        $data = json_decode(file_get_contents('php://input'), true);
+        $reason = $data['reason'] ?? 'Voided by adviser';
+
+        $result = $this->memberTasksModel->voidTask($id, $adviserId, $reason);
+
+        if ($result) {
+            http_response_code(200);
+            echo json_encode(['message' => 'Student task marking voided successfully']);
+        } else {
+            http_response_code(500);
+            echo json_encode(['message' => 'Failed to void task marking']);
         }
     }
 
@@ -401,7 +457,7 @@ class AdviserEventsController {
             return;
         }
 
-        $result = $this->memberTasksModel->updateScheduleStatus($schedule_id, $data['status']);
+        $result = $this->memberTasksModel->updateScheduleStatus($schedule_id, $data['status'], 'adviser');
 
         if ($result) {
             http_response_code(200);
@@ -409,6 +465,30 @@ class AdviserEventsController {
         } else {
             http_response_code(500);
             echo json_encode(['message' => 'Failed to update schedule status']);
+        }
+    }
+
+    public function voidSchedule($schedule_id) {
+        header('Content-Type: application/json');
+        
+        $adviserId = $this->getAdviserIdFromToken();
+        if (!$adviserId) {
+            http_response_code(401);
+            echo json_encode(['message' => 'Unauthorized']);
+            return;
+        }
+
+        $data = json_decode(file_get_contents('php://input'), true);
+        $reason = $data['reason'] ?? 'Voided by adviser';
+
+        $result = $this->memberTasksModel->voidScheduleStatus($schedule_id, $adviserId, $reason);
+
+        if ($result) {
+            http_response_code(200);
+            echo json_encode(['message' => 'Student schedule marking voided successfully']);
+        } else {
+            http_response_code(500);
+            echo json_encode(['message' => 'Failed to void schedule marking']);
         }
     }
 
@@ -501,6 +581,26 @@ class AdviserEventsController {
                 ? $studentData['daily_schedules'] 
                 : [];
 
+            if (empty($dailySchedules) && !empty($studentStartDate) && !empty($studentEndDate)) {
+                try {
+                    $stStart = new DateTime($studentStartDate);
+                    $stEnd = new DateTime($studentEndDate);
+                    if ($stStart > $stEnd) $stEnd = clone $stStart;
+                    $stEnd->modify('+1 day');
+                    $period = new DatePeriod($stStart, new DateInterval('P1D'), $stEnd);
+                    $dIdx = 1;
+                    foreach ($period as $dt) {
+                        $dailySchedules[] = [
+                            'day_number' => $dIdx++,
+                            'date' => $dt->format('Y-m-d'),
+                            'start_time' => '09:00:00',
+                            'end_time' => '17:00:00',
+                            'status' => 'pending'
+                        ];
+                    }
+                } catch (Exception $e) {}
+            }
+
             if (isset($existingByStudent[$sId])) {
                 $taskId = intval($existingByStudent[$sId]['id']);
                 $updateData = [
@@ -518,15 +618,21 @@ class AdviserEventsController {
                 ];
                 $this->memberTasksModel->update($taskId, $updateData);
                 $this->memberTasksModel->deleteDailySchedulesByTaskId($taskId);
+                $dayNum = 1;
                 foreach ($dailySchedules as $sch) {
+                    $sDate = $sch['date'] ?? $sch['schedule_date'] ?? null;
+                    $sStart = !empty($sch['start_time']) ? (strlen($sch['start_time']) === 5 ? $sch['start_time'] . ':00' : $sch['start_time']) : '09:00:00';
+                    $sEnd = !empty($sch['end_time']) ? (strlen($sch['end_time']) === 5 ? $sch['end_time'] . ':00' : $sch['end_time']) : '17:00:00';
                     $this->memberTasksModel->createDailySchedule([
                         'task_id' => $taskId,
                         'student_id' => $sId,
-                        'schedule_date' => $sch['date'] ?? null,
-                        'start_time' => $sch['start_time'] ?? null,
-                        'end_time' => $sch['end_time'] ?? null,
+                        'day_number' => isset($sch['day_number']) && $sch['day_number'] !== null ? intval($sch['day_number']) : $dayNum,
+                        'schedule_date' => $sDate,
+                        'start_time' => $sStart,
+                        'end_time' => $sEnd,
                         'status' => $sch['status'] ?? 'pending'
                     ]);
+                    $dayNum++;
                 }
 
                 unset($existingByStudent[$sId]);
@@ -556,15 +662,21 @@ class AdviserEventsController {
                     $this->memberTasksModel->update($reusedTaskId, $updateData);
 
                     $this->memberTasksModel->deleteDailySchedulesByTaskId($reusedTaskId);
+                    $dayNum = 1;
                     foreach ($dailySchedules as $sch) {
+                        $sDate = $sch['date'] ?? $sch['schedule_date'] ?? null;
+                        $sStart = !empty($sch['start_time']) ? (strlen($sch['start_time']) === 5 ? $sch['start_time'] . ':00' : $sch['start_time']) : '09:00:00';
+                        $sEnd = !empty($sch['end_time']) ? (strlen($sch['end_time']) === 5 ? $sch['end_time'] . ':00' : $sch['end_time']) : '17:00:00';
                         $this->memberTasksModel->createDailySchedule([
                             'task_id' => $reusedTaskId,
                             'student_id' => $sId,
-                            'schedule_date' => $sch['date'] ?? null,
-                            'start_time' => $sch['start_time'] ?? null,
-                            'end_time' => $sch['end_time'] ?? null,
+                            'day_number' => isset($sch['day_number']) && $sch['day_number'] !== null ? intval($sch['day_number']) : $dayNum,
+                            'schedule_date' => $sDate,
+                            'start_time' => $sStart,
+                            'end_time' => $sEnd,
                             'status' => $sch['status'] ?? 'pending'
                         ]);
+                        $dayNum++;
                     }
                 } else {
                     $createData = [
@@ -581,15 +693,21 @@ class AdviserEventsController {
                     ];
                     $newTaskId = $this->memberTasksModel->create($createData);
                     if ($newTaskId) {
+                        $dayNum = 1;
                         foreach ($dailySchedules as $sch) {
+                            $sDate = $sch['date'] ?? $sch['schedule_date'] ?? null;
+                            $sStart = !empty($sch['start_time']) ? (strlen($sch['start_time']) === 5 ? $sch['start_time'] . ':00' : $sch['start_time']) : '09:00:00';
+                            $sEnd = !empty($sch['end_time']) ? (strlen($sch['end_time']) === 5 ? $sch['end_time'] . ':00' : $sch['end_time']) : '17:00:00';
                             $this->memberTasksModel->createDailySchedule([
                                 'task_id' => $newTaskId,
                                 'student_id' => $sId,
-                                'schedule_date' => $sch['date'] ?? null,
-                                'start_time' => $sch['start_time'] ?? null,
-                                'end_time' => $sch['end_time'] ?? null,
+                                'day_number' => isset($sch['day_number']) && $sch['day_number'] !== null ? intval($sch['day_number']) : $dayNum,
+                                'schedule_date' => $sDate,
+                                'start_time' => $sStart,
+                                'end_time' => $sEnd,
                                 'status' => $sch['status'] ?? 'pending'
                             ]);
+                            $dayNum++;
                         }
                     }
                 }

@@ -10,9 +10,6 @@ class HelloController {
         $this->helloModel = new HelloModel();
     }
 
-    /**
-     * Display a listing of the resource.
-     */
     public function index() {
         header('Content-Type: application/json');
 
@@ -36,9 +33,6 @@ class HelloController {
         }
     }
 
-    /**
-     * Store a newly created resource in storage.
-     */
     public function store() {
         header('Content-Type: application/json');
 
@@ -70,9 +64,6 @@ class HelloController {
         }
     }
 
-    /**
-     * Display the specified resource.
-     */
     public function show($id) {
         header('Content-Type: application/json');
 
@@ -96,9 +87,6 @@ class HelloController {
         }
     }
 
-    /**
-     * Update the specified resource in storage.
-     */
     public function update($id) {
         header('Content-Type: application/json');
 
@@ -130,9 +118,6 @@ class HelloController {
         }
     }
 
-    /**
-     * Remove the specified resource from storage.
-     */
     public function destroy($id) {
         header('Content-Type: application/json');
 

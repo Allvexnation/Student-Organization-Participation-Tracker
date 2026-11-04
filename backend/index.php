@@ -28,7 +28,15 @@ require_once __DIR__ . '/routes/EventsRoutes.php';
 require_once __DIR__ . '/routes/EventRegistrationsRoutes.php';
 require_once __DIR__ . '/routes/EventOrganizationsRoutes.php';
 require_once __DIR__ . '/routes/OrganizationMembershipsRoutes.php';
+require_once __DIR__ . '/routes/AuditLogs/AuditLogsRoutes.php';
+require_once __DIR__ . '/routes/AuditLogs/AdviserAuditLogsRoutes.php';
+require_once __DIR__ . '/routes/AuditLogs/StudentAuditLogsRoutes.php';
 require_once __DIR__ . '/routes/web/UpdatesRoutes.php';
+require_once __DIR__ . '/routes/web/BannedRoutes.php';
+require_once __DIR__ . '/routes/web/StatisticsRoutes.php';
+require_once __DIR__ . '/routes/web/WebAnalyticsRoutes.php';
+require_once __DIR__ . '/routes/Contacts/ContactsRoutes.php';
+require_once __DIR__ . '/routes/OAuthRoutes.php';
 
 $method = $_SERVER['REQUEST_METHOD'];
 $uri = $_SERVER['REQUEST_URI'];
@@ -64,19 +72,35 @@ $eventsRoutes = new EventsRoutes();
 $eventRegistrationsRoutes = new EventRegistrationsRoutes();
 $eventOrganizationsRoutes = new EventOrganizationsRoutes();
 $orgMembershipsRoutes = new OrganizationMembershipsRoutes();
+$auditLogsRoutes = new AuditLogsRoutes();
+$adviserAuditLogsRoutes = new AdviserAuditLogsRoutes();
+$studentAuditLogsRoutes = new StudentAuditLogsRoutes();
 $updatesRoutes = new UpdatesRoutes();
+$bannedRoutes = new BannedRoutes();
+$statisticsRoutes = new StatisticsRoutes();
+$webAnalyticsRoutes = new WebAnalyticsRoutes();
+$contactsRoutes = new ContactsRoutes();
+$oauthRoutes = new OAuthRoutes();
 
-if (strpos($uri, '/api/session') === 0) {
+if (strpos($uri, '/api/oauth') === 0) {
+    $oauthRoutes->handle($method, $uri);
+} elseif (strpos($uri, '/api/audit-logs') === 0) {
+    $auditLogsRoutes->handle($method, $uri);
+} elseif (strpos($uri, '/api/adviser-audit-logs') === 0) {
+    $adviserAuditLogsRoutes->handle($method, $uri);
+} elseif (strpos($uri, '/api/student-audit-logs') === 0) {
+    $studentAuditLogsRoutes->handle($method, $uri);
+} elseif (strpos($uri, '/api/session') === 0) {
     $sessionRoutes->handle($method, $uri);
 } elseif (strpos($uri, '/api/adviser/dashboard') === 0) {
     $adviserRoutes->handle($method, $uri);
 } elseif (strpos($uri, '/api/adviser/attendance') === 0) {
     $attendanceRoutes->handle($method, $uri);
-} elseif (strpos($uri, '/api/adviser/registered-events') === 0 || strpos($uri, '/api/adviser/organizations-by-event') === 0 || strpos($uri, '/api/adviser/tasks') === 0 || strpos($uri, '/api/adviser/schedule-status') === 0) {
+} elseif (strpos($uri, '/api/adviser/registered-events') === 0 || strpos($uri, '/api/adviser/organizations-by-event') === 0 || strpos($uri, '/api/adviser/events') === 0 || strpos($uri, '/api/adviser/tasks') === 0 || strpos($uri, '/api/adviser/schedule-status') === 0) {
     $adviserTasksRoutes->handle($method, $uri);
 } elseif (strpos($uri, '/api/adviser/organization') === 0 || strpos($uri, '/api/adviser/organizations') === 0 || strpos($uri, '/api/adviser/current-organization') === 0 || strpos($uri, '/api/adviser/organization-memberships') === 0) {
     $adviserOrganizationRoutes->handle($method, $uri);
-} elseif (strpos($uri, '/api/adviser/auth') === 0 || strpos($uri, '/api/adviser/login') === 0 || strpos($uri, '/api/adviser/logout') === 0 || strpos($uri, '/api/adviser/verify') === 0 || strpos($uri, '/api/adviser/forgot-password') === 0 || strpos($uri, '/api/adviser/verify-otp') === 0 || strpos($uri, '/api/adviser/reset-password') === 0 || strpos($uri, '/api/adviser/profile') === 0) {
+} elseif (strpos($uri, '/api/adviser/auth') === 0 || strpos($uri, '/api/adviser/login') === 0 || strpos($uri, '/api/adviser/lookup') === 0 || strpos($uri, '/api/adviser/logout') === 0 || strpos($uri, '/api/adviser/verify') === 0 || strpos($uri, '/api/adviser/forgot-password') === 0 || strpos($uri, '/api/adviser/verify-otp') === 0 || strpos($uri, '/api/adviser/reset-password') === 0 || strpos($uri, '/api/adviser/profile') === 0) {
     $adviserAuthRoutes->handle($method, $uri);
 } elseif (strpos($uri, '/api/student/tasks') === 0 || strpos($uri, '/api/student/schedule-status') === 0) {
     $eventTaskRoutes->handle($method, $uri);
@@ -86,6 +110,8 @@ if (strpos($uri, '/api/session') === 0) {
     $studentAuthRoutes->handle($method, $uri);
 } elseif (strpos($uri, '/api/admin/advisers') === 0) {
     $adviserRoutes->handle($method, $uri);
+} elseif (strpos($uri, '/api/admin/admins') === 0) {
+    $adminRoutes->handle($method, $uri);
 } elseif (strpos($uri, '/api/admin/roles') === 0) {
     $roleRoutes->handle($method, $uri);
 } elseif (strpos($uri, '/api/admin/students') === 0) {
@@ -100,8 +126,21 @@ if (strpos($uri, '/api/session') === 0) {
     $eventOrganizationsRoutes->handle($method, $uri);
 } elseif (strpos($uri, '/api/admin/organization-memberships') === 0) {
     $orgMembershipsRoutes->handle($method, $uri);
+} elseif (strpos($uri, '/api/web/events') === 0) {
+    $eventsRoutes->handle($method, $uri);
 } elseif (strpos($uri, '/api/web/updates') === 0) {
     $updatesRoutes->handle($method, $uri);
-} else {
+} elseif (strpos($uri, '/api/web/ban') === 0) {
+    $bannedRoutes->handle($method, $uri);
+} elseif (strpos($uri, '/api/web/statistics') === 0) {
+    $statisticsRoutes->handle($method, $uri);
+} elseif (strpos($uri, '/api/web/analytics') === 0) {
+    $webAnalyticsRoutes->handle($method, $uri);
+} elseif (strpos($uri, '/api/contacts') === 0) {
+    $contactsRoutes->handle($method, $uri);
+} elseif (strpos($uri, '/api/admin') === 0) {
     $adminRoutes->handle($method, $uri);
+} else {
+    http_response_code(404);
+    echo json_encode(['message' => 'Route not found']);
 }

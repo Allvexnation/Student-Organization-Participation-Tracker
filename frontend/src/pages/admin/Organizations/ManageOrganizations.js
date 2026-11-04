@@ -8,6 +8,8 @@ import { openConfirmDialog } from '../../../components/Dialog/ConfirmDialog.js';
 import { showToast } from '../../../components/ToastMessage.js';
 import { CrudMenu } from '../../../components/CrudMenu.js';
 import { skeletonTableRows } from '../../../components/SkeletonLoading.js';
+import { logChange } from '../../../api/AuditLogs/AuditLogs.js';
+import { getUserId, getUserData } from '../../../utils/jwt.js';
 
 export function ManageOrganizations() {
     return `
@@ -167,9 +169,48 @@ export async function initManageOrganizations() {
             mode: 'add',
             onSubmit: async (id, data) => {
                 if (id) {
+                    const oldOrg = await OrganizationsAPI.getOrganization(id);
                     await OrganizationsAPI.updateOrganization(id, data);
+                    const user = getUserData('admin');
+                    
+                    const fields = ['org_code', 'name', 'description', 'adviser_id', 'status'];
+                    for (const field of fields) {
+                        if (oldOrg[field] !== data[field]) {
+                            let oldValue = oldOrg[field] || null;
+                            let newValue = data[field] || null;
+                            
+                            if (field === 'adviser_id') {
+                                oldValue = oldOrg.adviser || oldOrg[field] || 'Unknown';
+                                newValue = data.adviser || data[field] || 'Unknown';
+                            }
+                            
+                            await logChange({
+                                user_id: getUserId('admin'),
+                                user_type: 'admin',
+                                user_name: user?.name || user?.email || 'Unknown',
+                                action: 'UPDATE',
+                                table_name: 'organizations',
+                                record_id: id,
+                                field_name: field,
+                                old_value: oldValue,
+                                new_value: newValue
+                            });
+                        }
+                    }
                 } else {
-                    await OrganizationsAPI.createOrganization(data);
+                    const result = await OrganizationsAPI.createOrganization(data);
+                    const user = getUserData('admin');
+                    await logChange({
+                        user_id: getUserId('admin'),
+                        user_type: 'admin',
+                        user_name: user?.name || user?.email || 'Unknown',
+                        action: 'CREATE',
+                        table_name: 'organizations',
+                        record_id: result?.id || null,
+                        field_name: 'organization_name',
+                        old_value: null,
+                        new_value: data.name
+                    });
                 }
                 loadOrganizations(true);
             }
@@ -181,7 +222,34 @@ export async function initManageOrganizations() {
             mode: 'edit',
             organizationId: id,
             onSubmit: async (id, data) => {
+                const oldOrg = await OrganizationsAPI.getOrganization(id);
                 await OrganizationsAPI.updateOrganization(id, data);
+                const user = getUserData('admin');
+                
+                const fields = ['org_code', 'name', 'description', 'adviser_id', 'status'];
+                for (const field of fields) {
+                    if (oldOrg[field] !== data[field]) {
+                        let oldValue = oldOrg[field] || null;
+                        let newValue = data[field] || null;
+                        
+                        if (field === 'adviser_id') {
+                            oldValue = oldOrg.adviser || oldOrg[field] || 'Unknown';
+                            newValue = data.adviser || data[field] || 'Unknown';
+                        }
+                        
+                        await logChange({
+                            user_id: getUserId('admin'),
+                            user_type: 'admin',
+                            user_name: user?.name || user?.email || 'Unknown',
+                            action: 'UPDATE',
+                            table_name: 'organizations',
+                            record_id: id,
+                            field_name: field,
+                            old_value: oldValue,
+                            new_value: newValue
+                        });
+                    }
+                }
                 loadOrganizations(true);
             }
         });
@@ -201,6 +269,18 @@ export async function initManageOrganizations() {
             onConfirm: async () => {
                 try {
                     await OrganizationsAPI.deleteOrganization(id);
+                    const user = getUserData('admin');
+                    await logChange({
+                        user_id: getUserId('admin'),
+                        user_type: 'admin',
+                        user_name: user?.name || user?.email || 'Unknown',
+                        action: 'DELETE',
+                        table_name: 'organizations',
+                        record_id: id,
+                        field_name: 'organization_name',
+                        old_value: deleteLabel || 'Unknown',
+                        new_value: null
+                    });
                     loadOrganizations(true);
                     showToast('Organization deleted successfully', 'success');
                 } catch (error) {

@@ -376,6 +376,7 @@ function updateWebsite($backendDir) {
     echo "  \033[0;33m1.\033[0m Closable (modal popup with dismiss on other pages)\n";
     echo "  \033[0;33m2.\033[0m Not closable (locks system, redirects to /updates full page)\n";
     echo "  \033[0;33m3.\033[0m Show once (modal popup shown once per user on other pages)\n";
+    echo "  \033[0;33m4.\033[0m Not openable (no redirect or modal, just shows in updates page)\n";
     echo "\n";
     echo "\033[1;34mChoice:\033[0m ";
     $closableChoice = trim(fgets(STDIN));
@@ -390,6 +391,9 @@ function updateWebsite($backendDir) {
             break;
         case '3':
             $closableType = "show_once";
+            break;
+        case '4':
+            $closableType = "not_openable";
             break;
         default:
             showWarning("Defaulting to closable.");
@@ -708,6 +712,7 @@ function editUpdate($backendDir) {
         echo "  \033[0;33m1.\033[0m Closable (user can close modal)\n";
         echo "  \033[0;33m2.\033[0m Not closable (locks system, redirects to /updates)\n";
         echo "  \033[0;33m3.\033[0m Show once (show only once per user)\n";
+        echo "  \033[0;33m4.\033[0m Not openable (no redirect or modal, just shows in updates page)\n";
         echo "\033[1;34mChoice:\033[0m ";
         $closableChoice = trim(fgets(STDIN));
 
@@ -720,6 +725,9 @@ function editUpdate($backendDir) {
                 break;
             case '3':
                 $updateData['closable_type'] = "show_once";
+                break;
+            case '4':
+                $updateData['closable_type'] = "not_openable";
                 break;
         }
     } elseif ($editChoice === '9') {

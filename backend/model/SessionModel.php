@@ -21,8 +21,8 @@ class SessionModel {
             );
         }
         $query = "INSERT INTO " . $this->table_name . " 
-                  (user_id, user_type, token, expires_at, is_active, ip_address, user_agent, device_type, device_fingerprint, screen_resolution, browser, os, country, city, timezone) 
-                  VALUES (:user_id, :user_type, :token, :expires_at, :is_active, :ip_address, :user_agent, :device_type, :device_fingerprint, :screen_resolution, :browser, :os, :country, :city, :timezone)";
+                  (user_id, user_type, token, expires_at, is_active, ip_address, user_agent, device_type, device_fingerprint, screen_resolution, browser, os, country, city, timezone, auth_type) 
+                  VALUES (:user_id, :user_type, :token, :expires_at, :is_active, :ip_address, :user_agent, :device_type, :device_fingerprint, :screen_resolution, :browser, :os, :country, :city, :timezone, :auth_type)";
 
         try {
             $stmt = $this->conn->prepare($query);
@@ -42,6 +42,7 @@ class SessionModel {
             $stmt->bindParam(':country', $data['country']);
             $stmt->bindParam(':city', $data['city']);
             $stmt->bindParam(':timezone', $data['timezone']);
+            $stmt->bindParam(':auth_type', $data['auth_type']);
             
             if($stmt->execute()) {
                 return $this->conn->lastInsertId();
@@ -79,12 +80,11 @@ class SessionModel {
 
             if ($currentIp && !empty($session['ip_address'])) {
                 if ($currentIp !== $session['ip_address']) {
-                    error_log("IP address changed for session ID " . $session['id'] . 
-                              ". Previous: " . $session['ip_address'] . 
-                              ", Current: " . $currentIp . 
+                    error_log("IP address changed for session ID " . $session['id'] .
+                              ". Previous: " . $session['ip_address'] .
+                              ", Current: " . $currentIp .
                               ". Device fingerprint matched, allowing session.");
 
-                    $this->updateSessionIp($session['id'], $currentIp);
                 }
             }
             
@@ -125,7 +125,7 @@ class SessionModel {
             }
 
             if ($currentIp && !empty($session['ip_address']) && $currentIp !== $session['ip_address']) {
-                $this->updateSessionIp($session['id'], $currentIp);
+
             }
 
             return $session;
@@ -272,7 +272,7 @@ class SessionModel {
     }
 
     public function cleanupExpiredSessions() {
-        $query = "DELETE FROM " . $this->table_name . " 
+        $query = "DELETE FROM " . $this->table_name . "
                   WHERE expires_at < NOW()";
 
         try {
@@ -281,6 +281,133 @@ class SessionModel {
             return $stmt->rowCount();
         } catch(PDOException $e) {
             error_log("Error cleaning up expired sessions: " . $e->getMessage());
+            return false;
+        }
+    }
+
+    public function moveToInactive($userId, $userType) {
+        try {
+            $this->conn->beginTransaction();
+
+            $selectQuery = "SELECT * FROM " . $this->table_name . "
+                           WHERE user_id = :user_id
+                           AND user_type = :user_type
+                           AND is_active = 1";
+
+            $stmt = $this->conn->prepare($selectQuery);
+            $stmt->bindParam(':user_id', $userId);
+            $stmt->bindParam(':user_type', $userType);
+            $stmt->execute();
+            $sessions = $stmt->fetchAll(PDO::FETCH_ASSOC);
+
+            if (!empty($sessions)) {
+                $insertQuery = "INSERT INTO inactive_sessions
+                               (user_id, user_type, token, expires_at, is_active, ip_address, user_agent, device_type, device_fingerprint, screen_resolution, browser, os, country, city, timezone, auth_type, created_at, updated_at)
+                               VALUES
+                               (:user_id, :user_type, :token, :expires_at, :is_active, :ip_address, :user_agent, :device_type, :device_fingerprint, :screen_resolution, :browser, :os, :country, :city, :timezone, :auth_type, :created_at, :updated_at)";
+
+                $insertStmt = $this->conn->prepare($insertQuery);
+
+                foreach ($sessions as $session) {
+                    $insertStmt->bindParam(':user_id', $session['user_id']);
+                    $insertStmt->bindParam(':user_type', $session['user_type']);
+                    $insertStmt->bindParam(':token', $session['token']);
+                    $insertStmt->bindParam(':expires_at', $session['expires_at']);
+                    $insertStmt->bindParam(':is_active', $session['is_active']);
+                    $insertStmt->bindParam(':ip_address', $session['ip_address']);
+                    $insertStmt->bindParam(':user_agent', $session['user_agent']);
+                    $insertStmt->bindParam(':device_type', $session['device_type']);
+                    $insertStmt->bindParam(':device_fingerprint', $session['device_fingerprint']);
+                    $insertStmt->bindParam(':screen_resolution', $session['screen_resolution']);
+                    $insertStmt->bindParam(':browser', $session['browser']);
+                    $insertStmt->bindParam(':os', $session['os']);
+                    $insertStmt->bindParam(':country', $session['country']);
+                    $insertStmt->bindParam(':city', $session['city']);
+                    $insertStmt->bindParam(':timezone', $session['timezone']);
+                    $insertStmt->bindParam(':auth_type', $session['auth_type'] ?? 'password');
+                    $insertStmt->bindParam(':created_at', $session['created_at']);
+                    $insertStmt->bindParam(':updated_at', $session['updated_at']);
+                    $insertStmt->execute();
+                }
+
+                $deleteQuery = "DELETE FROM " . $this->table_name . "
+                               WHERE user_id = :user_id
+                               AND user_type = :user_type";
+
+                $deleteStmt = $this->conn->prepare($deleteQuery);
+                $deleteStmt->bindParam(':user_id', $userId);
+                $deleteStmt->bindParam(':user_type', $userType);
+                $deleteStmt->execute();
+            }
+
+            $this->conn->commit();
+            return true;
+        } catch(PDOException $e) {
+            $this->conn->rollBack();
+            error_log("Error moving sessions to inactive: " . $e->getMessage());
+            return false;
+        }
+    }
+
+    public function restoreFromInactive($userId, $userType) {
+        try {
+            $this->conn->beginTransaction();
+
+            $selectQuery = "SELECT * FROM inactive_sessions
+                           WHERE user_id = :user_id
+                           AND user_type = :user_type";
+
+            $stmt = $this->conn->prepare($selectQuery);
+            $stmt->bindParam(':user_id', $userId);
+            $stmt->bindParam(':user_type', $userType);
+            $stmt->execute();
+            $sessions = $stmt->fetchAll(PDO::FETCH_ASSOC);
+
+            if (!empty($sessions)) {
+                $insertQuery = "INSERT INTO " . $this->table_name . "
+                               (user_id, user_type, token, expires_at, is_active, ip_address, user_agent, device_type, device_fingerprint, screen_resolution, browser, os, country, city, timezone, auth_type, created_at, updated_at)
+                               VALUES
+                               (:user_id, :user_type, :token, :expires_at, :is_active, :ip_address, :user_agent, :device_type, :device_fingerprint, :screen_resolution, :browser, :os, :country, :city, :timezone, :auth_type, :created_at, :updated_at)";
+
+                $insertStmt = $this->conn->prepare($insertQuery);
+
+                foreach ($sessions as $session) {
+                    $insertStmt->bindParam(':user_id', $session['user_id']);
+                    $insertStmt->bindParam(':user_type', $session['user_type']);
+                    $insertStmt->bindParam(':token', $session['token']);
+                    $insertStmt->bindParam(':expires_at', $session['expires_at']);
+                    $insertStmt->bindParam(':is_active', $session['is_active']);
+                    $insertStmt->bindParam(':ip_address', $session['ip_address']);
+                    $insertStmt->bindParam(':user_agent', $session['user_agent']);
+                    $insertStmt->bindParam(':device_type', $session['device_type']);
+                    $insertStmt->bindParam(':device_fingerprint', $session['device_fingerprint']);
+                    $insertStmt->bindParam(':screen_resolution', $session['screen_resolution']);
+                    $insertStmt->bindParam(':browser', $session['browser']);
+                    $insertStmt->bindParam(':os', $session['os']);
+                    $insertStmt->bindParam(':country', $session['country']);
+                    $insertStmt->bindParam(':city', $session['city']);
+                    $insertStmt->bindParam(':timezone', $session['timezone']);
+                    $insertStmt->bindParam(':auth_type', $session['auth_type'] ?? 'password');
+                    $insertStmt->bindParam(':created_at', $session['created_at']);
+                    $insertStmt->bindParam(':updated_at', $session['updated_at']);
+                    $insertStmt->execute();
+                }
+
+                $deleteQuery = "DELETE FROM inactive_sessions
+                               WHERE user_id = :user_id
+                               AND user_type = :user_type";
+
+                $deleteStmt = $this->conn->prepare($deleteQuery);
+                $deleteStmt->bindParam(':user_id', $userId);
+                $deleteStmt->bindParam(':user_type', $userType);
+                $deleteStmt->execute();
+            }
+
+            $this->conn->commit();
+            return true;
+        } catch(PDOException $e) {
+            $this->conn->rollBack();
+            error_log("Error restoring sessions from inactive: " . $e->getMessage());
             return false;
         }
     }

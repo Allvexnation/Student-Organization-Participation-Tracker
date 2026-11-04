@@ -8,6 +8,8 @@ import { openConfirmDialog } from '../../../components/Dialog/ConfirmDialog.js';
 import { showToast } from '../../../components/ToastMessage.js';
 import { CrudMenu } from '../../../components/CrudMenu.js';
 import { skeletonTableRows } from '../../../components/SkeletonLoading.js';
+import { logChange } from '../../../api/AuditLogs/AuditLogs.js';
+import { getUserId, getUserData } from '../../../utils/jwt.js';
 
 export function ManageEventRegist() {
     return `
@@ -165,9 +167,56 @@ export async function initManageEventRegist() {
             mode: 'add',
             onSubmit: async (id, data) => {
                 if (id) {
+                    const oldReg = await EventOrgAPI.getEventOrganization(id);
                     await EventOrgAPI.updateEventOrganization(id, data);
+                    const user = getUserData('admin');
+                    
+                    const fields = ['event_id', 'organization_id', 'approver_id', 'status'];
+                    for (const field of fields) {
+                        if (oldReg[field] !== data[field]) {
+                            let oldValue = oldReg[field] || null;
+                            let newValue = data[field] || null;
+                            
+                            if (field === 'event_id') {
+                                oldValue = oldReg.event_title || oldReg[field] || 'Unknown';
+                                newValue = data.event_title || data[field] || 'Unknown';
+                            }
+                            if (field === 'organization_id') {
+                                oldValue = oldReg.organization_name || oldReg[field] || 'Unknown';
+                                newValue = data.organization_name || data[field] || 'Unknown';
+                            }
+                            if (field === 'approver_id') {
+                                oldValue = oldReg.approver_name || oldReg[field] || 'Unknown';
+                                newValue = data.approver_name || data[field] || 'Unknown';
+                            }
+                            
+                            await logChange({
+                                user_id: getUserId('admin'),
+                                user_type: 'admin',
+                                user_name: user?.name || user?.email || 'Unknown',
+                                action: 'UPDATE',
+                                table_name: 'event_organizations',
+                                record_id: id,
+                                field_name: field,
+                                old_value: oldValue,
+                                new_value: newValue
+                            });
+                        }
+                    }
                 } else {
-                    await EventOrgAPI.createEventOrganization(data);
+                    const result = await EventOrgAPI.createEventOrganization(data);
+                    const user = getUserData('admin');
+                    await logChange({
+                        user_id: getUserId('admin'),
+                        user_type: 'admin',
+                        user_name: user?.name || user?.email || 'Unknown',
+                        action: 'CREATE',
+                        table_name: 'event_organizations',
+                        record_id: result?.ids?.[0] || result?.id || null,
+                        field_name: 'event_registration',
+                        old_value: null,
+                        new_value: `${data.event_title || data.event_id}: ${data.organization_names ? data.organization_names.join(', ') : (data.organization_name || 'Organizations')}`
+                    });
                 }
                 loadEventRegistrations(true);
             }
@@ -179,7 +228,42 @@ export async function initManageEventRegist() {
             mode: 'edit',
             registrationId: id,
             onSubmit: async (id, data) => {
+                const oldReg = await EventOrgAPI.getEventOrganization(id);
                 await EventOrgAPI.updateEventOrganization(id, data);
+                const user = getUserData('admin');
+                
+                const fields = ['event_id', 'organization_id', 'approver_id', 'status'];
+                for (const field of fields) {
+                    if (oldReg[field] !== data[field]) {
+                        let oldValue = oldReg[field] || null;
+                        let newValue = data[field] || null;
+                        
+                        if (field === 'event_id') {
+                            oldValue = oldReg.event_title || oldReg[field] || 'Unknown';
+                            newValue = data.event_title || data[field] || 'Unknown';
+                        }
+                        if (field === 'organization_id') {
+                            oldValue = oldReg.organization_name || oldReg[field] || 'Unknown';
+                            newValue = data.organization_name || data[field] || 'Unknown';
+                        }
+                        if (field === 'approver_id') {
+                            oldValue = oldReg.approver_name || oldReg[field] || 'Unknown';
+                            newValue = data.approver_name || data[field] || 'Unknown';
+                        }
+                        
+                        await logChange({
+                            user_id: getUserId('admin'),
+                            user_type: 'admin',
+                            user_name: user?.name || user?.email || 'Unknown',
+                            action: 'UPDATE',
+                            table_name: 'event_organizations',
+                            record_id: id,
+                            field_name: field,
+                            old_value: oldValue,
+                            new_value: newValue
+                        });
+                    }
+                }
                 loadEventRegistrations(true);
             }
         });
@@ -199,6 +283,18 @@ export async function initManageEventRegist() {
             onConfirm: async () => {
                 try {
                     await EventOrgAPI.deleteEventOrganization(id);
+                    const user = getUserData('admin');
+                    await logChange({
+                        user_id: getUserId('admin'),
+                        user_type: 'admin',
+                        user_name: user?.name || user?.email || 'Unknown',
+                        action: 'DELETE',
+                        table_name: 'event_organizations',
+                        record_id: id,
+                        field_name: 'event_registration',
+                        old_value: deleteLabel || 'Unknown',
+                        new_value: null
+                    });
                     loadEventRegistrations(true);
                     showToast('Event registration deleted successfully', 'success');
                 } catch (error) {

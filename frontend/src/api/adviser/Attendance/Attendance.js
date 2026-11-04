@@ -31,12 +31,15 @@ export async function getAttendanceEvents() {
     }
 }
 
-export async function getAttendanceByEvent(eventId, date = null) {
+export async function getAttendanceByEvent(eventId, date = null, organizationId = null) {
     try {
         let url = API_ROUTES.ADVISER.ATTENDANCE_BY_EVENT(eventId);
-        if (date) {
-            url += `?date=${encodeURIComponent(date)}`;
-        }
+        const params = new URLSearchParams();
+        if (date) params.set('date', date);
+        if (organizationId) params.set('organization_id', organizationId);
+        const query = params.toString();
+        if (query) url += `?${query}`;
+
         const response = await fetch(url, {
             method: 'GET',
             headers: await getHeaders()

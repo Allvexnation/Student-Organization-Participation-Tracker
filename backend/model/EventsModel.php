@@ -16,8 +16,8 @@ class EventsModel {
 
     public function create($data) {
         $query = "INSERT INTO " . $this->table_name . " 
-                  (title, description, event_day_start, event_day_end, venue, event_category, organization_id) 
-                  VALUES (:title, :description, :event_day_start, :event_day_end, :venue, :event_category, :organization_id)";
+                  (title, description, event_day_start, event_day_end, venue, event_category) 
+                  VALUES (:title, :description, :event_day_start, :event_day_end, :venue, :event_category)";
 
         try {
             $this->conn->beginTransaction();
@@ -30,8 +30,6 @@ class EventsModel {
             $stmt->bindParam(':event_day_end', $data['event_day_end']);
             $stmt->bindParam(':venue', $data['venue']);
             $stmt->bindParam(':event_category', $data['event_category']);
-            $orgId = isset($data['organization_ids']) && is_array($data['organization_ids']) && !empty($data['organization_ids']) ? $data['organization_ids'][0] : null;
-            $stmt->bindParam(':organization_id', $orgId);
             
             if($stmt->execute()) {
                 $eventId = $this->conn->lastInsertId();
@@ -66,10 +64,8 @@ class EventsModel {
             return false;
         }
 
-        $query = "SELECT e.id, e.title, e.description, e.event_day_start, e.event_day_end, e.venue, e.event_category, e.organization_id, e.updated_at, e.created_at,
-                  o.name as organization_name
+        $query = "SELECT e.id, e.title, e.description, e.event_day_start, e.event_day_end, e.venue, e.event_category, e.updated_at, e.created_at
                   FROM " . $this->table_name . " e
-                  LEFT JOIN organizations o ON e.organization_id = o.id
                   ORDER BY e.event_day_start DESC";
 
         try {
@@ -105,10 +101,8 @@ class EventsModel {
     }
 
     public function readOne($id) {
-        $query = "SELECT e.id, e.title, e.description, e.event_day_start, e.event_day_end, e.venue, e.event_category, e.organization_id, e.updated_at, e.created_at,
-                  o.name as organization_name
+        $query = "SELECT e.id, e.title, e.description, e.event_day_start, e.event_day_end, e.venue, e.event_category, e.updated_at, e.created_at
                   FROM " . $this->table_name . " e
-                  LEFT JOIN organizations o ON e.organization_id = o.id
                   WHERE e.id = :id 
                   LIMIT 0,1";
 
@@ -123,7 +117,30 @@ class EventsModel {
                 $scheduleStmt = $this->conn->prepare($scheduleQuery);
                 $scheduleStmt->bindParam(':event_id', $id);
                 $scheduleStmt->execute();
-                $result['daily_schedules'] = $scheduleStmt->fetchAll(PDO::FETCH_ASSOC);
+                $schedules = $scheduleStmt->fetchAll(PDO::FETCH_ASSOC);
+
+                if (empty($schedules) && !empty($result['event_day_start']) && !empty($result['event_day_end'])) {
+                    try {
+                        $start = new DateTime($result['event_day_start']);
+                        $end = new DateTime($result['event_day_end']);
+                        $end->modify('+1 day');
+                        $period = new DatePeriod($start, new DateInterval('P1D'), $end);
+
+                        $generated = [];
+                        foreach ($period as $dt) {
+                            $generated[] = [
+                                'schedule_date' => $dt->format('Y-m-d'),
+                                'start_time' => '08:00:00',
+                                'end_time' => '17:00:00'
+                            ];
+                        }
+                        $schedules = $generated;
+                    } catch (Exception $e) {
+
+                    }
+                }
+
+                $result['daily_schedules'] = $schedules;
             }
             
             return $result;
@@ -140,8 +157,7 @@ class EventsModel {
                       event_day_start = :event_day_start,
                       event_day_end = :event_day_end,
                       venue = :venue,
-                      event_category = :event_category,
-                      organization_id = :organization_id
+                      event_category = :event_category
                   WHERE id = :id";
 
         try {
@@ -155,8 +171,6 @@ class EventsModel {
             $stmt->bindParam(':event_day_end', $data['event_day_end']);
             $stmt->bindParam(':venue', $data['venue']);
             $stmt->bindParam(':event_category', $data['event_category']);
-            $orgId = isset($data['organization_ids']) && is_array($data['organization_ids']) && !empty($data['organization_ids']) ? $data['organization_ids'][0] : null;
-            $stmt->bindParam(':organization_id', $orgId);
             $stmt->bindParam(':id', $id);
             
             if($stmt->execute()) {
@@ -216,11 +230,12 @@ class EventsModel {
     }
 
     public function getByOrganizationId($organizationId) {
-        $query = "SELECT e.id, e.title, e.description, e.event_day_start, e.event_day_end, e.venue, e.event_category, e.organization_id, e.updated_at, e.created_at,
+        $query = "SELECT DISTINCT e.id, e.title, e.description, e.event_day_start, e.event_day_end, e.venue, e.event_category, e.updated_at, e.created_at,
                   o.name as organization_name
                   FROM " . $this->table_name . " e
-                  LEFT JOIN organizations o ON e.organization_id = o.id
-                  WHERE e.organization_id = :organization_id
+                  INNER JOIN event_organizations eo ON eo.event_id = e.id
+                  INNER JOIN organizations o ON eo.organization_id = o.id
+                  WHERE eo.organization_id = :organization_id
                   ORDER BY e.event_day_start DESC";
 
         try {
@@ -232,6 +247,107 @@ class EventsModel {
             return $results;
         } catch(PDOException $e) {
             error_log("Error reading events by organization: " . $e->getMessage());
+            return false;
+        }
+    }
+
+    public function readPublicRegistered() {
+        if (!$this->conn) {
+            error_log("Database connection is null");
+            return false;
+        }
+
+        $query = "SELECT DISTINCT e.id, e.title, e.description, e.event_day_start, e.event_day_end, e.venue, e.event_category
+                  FROM " . $this->table_name . " e
+                  INNER JOIN event_organizations eo ON eo.event_id = e.id
+                  ORDER BY e.event_day_start DESC";
+
+        try {
+            $stmt = $this->conn->prepare($query);
+            $stmt->execute();
+            $results = $stmt->fetchAll(PDO::FETCH_ASSOC);
+
+            if (empty($results)) {
+                return $results;
+            }
+
+            $eventIds = array_column($results, 'id');
+            $placeholders = implode(',', array_fill(0, count($eventIds), '?'));
+
+            $scheduleQuery = "SELECT event_id, schedule_date, start_time, end_time
+                              FROM event_daily_schedules
+                              WHERE event_id IN ($placeholders)
+                              ORDER BY schedule_date, start_time";
+            $scheduleStmt = $this->conn->prepare($scheduleQuery);
+            $scheduleStmt->execute($eventIds);
+            $schedules = $scheduleStmt->fetchAll(PDO::FETCH_ASSOC);
+
+            $schedulesByEvent = [];
+            foreach ($schedules as $sched) {
+                $eid = $sched['event_id'];
+                unset($sched['event_id']);
+                $schedulesByEvent[$eid][] = $sched;
+            }
+
+            $orgQuery = "SELECT eo.event_id, o.name AS organization_name
+                         FROM event_organizations eo
+                         INNER JOIN organizations o ON o.id = eo.organization_id
+                         WHERE eo.event_id IN ($placeholders)
+                         ORDER BY o.name";
+            $orgStmt = $this->conn->prepare($orgQuery);
+            $orgStmt->execute($eventIds);
+            $organizations = $orgStmt->fetchAll(PDO::FETCH_ASSOC);
+
+            $orgsByEvent = [];
+            foreach ($organizations as $org) {
+                $eid = $org['event_id'];
+                $name = $org['organization_name'];
+                if (!$name) {
+                    continue;
+                }
+                if (!isset($orgsByEvent[$eid])) {
+                    $orgsByEvent[$eid] = [];
+                }
+                if (!in_array($name, $orgsByEvent[$eid], true)) {
+                    $orgsByEvent[$eid][] = $name;
+                }
+            }
+
+            foreach ($results as &$event) {
+                $event['daily_schedules'] = $schedulesByEvent[$event['id']] ?? [];
+                $event['organizations'] = $orgsByEvent[$event['id']] ?? [];
+            }
+            unset($event);
+
+            return $results;
+        } catch (PDOException $e) {
+            error_log("Error reading public registered events: " . $e->getMessage());
+            return false;
+        }
+    }
+
+    public function getUpcomingEvents() {
+        if (!$this->conn) {
+            error_log("Database connection is null");
+            return false;
+        }
+
+        $currentDate = date('Y-m-d');
+
+        $query = "SELECT e.id, e.title, e.description, e.event_day_start, e.event_day_end, e.venue, e.event_category, e.updated_at, e.created_at
+                  FROM " . $this->table_name . " e
+                  WHERE e.event_day_start >= :current_date
+                  ORDER BY e.event_day_start ASC";
+
+        try {
+            $stmt = $this->conn->prepare($query);
+            $stmt->bindParam(':current_date', $currentDate);
+            $stmt->execute();
+            $results = $stmt->fetchAll(PDO::FETCH_ASSOC);
+
+            return $results;
+        } catch(PDOException $e) {
+            error_log("Error reading upcoming events: " . $e->getMessage());
             return false;
         }
     }

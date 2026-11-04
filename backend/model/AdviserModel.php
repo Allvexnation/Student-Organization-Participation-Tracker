@@ -98,20 +98,33 @@ class AdviserModel {
                   LIMIT 0,1";
 
         try {
+            if (!$this->conn) {
+                error_log("Database connection is null in readOne");
+                return false;
+            }
+            
             $stmt = $this->conn->prepare($query);
             $stmt->bindParam(':id', $id);
             $stmt->execute();
             $result = $stmt->fetch(PDO::FETCH_ASSOC);
             
-            if ($result && isset($result['profile_photo']) && !empty($result['profile_photo'])) {
-                if (!str_starts_with($result['profile_photo'], 'data:')) {
-                    $result['profile_photo'] = 'data:image/jpeg;base64,' . base64_encode($result['profile_photo']);
+            if ($result) {
+
+                $result['organization_ids'] = [];
+                $result['student_ids'] = [];
+                
+                if (isset($result['profile_photo']) && !empty($result['profile_photo'])) {
+                    if (!str_starts_with($result['profile_photo'], 'data:')) {
+                        $result['profile_photo'] = 'data:image/jpeg;base64,' . base64_encode($result['profile_photo']);
+                    }
                 }
+            } else {
+                error_log("No adviser found with ID: " . $id);
             }
             
             return $result;
         } catch(PDOException $e) {
-            echo "Error reading adviser: " . $e->getMessage();
+            error_log("Error reading adviser: " . $e->getMessage());
             return false;
         }
     }

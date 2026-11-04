@@ -1,9 +1,10 @@
 import { openModal, closeModal, setModalButtonLoading } from '../../utils/modal.js';
 import { openConfirmDialog } from '../Dialog/ConfirmDialog.js';
-import { animateModalOpen, animateModalClose, clearModalAnimations, animateFormElements, clearFormAnimations, animateViewModalElements } from '../../provider/ModalAnimation.js';
+import { animateModalClose, clearModalAnimations } from '../../provider/ModalAnimation.js';
 import * as RolesAPI from '../../api/admin/roles/ManageRoles.js';
 import { showToast } from '../ToastMessage.js';
 import { skeletonRoleForm, skeletonRoleView } from '../SkeletonLoading.js';
+import { FIELD_CLASS, LABEL_CLASS, modalSection, modalActions, modalViewClose, modalDetailTile, modalBadge, modalHero, applyModalDomino } from './modalUi.js';
 
 export function openManageRolesModal({ mode = 'add', role = null, roleId = null, onSubmit }) {
     const isEdit = mode === 'edit';
@@ -11,48 +12,22 @@ export function openManageRolesModal({ mode = 'add', role = null, roleId = null,
     const buttonText = isEdit ? 'Save Changes' : 'Add Role';
 
     const formContent = `
-        <form id="roleForm" class="space-y-5">
+        <form id="roleForm" class="manage-modal-form space-y-4">
             ${isEdit ? `<input type="hidden" id="roleId" value="${role?.id || roleId || ''}">` : ''}
-
-            <fieldset>
-                <legend class="text-xs font-semibold text-gray-500 uppercase tracking-wider mb-3">Role Information</legend>
-                <div class="space-y-3">
-                    <div>
-                        <label for="roleName" class="block text-sm font-medium text-gray-700 mb-1">Role Name <span class="text-red-500">*</span></label>
-                        <input type="text" id="roleName" name="roleName" value="${isEdit && role ? role.role_name : ''}" required
-                            placeholder="e.g. Admin, Moderator, Member"
-                            class="w-full px-3 py-2 text-sm border border-gray-200 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-transparent transition">
-                    </div>
+            ${modalSection('Role Information', `
+                <div>
+                    <label for="roleName" class="${LABEL_CLASS}">Role Name <span class="text-red-500">*</span></label>
+                    <input type="text" id="roleName" name="roleName" value="${isEdit && role ? role.role_name : ''}" required
+                        placeholder="e.g. Admin, Moderator, Member" class="${FIELD_CLASS}">
                 </div>
-            </fieldset>
-
-            <div id="formError" class="hidden text-sm text-red-600 bg-red-50 border border-red-200 rounded-md px-3 py-2"></div>
-
-            <div class="flex justify-end pt-3 border-t border-gray-100 flex-row gap-2">
-                <button 
-                    type="button" 
-                    onclick="closeManageRolesModal()" 
-                    class="px-4 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-md hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-gray-200 transition">
-                    Cancel
-                </button>
-                <button 
-                    type="submit" 
-                    id="submitBtn" 
-                    class="px-5 py-2 text-sm font-medium text-white bg-blue-900 hover:bg-blue-800 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-1 transition">
-                    ${buttonText}
-                </button>
-            </div>
+            `)}
+            <div id="formError" class="hidden text-sm text-red-700 bg-red-50 border border-red-200 rounded-xl px-3 py-2.5"></div>
+            ${modalActions({ cancelOnclick: 'closeManageRolesModal()', submitText: buttonText })}
         </form>
     `;
 
     if (isEdit && !role && roleId) {
         openModal(title, skeletonRoleForm(), 'medium');
-
-        const modalOverlay = document.getElementById('modal-overlay');
-        const modalContent = document.getElementById('modal-content');
-        if (modalOverlay && modalContent) {
-            animateModalOpen(modalOverlay, modalContent, 'scale');
-        }
 
         setTimeout(async () => {
             try {
@@ -62,6 +37,7 @@ export function openManageRolesModal({ mode = 'add', role = null, roleId = null,
                     modalBody.innerHTML = formContent;
                     populateFormWithRole(fetchedRole);
                     setupFormHandlers(fetchedRole.id, buttonText, onSubmit);
+                    applyModalDomino();
                 }
             } catch (error) {
                 console.error('Error loading role:', error);
@@ -71,20 +47,7 @@ export function openManageRolesModal({ mode = 'add', role = null, roleId = null,
         }, 100);
     } else {
         openModal(title, formContent, 'medium');
-
-        const modalOverlay = document.getElementById('modal-overlay');
-        const modalContent = document.getElementById('modal-content');
-        if (modalOverlay && modalContent) {
-            animateModalOpen(modalOverlay, modalContent, 'scale');
-        }
-
-        setTimeout(() => {
-            const form = document.getElementById('roleForm');
-            if (form) {
-                animateFormElements(form);
-            }
-        }, 100);
-
+        applyModalDomino();
         setupFormHandlers(role?.id, buttonText, onSubmit);
     }
 }
@@ -95,13 +58,7 @@ function populateFormWithRole(role) {
 
     document.getElementById('roleId').value = role.id;
     document.getElementById('roleName').value = role.role_name;
-
-    setTimeout(() => {
-        const formEl = document.getElementById('roleForm');
-        if (formEl) {
-            animateFormElements(formEl);
-        }
-    }, 50);
+    applyModalDomino();
 }
 
 function setupFormHandlers(roleId, buttonText, onSubmit) {
@@ -185,6 +142,7 @@ async function closeManageRolesModal() {
         await animateModalClose(modalOverlay, modalContent, 'scale');
         clearModalAnimations(modalOverlay, modalContent);
         modalOverlay.remove();
+        document.body.classList.remove('overflow-hidden');
         document.removeEventListener('keydown', (e) => {
             if (e.key === 'Escape') closeManageRolesModal();
         });
@@ -197,12 +155,6 @@ window.closeManageRolesModal = closeManageRolesModal;
 
 export async function openViewRolesModal(id) {
     openModal('Role Details', skeletonRoleView(), 'mid-large');
-
-    const modalOverlay = document.getElementById('modal-overlay');
-    const modalContent = document.getElementById('modal-content');
-    if (modalOverlay && modalContent) {
-        animateModalOpen(modalOverlay, modalContent, 'scale');
-    }
 
     try {
         const role = await RolesAPI.getRole(id);
@@ -221,64 +173,31 @@ export async function openViewRolesModal(id) {
 
         const userCount = role.users ? role.users.length : 0;
         const usersList = role.users && role.users.length > 0 
-            ? role.users.map(user => `<span class="inline-block px-2 py-1 text-xs bg-gray-100 text-gray-700 rounded mr-1 mb-1">${user.name || user.username || 'Unknown'}</span>`).join('')
-            : '<span class="text-sm text-gray-500">No users linked</span>';
+            ? role.users.map(user => `<span class="inline-block px-2.5 py-1 text-xs bg-surface text-ink border border-line rounded-lg mr-1.5 mb-1.5">${user.name || user.username || 'Unknown'}</span>`).join('')
+            : '<span class="text-sm text-muted">No users linked</span>';
 
         const content = `
-            <div class="space-y-5">
-                <div class="bg-gray-50 rounded-lg p-4 border border-gray-100 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
-                    <div>
-                        <h3 class="text-base font-bold text-gray-900">${role.role_name}</h3>
-                        <p class="text-xs text-gray-500 mt-0.5">Role ID: ${role.id}</p>
-                    </div>
-                    <div>
-                        <span class="inline-flex items-center px-2.5 py-1 rounded-full text-xs font-medium bg-blue-50 text-blue-700 border border-blue-200">
-                            ${userCount} user${userCount !== 1 ? 's' : ''}
-                        </span>
-                    </div>
-                </div>
-
-                <hr class="border-gray-200">
-
-                <div>
-                    <h4 class="text-xs font-semibold text-gray-500 uppercase tracking-wider mb-3">Role Information</h4>
-                    <dl class="grid grid-cols-1 sm:grid-cols-2 gap-x-6 gap-y-3">
-                        <div>
-                            <dt class="text-xs text-gray-400 font-medium">Role Name:</dt>
-                            <dd class="text-sm font-semibold text-gray-900 mt-0.5">${role.role_name}</dd>
-                        </div>
-                        <div>
-                            <dt class="text-xs text-gray-400 font-medium">Linked Users:</dt>
-                            <dd class="text-sm font-semibold text-gray-900 mt-0.5">${userCount}</dd>
-                        </div>
-                        <div>
-                            <dt class="text-xs text-gray-400 font-medium">Created At:</dt>
-                            <dd class="text-sm font-semibold text-gray-900 mt-0.5">${dateCreated}</dd>
-                        </div>
-                        <div>
-                            <dt class="text-xs text-gray-400 font-medium">Updated At:</dt>
-                            <dd class="text-sm font-semibold text-gray-900 mt-0.5">${dateUpdated}</dd>
-                        </div>
+            <div class="space-y-4">
+                ${modalHero({
+                    fallback: `<i data-lucide="shield" class="w-10 h-10"></i>`,
+                    name: role.role_name,
+                    subtitle: `Role ID: ${role.id}`,
+                    badges: [modalBadge(`${userCount} user${userCount !== 1 ? 's' : ''}`, 'navy')]
+                })}
+                ${modalSection('Role Information', `
+                    <dl class="grid grid-cols-1 md:grid-cols-2 gap-2.5">
+                        ${modalDetailTile('Role Name', role.role_name)}
+                        ${modalDetailTile('Linked Users', userCount)}
+                        ${modalDetailTile('Created At', dateCreated)}
+                        ${modalDetailTile('Updated At', dateUpdated)}
                     </dl>
-                </div>
-
-                <hr class="border-gray-200">
-
-                <div>
-                    <h4 class="text-xs font-semibold text-gray-500 uppercase tracking-wider mb-3">Linked Users</h4>
-                    <div class="bg-gray-50 rounded-lg p-3 border border-gray-100">
+                `)}
+                ${modalSection('Linked Users', `
+                    <div class="rounded-xl border border-line bg-surface px-3.5 py-3">
                         ${usersList}
                     </div>
-                </div>
-
-                <div class="flex justify-end pt-3 border-t border-gray-100">
-                    <button 
-                        type="button" 
-                        onclick="closeModal()" 
-                        class="px-4 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-md hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-gray-200 transition">
-                        Close
-                    </button>
-                </div>
+                `)}
+                ${modalViewClose()}
             </div>
         `;
 
@@ -286,13 +205,7 @@ export async function openViewRolesModal(id) {
         if (modalBody) {
             modalBody.innerHTML = content;
         }
-
-        setTimeout(() => {
-            const modalContentEl = document.getElementById('modal-content');
-            if (modalContentEl) {
-                animateViewModalElements(modalContentEl);
-            }
-        }, 50);
+        applyModalDomino();
     } catch (error) {
         console.error('Error loading role:', error);
         showToast('Failed to load role', 'error');

@@ -26,8 +26,18 @@ export async function getAdviserOrganization() {
             throw new Error('Failed to fetch organization');
         }
         
-        const data = await response.json();
-        return data.organization;
+        const text = await response.text();
+        if (!text || text.trim() === '') {
+            console.warn('Empty response from organization endpoint');
+            return null;
+        }
+        try {
+            const data = JSON.parse(text);
+            return data.organization;
+        } catch (parseError) {
+            console.error('Failed to parse organization response:', text.substring(0, 200));
+            return null;
+        }
     } catch (error) {
         console.error('Error fetching organization:', error);
         throw error;
@@ -104,8 +114,18 @@ export async function getAdviserOrgMemberships() {
             throw new Error('Failed to fetch organization memberships');
         }
         
-        const data = await response.json();
-        return data.organization_memberships || [];
+        const text = await response.text();
+        if (!text || text.trim() === '') {
+            console.warn('Empty response from organization-memberships endpoint');
+            return [];
+        }
+        try {
+            const data = JSON.parse(text);
+            return data.organization_memberships || [];
+        } catch (parseError) {
+            console.error('Failed to parse memberships response:', text.substring(0, 200));
+            return [];
+        }
     } catch (error) {
         console.error('Error fetching organization memberships:', error);
         throw error;

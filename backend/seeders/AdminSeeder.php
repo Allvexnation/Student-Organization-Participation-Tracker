@@ -2,12 +2,14 @@
 
 require_once __DIR__ . '/../config/db.php';
 require_once __DIR__ . '/../migrations/Migrator.php';
+require_once __DIR__ . '/../config/env.php';
 
 class AdminSeeder {
     private $conn;
     private $database = "student_organization_tracker";
 
     public function __construct() {
+        loadEnv(__DIR__ . '/../.env');
     }
 
     private function getConnection() {
@@ -23,12 +25,12 @@ class AdminSeeder {
         
         $admins = [
             [
-                'profile_photo' => 'admin1.jpg',
-                'name' => 'Admin',
-                'username' => 'crtadmin',
-                'email' => 'crt@edu.com',
-                'password' => 'admin123',
-                'role' => 'admin'
+                'profile_photo' => getenv('CRT_ADMIN_PROFILE_PHOTO'),
+                'name' => getenv('CRT_ADMIN_NAME'),
+                'username' => getenv('CRT_ADMIN_USERNAME'),
+                'email' => getenv('CRT_ADMIN_EMAIL'),
+                'password' => getenv('CRT_ADMIN_PASSWORD'),
+                'role' => getenv('CRT_ADMIN_ROLE')
             ],
         ];
 

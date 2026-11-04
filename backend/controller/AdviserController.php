@@ -192,6 +192,8 @@ class AdviserController {
             }
         }
 
+        $oldAdviser = $this->adviserModel->readOne($id);
+
         $result = $this->adviserModel->update($id, $data);
         if ($result) {
             CacheService::forget('advisers_all');
@@ -199,6 +201,19 @@ class AdviserController {
         }
 
         if ($result) {
+            $statusChanged = $oldAdviser && isset($data['status']) && $oldAdviser['status'] !== $data['status'];
+
+            if ($statusChanged) {
+                if ($data['status'] === 'inactive') {
+                    $this->sessionModel->moveToInactive($id, 'adviser');
+                } elseif ($data['status'] === 'active') {
+                    $this->sessionModel->restoreFromInactive($id, 'adviser');
+                }
+
+                $adviserEmail = new AdviserEmail();
+                $adviserEmail->sendStatusChange($data['email'], $data['name'], $data['status']);
+            }
+
             $adviser = CacheService::remember('adviser_' . $id, 300, function() use ($id) {
             return $this->adviserModel->readOne($id);
         });
@@ -255,9 +270,9 @@ class AdviserController {
 
     public function login() {
         header('Content-Type: application/json');
-        
+
         $data = json_decode(file_get_contents('php://input'), true);
-        
+
         if (!isset($data['username_or_email']) || !isset($data['password'])) {
             http_response_code(400);
             echo json_encode(['message' => 'Username/email and password are required']);
@@ -270,33 +285,39 @@ class AdviserController {
         $adviser = $this->adviserModel->verifyLogin($usernameOrEmail, $password);
 
         if ($adviser) {
+            if (isset($adviser['status']) && $adviser['status'] === 'inactive') {
+                http_response_code(403);
+                echo json_encode(['message' => 'Your account has been deactivated. Please contact the administrator.']);
+                return;
+            }
+
             unset($adviser['password']);
-            
+
             if (isset($adviser['profile_photo']) && !empty($adviser['profile_photo'])) {
                 if (is_string($adviser['profile_photo']) && !str_starts_with($adviser['profile_photo'], 'data:')) {
                     $adviser['profile_photo'] = 'data:image/jpeg;base64,' . base64_encode($adviser['profile_photo']);
                 }
             }
-            
+
             $tokenPayload = [
                 'user_id' => $adviser['id'],
                 'email' => $adviser['email'],
                 'role' => 'adviser'
             ];
             $token = JWT::encode($tokenPayload);
-            
+
             $expiresAt = '2038-01-19 03:14:07';
 
-            $ipAddress = $this->getClientIp();
+            $ipAddress = $data['ip_address'] ?? '';
             $userAgent = $_SERVER['HTTP_USER_AGENT'] ?? '';
-            
+
             $sessionData = [
                 'user_id' => $adviser['id'],
                 'user_type' => 'adviser',
                 'token' => $token,
                 'expires_at' => $expiresAt,
                 'is_active' => 1,
-                'ip_address' => $data['ip_address'] ?? $ipAddress,
+                'ip_address' => $ipAddress,
                 'user_agent' => $data['user_agent'] ?? $userAgent,
                 'device_type' => $data['device_type'] ?? 'unknown',
                 'device_fingerprint' => $data['device_fingerprint'] ?? '',
@@ -305,11 +326,12 @@ class AdviserController {
                 'os' => $data['os'] ?? '',
                 'country' => $data['country'] ?? '',
                 'city' => $data['city'] ?? '',
-                'timezone' => $data['timezone'] ?? ''
+                'timezone' => $data['timezone'] ?? '',
+                'auth_type' => 'password'
             ];
-            
+
             $this->sessionModel->create($sessionData);
-            
+
             http_response_code(200);
             echo json_encode([
                 'message' => 'Login successful',
@@ -342,125 +364,180 @@ class AdviserController {
         return $ip;
     }
 
-    public function getProfile() {
+    public function lookupAccount() {
         header('Content-Type: application/json');
-        
-        $token = $this->getBearerToken();
-        
-        if (!$token || !JWT::validate($token)) {
-            http_response_code(401);
-            echo json_encode(['message' => 'Unauthorized']);
+
+        $data = json_decode(file_get_contents('php://input'), true);
+
+        if (!isset($data['username_or_email']) || trim($data['username_or_email']) === '') {
+            http_response_code(400);
+            echo json_encode(['message' => 'Username or email is required']);
             return;
         }
 
-        $adviserId = JWT::getUserId($token);
-        
-        error_log("Fetching adviser profile for ID: " . $adviserId);
+        $adviser = $this->adviserModel->findByUsernameOrEmail(trim($data['username_or_email']));
 
-        $adviser = $this->adviserModel->readOne($adviserId);
-
-        if ($adviser) {
-            unset($adviser['password']);
-            
-            if (isset($adviser['profile_photo']) && !empty($adviser['profile_photo'])) {
-                if (is_string($adviser['profile_photo']) && !str_starts_with($adviser['profile_photo'], 'data:')) {
-                    $adviser['profile_photo'] = 'data:image/jpeg;base64,' . base64_encode($adviser['profile_photo']);
-                }
-            }
-            
-            http_response_code(200);
-            echo json_encode(['adviser' => $adviser]);
-        } else {
-            error_log("Adviser not found for ID: " . $adviserId);
+        if (!$adviser) {
             http_response_code(404);
-            echo json_encode(['message' => 'Adviser not found']);
+            echo json_encode(['message' => 'Account not found']);
+            return;
+        }
+
+        if (isset($adviser['status']) && $adviser['status'] === 'inactive') {
+            http_response_code(403);
+            echo json_encode(['message' => 'Your account has been deactivated. Please contact the administrator.']);
+            return;
+        }
+
+        $profilePhoto = null;
+        if (isset($adviser['profile_photo']) && !empty($adviser['profile_photo'])) {
+            if (is_string($adviser['profile_photo']) && !str_starts_with($adviser['profile_photo'], 'data:')) {
+                $profilePhoto = 'data:image/jpeg;base64,' . base64_encode($adviser['profile_photo']);
+            } else {
+                $profilePhoto = $adviser['profile_photo'];
+            }
+        }
+
+        http_response_code(200);
+        echo json_encode([
+            'exists' => true,
+            'name' => $adviser['name'] ?? $adviser['username'] ?? '',
+            'username' => $adviser['username'] ?? '',
+            'profile_photo' => $profilePhoto
+        ]);
+    }
+
+    public function getProfile() {
+        header('Content-Type: application/json');
+        
+        try {
+            $token = $this->getBearerToken();
+            
+            if (!$token || !JWT::validate($token)) {
+                http_response_code(401);
+                echo json_encode(['message' => 'Unauthorized']);
+                return;
+            }
+
+            $adviserId = JWT::getUserId($token);
+            
+            error_log("Fetching adviser profile for ID: " . $adviserId);
+
+            $adviser = $this->adviserModel->readOne($adviserId);
+
+            if ($adviser) {
+                unset($adviser['password']);
+                
+                if (isset($adviser['profile_photo']) && !empty($adviser['profile_photo'])) {
+                    if (is_string($adviser['profile_photo']) && !str_starts_with($adviser['profile_photo'], 'data:')) {
+                        $adviser['profile_photo'] = 'data:image/jpeg;base64,' . base64_encode($adviser['profile_photo']);
+                    }
+                }
+                
+                http_response_code(200);
+                echo json_encode(['adviser' => $adviser]);
+            } else {
+                error_log("Adviser not found for ID: " . $adviserId);
+                http_response_code(404);
+                echo json_encode(['message' => 'Adviser not found']);
+            }
+        } catch (Exception $e) {
+            error_log("Error in getProfile: " . $e->getMessage());
+            http_response_code(500);
+            echo json_encode(['message' => 'Server error: ' . $e->getMessage()]);
         }
     }
 
     public function updateProfile() {
         header('Content-Type: application/json');
         
-        $token = $this->getBearerToken();
-        
-        if (!$token || !JWT::validate($token)) {
-            http_response_code(401);
-            echo json_encode(['message' => 'Unauthorized']);
-            return;
-        }
-
-        $adviserId = JWT::getUserId($token);
-
-        $data = json_decode(file_get_contents('php://input'), true);
-        
-        if (!$data) {
-            http_response_code(400);
-            echo json_encode(['message' => 'Invalid data']);
-            return;
-        }
-
-        $existingAdviser = $this->adviserModel->readOne($adviserId);
-        if (!$existingAdviser) {
-            http_response_code(404);
-            echo json_encode(['message' => 'Adviser not found']);
-            return;
-        }
-
-        $profilePhoto = null;
-        if (isset($data['profile_photo'])) {
-            if (!empty($data['profile_photo'])) {
-                $profilePhoto = $data['profile_photo'];
-            } else {
-
-                $profilePhoto = '';
-            }
-        } elseif ($existingAdviser && isset($existingAdviser['profile_photo']) && !empty($existingAdviser['profile_photo'])) {
-            $profilePhoto = $existingAdviser['profile_photo'];
-        }
-
-        $updateData = [
-            'profile_photo' => $profilePhoto,
-            'name' => isset($data['name']) ? $data['name'] : ($existingAdviser['name'] ?? ''),
-            'username' => isset($data['username']) ? $data['username'] : ($existingAdviser['username'] ?? ''),
-            'email' => isset($data['email']) ? $data['email'] : ($existingAdviser['email'] ?? ''),
-            'role' => isset($data['role']) ? $data['role'] : ($existingAdviser['role'] ?? 'Adviser'),
-            'status' => 'active'
-        ];
-
-        if (isset($data['password']) && !empty($data['password'])) {
-            $updateData['password'] = $data['password'];
-        }
-
-        $result = $this->adviserModel->update($adviserId, $updateData);
-
-        if ($result) {
-            CacheService::forget('advisers_all');
-            CacheService::forget('adviser_' . $adviserId);
-
-            $adviser = $this->adviserModel->readOne($adviserId);
-            unset($adviser['password']);
+        try {
+            $token = $this->getBearerToken();
             
-            if (isset($adviser['profile_photo']) && !empty($adviser['profile_photo'])) {
-                if (is_string($adviser['profile_photo']) && !str_starts_with($adviser['profile_photo'], 'data:')) {
-                    $adviser['profile_photo'] = 'data:image/jpeg;base64,' . base64_encode($adviser['profile_photo']);
+            if (!$token || !JWT::validate($token)) {
+                http_response_code(401);
+                echo json_encode(['message' => 'Unauthorized']);
+                return;
+            }
+
+            $adviserId = JWT::getUserId($token);
+
+            $data = json_decode(file_get_contents('php://input'), true);
+            
+            if (!$data) {
+                http_response_code(400);
+                echo json_encode(['message' => 'Invalid data']);
+                return;
+            }
+
+            $existingAdviser = $this->adviserModel->readOne($adviserId);
+            if (!$existingAdviser) {
+                http_response_code(404);
+                echo json_encode(['message' => 'Adviser not found']);
+                return;
+            }
+
+            $profilePhoto = null;
+            if (isset($data['profile_photo'])) {
+                if (!empty($data['profile_photo'])) {
+                    $profilePhoto = $data['profile_photo'];
+                } else {
+
+                    $profilePhoto = '';
                 }
+            } elseif ($existingAdviser && isset($existingAdviser['profile_photo']) && !empty($existingAdviser['profile_photo'])) {
+                $profilePhoto = $existingAdviser['profile_photo'];
             }
-            
-            http_response_code(200);
-            echo json_encode([
-                'message' => 'Profile updated successfully',
-                'adviser' => $adviser
-            ]);
-        } else {
+
+            $updateData = [
+                'profile_photo' => $profilePhoto,
+                'name' => isset($data['name']) ? $data['name'] : ($existingAdviser['name'] ?? ''),
+                'username' => isset($data['username']) ? $data['username'] : ($existingAdviser['username'] ?? ''),
+                'email' => isset($data['email']) ? $data['email'] : ($existingAdviser['email'] ?? ''),
+                'role' => isset($data['role']) ? $data['role'] : ($existingAdviser['role'] ?? 'Adviser'),
+                'status' => 'active'
+            ];
+
+            if (isset($data['password']) && !empty($data['password'])) {
+                $updateData['password'] = $data['password'];
+            }
+
+            $result = $this->adviserModel->update($adviserId, $updateData);
+
+            if ($result) {
+                CacheService::forget('advisers_all');
+                CacheService::forget('adviser_' . $adviserId);
+
+                $adviser = $this->adviserModel->readOne($adviserId);
+                unset($adviser['password']);
+                
+                if (isset($adviser['profile_photo']) && !empty($adviser['profile_photo'])) {
+                    if (is_string($adviser['profile_photo']) && !str_starts_with($adviser['profile_photo'], 'data:')) {
+                        $adviser['profile_photo'] = 'data:image/jpeg;base64,' . base64_encode($adviser['profile_photo']);
+                    }
+                }
+                
+                http_response_code(200);
+                echo json_encode([
+                    'message' => 'Profile updated successfully',
+                    'adviser' => $adviser
+                ]);
+            } else {
+                http_response_code(500);
+                echo json_encode(['message' => 'Failed to update profile']);
+            }
+        } catch (Exception $e) {
+            error_log("Error in updateProfile: " . $e->getMessage());
             http_response_code(500);
-            echo json_encode(['message' => 'Failed to update profile']);
+            echo json_encode(['message' => 'Server error: ' . $e->getMessage()]);
         }
     }
 
     public function forgotPassword() {
         header('Content-Type: application/json');
-        
+
         $data = json_decode(file_get_contents('php://input'), true);
-        
+
         if (!isset($data['username_or_email'])) {
             http_response_code(400);
             echo json_encode(['message' => 'Username or email is required']);
@@ -473,6 +550,12 @@ class AdviserController {
         if (!$adviser) {
             http_response_code(404);
             echo json_encode(['message' => 'Adviser not found']);
+            return;
+        }
+
+        if (isset($adviser['status']) && $adviser['status'] === 'inactive') {
+            http_response_code(403);
+            echo json_encode(['message' => 'Your account has been deactivated. Please contact the administrator.']);
             return;
         }
 

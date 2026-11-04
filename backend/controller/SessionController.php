@@ -13,41 +13,47 @@ class SessionController {
     public function validate() {
         header('Content-Type: application/json');
         
-        $headers = getallheaders();
-        $token = isset($headers['Authorization']) ? str_replace('Bearer ', '', $headers['Authorization']) : null;
-        $deviceFingerprint = $headers['X-Device-Fingerprint'] ?? $headers['x-device-fingerprint'] ?? $_SERVER['HTTP_X_DEVICE_FINGERPRINT'] ?? $_GET['device_fingerprint'] ?? $_GET['fingerprint'] ?? null;
-        $clientIp = $this->getClientIp();
-        
-        if (!$token) {
-            http_response_code(401);
-            echo json_encode(['message' => 'No token provided', 'valid' => false]);
-            return;
-        }
+        try {
+            $headers = getallheaders();
+            $token = isset($headers['Authorization']) ? str_replace('Bearer ', '', $headers['Authorization']) : null;
+            $deviceFingerprint = $headers['X-Device-Fingerprint'] ?? $headers['x-device-fingerprint'] ?? $_SERVER['HTTP_X_DEVICE_FINGERPRINT'] ?? $_GET['device_fingerprint'] ?? $_GET['fingerprint'] ?? null;
+            $clientIp = $this->getClientIp();
+            
+            if (!$token) {
+                http_response_code(401);
+                echo json_encode(['message' => 'No token provided', 'valid' => false]);
+                return;
+            }
 
-        $payload = JWT::decode($token);
-        
-        if (!$payload) {
-            http_response_code(401);
-            echo json_encode(['message' => 'Invalid or expired token', 'valid' => false]);
-            return;
-        }
+            $payload = JWT::decode($token);
+            
+            if (!$payload) {
+                http_response_code(401);
+                echo json_encode(['message' => 'Invalid or expired token', 'valid' => false]);
+                return;
+            }
 
-        $session = $this->sessionModel->validateToken($token, $clientIp, $deviceFingerprint);
+            $session = $this->sessionModel->validateToken($token, $clientIp, $deviceFingerprint);
 
-        if ($session) {
-            $userType = isset($payload['role']) ? $payload['role'] : ($session['user_type'] ?? 'admin');
-            $user = $this->getUserData($payload['user_id'], $userType);
+            if ($session) {
+                $userType = isset($payload['role']) ? $payload['role'] : ($session['user_type'] ?? 'admin');
+                $user = $this->getUserData($payload['user_id'], $userType);
 
-            http_response_code(200);
-            echo json_encode([
-                'valid' => true,
-                'user_id' => $payload['user_id'],
-                'user_type' => $userType,
-                'user' => $user
-            ]);
-        } else {
-            http_response_code(401);
-            echo json_encode(['message' => 'Invalid or expired session', 'valid' => false]);
+                http_response_code(200);
+                echo json_encode([
+                    'valid' => true,
+                    'user_id' => $payload['user_id'],
+                    'user_type' => $userType,
+                    'user' => $user
+                ]);
+            } else {
+                http_response_code(401);
+                echo json_encode(['message' => 'Invalid or expired session', 'valid' => false]);
+            }
+        } catch (Exception $e) {
+            error_log("Error in session validate: " . $e->getMessage());
+            http_response_code(500);
+            echo json_encode(['message' => 'Server error: ' . $e->getMessage(), 'valid' => false]);
         }
     }
 
@@ -63,7 +69,7 @@ class SessionController {
         $headers = getallheaders();
         $userType = $data['user_type'] ?? $data['role'] ?? 'admin';
         $deviceFingerprint = $data['device_fingerprint'] ?? $data['fingerprint'] ?? $headers['X-Device-Fingerprint'] ?? $headers['x-device-fingerprint'] ?? $_SERVER['HTTP_X_DEVICE_FINGERPRINT'] ?? $_GET['device_fingerprint'] ?? null;
-        $clientIp = $data['ip_address'] ?? $this->getClientIp();
+        $clientIp = $this->getClientIp();
 
         if (empty($deviceFingerprint)) {
             http_response_code(400);
@@ -192,21 +198,33 @@ class SessionController {
 
     private function getClientIp() {
         $ip = '';
-        if (!empty($_SERVER['HTTP_CLIENT_IP'])) {
-            $ip = $_SERVER['HTTP_CLIENT_IP'];
-        } elseif (!empty($_SERVER['HTTP_X_FORWARDED_FOR'])) {
+
+        if (!empty($_SERVER['HTTP_X_FORWARDED_FOR'])) {
             $ip = $_SERVER['HTTP_X_FORWARDED_FOR'];
         } elseif (!empty($_SERVER['HTTP_X_REAL_IP'])) {
             $ip = $_SERVER['HTTP_X_REAL_IP'];
+        } elseif (!empty($_SERVER['HTTP_CLIENT_IP'])) {
+            $ip = $_SERVER['HTTP_CLIENT_IP'];
         } else {
             $ip = $_SERVER['REMOTE_ADDR'] ?? '';
         }
-        
+
         if (strpos($ip, ',') !== false) {
             $ips = explode(',', $ip);
             $ip = trim($ips[0]);
         }
-        
+
+        if (filter_var($ip, FILTER_VALIDATE_IP, FILTER_FLAG_IPV4)) {
+            return $ip;
+        }
+
+        if (filter_var($ip, FILTER_VALIDATE_IP, FILTER_FLAG_IPV6)) {
+            if ($ip === '::1' || $ip === '::1/128') {
+                return '127.0.0.1';
+            }
+            return $ip;
+        }
+
         return $ip;
     }
 }

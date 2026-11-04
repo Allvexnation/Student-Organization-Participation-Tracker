@@ -1,7 +1,8 @@
 import { getActiveUpdates, getAllUpdates, getAssetDownloadUrl } from '../../api/web/Updates.js';
-import { UpdatesNavbar, initUpdatesNavbar } from '../../components/Navbar/UpdatesNavbar.js';
-import { UpdatesStripbar } from '../../components/Stripbar/UpdatesStripbar.js';
+import { Navbar, initNavbar } from '../../components/Layout/Navbar/Navbar.js';
+import { UpdatesStripContent } from '../../components/Stripbar/UpdatesStripbar.js';
 import { createUpdatesModal, closeUpdatesModal } from '../../components/Modal/Updates/UpdatesModal.js';
+import { initReveal, playPageDomino } from '../../provider/Animation/HomepageAnimation.js';
 
 let markedLoadedPromise = null;
 function ensureMarked() {
@@ -188,9 +189,8 @@ function parseUpdateAssets(update) {
 
 export function UpdatesPage() {
     return `
-        <div id="updates-page-root" class="min-h-screen bg-[#f6f8fa] text-[#1f2328]">
-            ${UpdatesNavbar()}
-            ${UpdatesStripbar()}
+        <div id="updates-page-root" data-domino-page class="min-h-screen bg-[#f6f8fa] text-[#1f2328]">
+            ${Navbar('updates', { stripContent: UpdatesStripContent() })}
 
             <main class="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
                 <div id="mandatory-update-banner" class="hidden mb-8"></div>
@@ -214,7 +214,8 @@ export async function initUpdatesPage() {
     closeUpdatesModal();
     await ensureMarked();
 
-    initUpdatesNavbar();
+    initNavbar('updates');
+    initReveal();
 
     const container = document.getElementById('updates-container');
     const bannerContainer = document.getElementById('mandatory-update-banner');
@@ -244,6 +245,7 @@ export async function initUpdatesPage() {
 
         const latestActive = activeUpdates && activeUpdates.length > 0 ? activeUpdates[0] : null;
         const isNotClosable = latestActive && latestActive.closable_type === 'not_closable';
+        const isNotOpenable = latestActive && latestActive.closable_type === 'not_openable';
 
         const uniqueBranches = [...new Set(updatesList.map(u => u.branch || 'main').filter(Boolean))];
         uniqueBranches.sort();
@@ -292,6 +294,29 @@ export async function initUpdatesPage() {
                     </span>
                 `;
             }
+        } else if (isNotOpenable) {
+            if (bannerContainer) {
+                bannerContainer.classList.add('hidden');
+                bannerContainer.innerHTML = '';
+            }
+            if (backBtnContainer) {
+                backBtnContainer.innerHTML = `
+                    <button id="btn-return-portal" class="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-md text-xs sm:text-sm font-medium bg-white text-gray-900 border border-[#d0d7de] hover:bg-[#f3f4f6] transition shadow-sm">
+                        <i data-lucide="arrow-left" class="w-3.5 h-3.5"></i>
+                        <span>Return to App</span>
+                    </button>
+                `;
+                const returnBtn = document.getElementById('btn-return-portal');
+                if (returnBtn) {
+                    returnBtn.onclick = () => {
+                        if (window.history.length > 1) {
+                            window.history.back();
+                        } else {
+                            navigateTo('/');
+                        }
+                    };
+                }
+            }
         } else {
             if (bannerContainer) {
                 bannerContainer.classList.add('hidden');
@@ -299,7 +324,7 @@ export async function initUpdatesPage() {
             }
             if (backBtnContainer) {
                 backBtnContainer.innerHTML = `
-                    <button id="btn-return-portal" class="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-md text-xs sm:text-sm font-medium bg-white text-[#24292f] border border-[#d0d7de] hover:bg-[#f3f4f6] transition shadow-sm">
+                    <button id="btn-return-portal" class="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-md text-xs sm:text-sm font-medium bg-white text-gray-900 border border-[#d0d7de] hover:bg-[#f3f4f6] transition shadow-sm">
                         <i data-lucide="arrow-left" class="w-3.5 h-3.5"></i>
                         <span>Return to App</span>
                     </button>
@@ -329,6 +354,7 @@ export async function initUpdatesPage() {
                     </div>
                 `;
                 refreshIcons();
+                playPageDomino(container);
                 return;
             }
 
@@ -575,6 +601,11 @@ export async function initUpdatesPage() {
             }
 
             refreshIcons();
+            playPageDomino(container);
+            if (bannerContainer && !bannerContainer.classList.contains('hidden')) {
+                const banner = bannerContainer.firstElementChild;
+                if (banner) playPageDomino(banner);
+            }
         };
 
         renderList(updatesList);
@@ -704,6 +735,7 @@ export async function initUpdatesPage() {
                 Failed to fetch releases. Please verify backend connection.
             </div>
         `;
+        playPageDomino(container);
     }
 }
 
@@ -716,6 +748,10 @@ export function initUpdates() {
         const latestUpdate = updates[0];
         const closableType = latestUpdate.closable_type;
         const currentPath = window.location.pathname;
+
+        if (closableType === 'not_openable') {
+            return;
+        }
 
         if (closableType === 'not_closable') {
             if (currentPath !== '/updates') {

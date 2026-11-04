@@ -1,0 +1,731 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>CRT Student Organization Participation Tracker</title>
+    <meta
+      name="description"
+      content="CRT Student Organization Participation Tracker: manage organizations, events, tasks and attendance in one platform for administrators, advisers and students."
+    />
+    <link rel="icon" href="assets/crt-logo.png" />
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;500;600;700;800&display=swap"
+      rel="stylesheet"
+    />
+    <link rel="stylesheet" href="css/styles.css" />
+    <script
+      src="https://unpkg.com/lucide@0.469.0/dist/umd/lucide.min.js"
+      defer
+    ></script>
+    <script type="module" src="js/main.js"></script>
+  </head>
+  <body>
+    <a class="skip" href="#main">Skip to content</a>
+
+    <!-- NAVIGATION -->
+    <header class="site-header" id="top">
+      <nav class="nav container" aria-label="Main">
+        <a
+          href="#home"
+          class="brand"
+          aria-label="CRT Student Organization Participation Tracker"
+        >
+          <img
+            src="assets/crt-logo.png"
+            alt="CRT logo"
+            width="44"
+            height="44"
+          />
+          <span class="brand-text"
+            ><strong>
+              <span class="name-full">College for Research and Technology</span>
+              <span class="name-short">CRT</span>
+            </strong>
+            <small>Student Organization Participation Tracker</small></span>
+        </a>
+        <ul class="nav-links" id="nav-links">
+          <li><a href="#home" class="is-active">Home</a></li>
+          <li><a href="#about">About</a></li>
+          <li><a href="#features">Features</a></li>
+          <li><a href="#how-it-works">How It Works</a></li>
+          <li><a href="#contact">Contact</a></li>
+          <li class="nav-login-mobile">
+            <a href="login.php" class="btn btn-primary" data-route="login"
+              >Login</a
+            >
+          </li>
+        </ul>
+        <a href="login.php" class="btn btn-dark nav-login" data-route="login"
+          >Login <i data-lucide="log-in"></i
+        ></a>
+        <button
+          class="menu-toggle"
+          id="menu-toggle"
+          aria-label="Open menu"
+          aria-expanded="false"
+          aria-controls="nav-links"
+        >
+          <i data-lucide="menu"></i>
+        </button>
+      </nav>
+    </header>
+
+    <main id="main">
+      <!-- HERO -->
+      <section class="hero" id="home">
+        <div class="container hero-grid">
+          <div class="hero-copy">
+            <span class="pill reveal"
+              >Student Organization Participation Tracker</span
+            >
+            <h1 class="reveal">
+              Manage.<br />Participate.<br /><span class="accent"
+                >Achieve.</span
+              >
+            </h1>
+            <p class="lead reveal">
+              A platform for CRT administrators, advisers, and students to
+              manage organizations, participate in events, handle tasks, and
+              track attendance in one place.
+            </p>
+            <div class="hero-actions reveal">
+              <a
+                href="#portals"
+                class="btn btn-primary btn-lg"
+                data-route="get-started"
+                >Get Started <i data-lucide="arrow-up-right"></i
+              ></a>
+              <a href="#features" class="btn btn-ghost btn-lg"
+                ><span class="play"><i data-lucide="sparkles"></i></span>
+                Explore Features</a
+              >
+            </div>
+          </div>
+
+          <div class="hero-visual reveal" aria-hidden="false">
+            <div class="shape shape-blue"></div>
+            <div class="shape shape-yellow"></div>
+            <div class="ring ring-1"></div>
+            <img
+              class="hero-photo"
+              src="assets/hero-students.png"
+              alt="Image of two CRT students"
+              width="900"
+              height="657"
+            />
+
+            <div class="chip chip-task float-a">
+              <span class="chip-ico ok"><i data-lucide="check"></i></span>
+              <div>
+                <b>Task complete</b><small>Vote in OSO Elections.</small>
+              </div>
+            </div>
+            <div class="chip chip-event float-b">
+              <span class="chip-ico blue"
+                ><i data-lucide="calendar-check"></i
+              ></span>
+              <div><b>Event registered</b><small>Palaro 20XX</small></div>
+            </div>
+
+            <div
+              class="mini-dash float-c"
+              role="img"
+              aria-label="Dashboard preview showing attendance rate and task progress"
+            >
+              <div class="md-head">
+                <span class="md-dots"><i></i><i></i><i></i></span
+                ><b>Student Portal</b>
+              </div>
+              <div class="md-row">
+                <div class="md-stat">
+                  <small>Attendance</small><strong>96%</strong>
+                </div>
+                <div class="md-stat">
+                  <small>Tasks done</small><strong>12/14</strong>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- ========== ABOUT ========== -->
+      <section class="section about" id="about">
+        <div class="container about-grid">
+          <div class="about-copy reveal">
+            <span class="pill">About the System</span>
+            <h2>Built to make every student organization run smoother</h2>
+            <p>
+              The CRT Student Organization Participation Tracker replaces
+              scattered spreadsheets and paper logs with a single web platform.
+              It keeps organizations, members, events, tasks and attendance
+              connected, so everyone sees the same up-to-date record.
+            </p>
+          </div>
+          <div class="about-points">
+            <article class="point reveal">
+              <span class="ico"><i data-lucide="layers"></i></span>
+              <div>
+                <h3>Organized management</h3>
+                <p>
+                  Advisers and administrators handle organizations, memberships
+                  and events from one dashboard.
+                </p>
+              </div>
+            </article>
+            <article class="point reveal">
+              <span class="ico"><i data-lucide="trending-up"></i></span>
+              <div>
+                <h3>Higher participation</h3>
+                <p>
+                  Students see their tasks, deadlines and attendance, and get
+                  notified before things slip.
+                </p>
+              </div>
+            </article>
+            <article class="point reveal">
+              <span class="ico"><i data-lucide="file-text"></i></span>
+              <div>
+                <h3>Reliable reports</h3>
+                <p>
+                  Participation reports are generated from real attendance and
+                  task records, not guesswork.
+                </p>
+              </div>
+            </article>
+          </div>
+        </div>
+      </section>
+
+      <!-- =========== STATISTICS =========== -->
+      <section class="stats" aria-label="System statistics">
+        <div class="container stats-grid">
+          <div class="stat reveal">
+            <i data-lucide="graduation-cap"></i
+            ><strong data-count="1234">0</strong><span>Total Students</span>
+          </div>
+          <div class="stat reveal">
+            <i data-lucide="users"></i><strong data-count="99">0</strong
+            ><span>Total Organizations</span>
+          </div>
+          <div class="stat reveal">
+            <i data-lucide="calendar-days"></i
+            ><strong data-count="123">0</strong><span>Total Events</span>
+          </div>
+          <div class="stat reveal">
+            <i data-lucide="clipboard-list"></i
+            ><strong data-count="1234">0</strong><span>Activities / Tasks</span>
+          </div>
+        </div>
+      </section>
+
+      <!-- =========== FEATURES =========== -->
+      <section class="section" id="features">
+        <div class="container">
+          <header class="section-head reveal">
+            <span class="pill">Core Features</span>
+            <h2>Everything an organization needs</h2>
+            <p>
+              Six connected tools that cover the full cycle, from joining an
+              organization to being recognized for participation.
+            </p>
+          </header>
+          <div class="card-grid">
+            <article class="card feature feature-star reveal">
+              <span class="ico"><i data-lucide="list-checks"></i></span>
+              <h3>Task Assignment &amp; Monitoring</h3>
+              <p>
+                Assign tasks with schedules and deadlines, then watch completion
+                in real time.
+              </p>
+              <span class="tag">Main feature</span>
+            </article>
+            <article class="card feature feature-star reveal">
+              <span class="ico"><i data-lucide="user-check"></i></span>
+              <h3>Attendance Tracking</h3>
+              <p>
+                Record Present, Absent or Excused and keep a clean attendance
+                history.
+              </p>
+              <span class="tag">Main feature</span>
+            </article>
+            <article class="card feature reveal">
+              <span class="ico"><i data-lucide="building-2"></i></span>
+              <h3>Organization Management</h3>
+              <p>
+                Create and maintain organizations, officers and advisers in one
+                place.
+              </p>
+            </article>
+            <article class="card feature reveal">
+              <span class="ico"><i data-lucide="calendar-check"></i></span>
+              <h3>Event Management &amp; Registration</h3>
+              <p>
+                Publish events and let students register online in a few taps.
+              </p>
+            </article>
+            <article class="card feature reveal">
+              <span class="ico"><i data-lucide="user-plus"></i></span>
+              <h3>Student Membership Management</h3>
+              <p>Add, approve and review the members of every organization.</p>
+            </article>
+            <article class="card feature reveal">
+              <span class="ico"><i data-lucide="mail"></i></span>
+              <h3>Automated Email Notifications</h3>
+              <p>
+                Reminders and updates are sent automatically so nobody misses a
+                deadline.
+              </p>
+            </article>
+          </div>
+        </div>
+      </section>
+
+      <!-- ========== PORTALS ========== -->
+      <section class="section section-alt" id="portals">
+        <div class="container">
+          <header class="section-head reveal">
+            <span class="pill">Three Dedicated Portals</span>
+            <h2>One system for everyone</h2>
+            <p>
+              Choose your role to see the features available to you and access
+              your portal.
+            </p>
+          </header>
+          <div class="portal-grid">
+            <article class="portal reveal">
+              <div class="portal-top">
+                <span class="ico ico-navy"
+                  ><i data-lucide="shield-check"></i
+                ></span>
+                <h3>Administrator Portal</h3>
+              </div>
+              <ul class="checks">
+                <li>Manage students and advisers</li>
+                <li>Manage organizations and memberships</li>
+                <li>Configure events and registrations</li>
+                <li>Monitor system activities and generate reports</li>
+              </ul>
+              <a class="btn btn-dark" href="admin/login.php" data-route="admin"
+                >Administrator Login <i data-lucide="arrow-right"></i
+              ></a>
+            </article>
+            <article class="portal reveal">
+              <div class="portal-top">
+                <span class="ico ico-blue"><i data-lucide="user-cog"></i></span>
+                <h3>Adviser Portal</h3>
+              </div>
+              <ul class="checks">
+                <li>Manage associated organizations</li>
+                <li>Manage organization students</li>
+                <li>Assign tasks with schedules and deadlines</li>
+                <li>Monitor task completion</li>
+                <li>Record student attendance</li>
+                <li>Generate participation reports</li>
+              </ul>
+              <a
+                class="btn btn-primary"
+                href="adviser/login.php"
+                data-route="adviser"
+                >Adviser Login <i data-lucide="arrow-right"></i
+              ></a>
+            </article>
+            <article class="portal reveal">
+              <div class="portal-top">
+                <span class="ico ico-navy"
+                ><i data-lucide="graduation-cap"></i
+                ></span>
+                <h3>Student Portal</h3>
+              </div>
+              <ul class="checks">
+                <li>View organization memberships</li>
+                <li>Browse and register for events</li>
+                <li>View assigned tasks and deadlines</li>
+                <li>Track task completion</li>
+                <li>Monitor personal attendance records</li>
+                <li>Receive notifications</li>
+              </ul>
+              <a
+                class="btn btn-dark"
+                href="student/login.php"
+                data-route="student"
+                >Student Login <i data-lucide="arrow-right"></i
+              ></a>
+            </article>
+          </div>
+        </div>
+      </section>
+
+      <!-- ======= WORKFLOW ======= -->
+      <section class="section" id="workflow">
+        <div class="container">
+          <header class="section-head reveal">
+            <span class="pill">Task &amp; Attendance Workflow</span>
+            <h2>How tasks and attendance work together</h2>
+            <p>
+              Advisers assign tasks and record attendance, while the system
+              automatically checks task completion.
+            </p>
+          </header>
+
+          <ol class="wf-steps reveal">
+            <li>
+              <span>1</span><b>Adviser assigns a task</b
+              ><small
+                >Picks the students, then sets a schedule and deadline</small
+              >
+            </li>
+            <li>
+              <span>2</span><b>Adviser records attendance</b
+              ><small>Present, Absent or Excused</small>
+            </li>
+            <li>
+              <span>3</span><b>System evaluates the task</b
+              ><small>Absent or Excused is handled automatically</small>
+            </li>
+            <li>
+              <span>4</span><b>Student Portal updates</b
+              ><small>Status and attendance appear instantly</small>
+            </li>
+          </ol>
+
+          <div class="wf-demo reveal">
+            <div class="wf-panel">
+              <div class="wf-label">
+                <i data-lucide="user-cog"></i> Automatic task evaluation
+              </div>
+              <p class="wf-q">
+                When the adviser records attendance, the system evaluates the
+                related task automatically:
+              </p>
+              <div class="wf-rule">
+                <div class="wf-rule-top">
+                  <b>Present</b><i data-lucide="arrow-right"></i
+                  ><span class="badge b-pending">Pending</span>
+                </div>
+                <small
+                  >The task stays Pending until the adviser marks it
+                  Complete.</small
+                >
+              </div>
+              <div class="wf-rule">
+                <div class="wf-rule-top">
+                  <b>Absent</b><i data-lucide="arrow-right"></i
+                  ><span class="badge b-notcomplete">Not Complete</span>
+                </div>
+                <small>The task is marked Not Complete automatically.</small>
+              </div>
+              <div class="wf-rule">
+                <div class="wf-rule-top">
+                  <b>Excused</b><i data-lucide="arrow-right"></i
+                  ><span class="badge b-incomplete">Incomplete</span>
+                </div>
+                <small
+                  >The task is marked Incomplete automatically and can still be
+                  finished later.</small
+                >
+              </div>
+            </div>
+
+            <div class="wf-arrow" aria-hidden="true">
+              <i data-lucide="arrow-right"></i>
+            </div>
+
+            <div class="wf-panel">
+              <div class="wf-label">
+                <i data-lucide="graduation-cap"></i> Student Portal
+              </div>
+              <div class="wf-task">
+                <div>
+                  <b>Cast vote for OSO election.</b
+                  ><small
+                    ><i data-lucide="calendar"></i> MM-DD-YYYY · Attendance:
+                    Present</small
+                  >
+                </div>
+                <span class="badge b-complete">Complete</span>
+              </div>
+              <div class="wf-task">
+                <div>
+                  <b>Participate in clean up drive.</b
+                  ><small
+                    ><i data-lucide="calendar"></i> MM-DD-YYYY · Attendance:
+                    Absent</small
+                  >
+                </div>
+                <span class="badge b-notcomplete">Not Complete</span>
+              </div>
+              <div class="wf-task">
+                <div>
+                  <b>Attend mass.</b
+                  ><small
+                    ><i data-lucide="calendar"></i> MM-DD-YYYY · Attendance:
+                    Excused</small
+                  >
+                </div>
+                <span class="badge b-incomplete">Incomplete</span>
+              </div>
+              <div class="wf-task">
+                <div>
+                  <b>Join general assembly.</b
+                  ><small
+                    ><i data-lucide="calendar"></i> MM-DD-YYYY · Attendance: Not
+                    yet recorded</small
+                  >
+                </div>
+                <span class="badge b-pending">Pending</span>
+              </div>
+              <div class="wf-mail sent">
+                <i data-lucide="mail"></i
+                ><span
+                  >An email notification is sent when a record changes</span
+                >
+              </div>
+            </div>
+          </div>
+
+          <ul class="legend reveal" aria-label="Task statuses">
+            <li>
+              <span class="badge b-pending">Pending</span> Assigned, waiting to
+              be evaluated
+            </li>
+            <li>
+              <span class="badge b-complete">Complete</span> Student finished
+              the task
+            </li>
+            <li>
+              <span class="badge b-incomplete">Incomplete</span> Started or
+              excused, can still be finished
+            </li>
+            <li>
+              <span class="badge b-notcomplete">Not Complete</span> Not done,
+              for example when absent
+            </li>
+          </ul>
+        </div>
+      </section>
+
+      <!-- ======== HOW IT WORKS ======= -->
+      <section class="section section-alt" id="how-it-works">
+        <div class="container">
+          <header class="section-head reveal">
+            <span class="pill">How It Works</span>
+            <h2>A closer look at each role</h2>
+          </header>
+          <ol class="steps">
+            <li class="step reveal">
+              <span class="num">1</span
+              ><span class="ico ico-navy"
+                ><i data-lucide="settings-2"></i
+              ></span>
+              <h3>Administrators configure</h3>
+              <p>
+                Sets up students, advisers, organizations, events and
+                registrations.
+              </p>
+            </li>
+            <li class="step reveal">
+              <span class="num">2</span
+              ><span class="ico ico-blue"
+                ><i data-lucide="clipboard-check"></i
+              ></span>
+              <h3>Advisers manage</h3>
+              <p>Runs organizations, assigns tasks and records attendance.</p>
+            </li>
+            <li class="step reveal">
+              <span class="num">3</span
+              ><span class="ico ico-navy"><i data-lucide="rocket"></i></span>
+              <h3>Students participate</h3>
+              <p>
+                Joins events, completes tasks and monitors personal records.
+              </p>
+            </li>
+          </ol>
+        </div>
+      </section>
+
+      <!-- ======== TECHNOLOGY ========= -->
+      <section class="section tech">
+        <div class="container">
+          <header class="section-head reveal">
+            <span class="pill">Technology Stack</span>
+            <h2>Developed with reliable tools</h2>
+          </header>
+          <div class="tech-grid">
+            <div class="tech-item reveal">
+              <i data-lucide="code"></i><b>Frontend</b
+              ><span>HTML, CSS, JavaScript ES6 Modules</span>
+            </div>
+            <div class="tech-item reveal">
+              <i data-lucide="server"></i><b>Backend</b><span>PHP</span>
+            </div>
+            <div class="tech-item reveal">
+              <i data-lucide="database"></i><b>Database</b><span>MySQL</span>
+            </div>
+            <div class="tech-item reveal">
+              <i data-lucide="send"></i><b>Email Automation</b
+              ><span>Brevo</span>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- ============ FAQ ============ -->
+      <section class="section section-alt" id="faq">
+        <div class="container faq-wrap">
+          <header class="section-head reveal">
+            <span class="pill">FAQ</span>
+            <h2>Frequently asked questions</h2>
+          </header>
+          <div class="faq" id="faq-list">
+            <div class="faq-item reveal">
+              <button class="faq-q" aria-expanded="false">
+                <span>How do I get an account?</span><i data-lucide="plus"></i>
+              </button>
+              <div class="faq-a">
+                <p>
+                  Accounts are created and managed by the administrator. Once
+                  yours is ready, sign in through the portal that matches your
+                  role.
+                </p>
+              </div>
+            </div>
+            <div class="faq-item reveal">
+              <button class="faq-q" aria-expanded="false">
+                <span>Where can I see my tasks and deadlines?</span
+                ><i data-lucide="plus"></i>
+              </button>
+              <div class="faq-a">
+                <p>
+                  All tasks assigned by your adviser are listed in your Student
+                  Portal with their schedule, deadline and current status.
+                </p>
+              </div>
+            </div>
+            <div class="faq-item reveal">
+              <button class="faq-q" aria-expanded="false">
+                <span>What happens to a task if I am absent or excused?</span
+                ><i data-lucide="plus"></i>
+              </button>
+              <div class="faq-a">
+                <p>
+                  When your adviser marks you Absent or Excused, the system
+                  evaluates the related task automatically and updates its
+                  status in your portal.
+                </p>
+              </div>
+            </div>
+            <div class="faq-item reveal">
+              <button class="faq-q" aria-expanded="false">
+                <span>How can I check my attendance record?</span
+                ><i data-lucide="plus"></i>
+              </button>
+              <div class="faq-a">
+                <p>
+                  Your personal attendance history is available in the Student
+                  Portal and updates as soon as your adviser records it.
+                </p>
+              </div>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- ============ CALL TO ACTION ============ -->
+      <section class="cta">
+        <div class="container cta-inner reveal">
+          <div>
+            <h2>Ready to get started?</h2>
+            <p>Choose your portal and sign in.</p>
+          </div>
+          <div class="cta-actions">
+            <a class="btn btn-light" href="admin/login.php" data-route="admin"
+              ><i data-lucide="shield-check"></i> Administrator</a
+            >
+            <a
+              class="btn btn-light"
+              href="adviser/login.php"
+              data-route="adviser"
+              ><i data-lucide="user-cog"></i> Adviser</a
+            >
+            <a
+              class="btn btn-accent"
+              href="student/login.php"
+              data-route="student"
+              ><i data-lucide="graduation-cap"></i> Student</a
+            >
+          </div>
+        </div>
+      </section>
+    </main>
+
+    <!-- ============ FOOTER ============ -->
+    <footer class="footer" id="contact">
+      <div class="container footer-grid">
+        <div class="f-brand">
+          <a href="#home" class="brand brand-light"
+            ><img
+              src="assets/crt-logo.png"
+              alt="CRT logo"
+              width="48"
+              height="48"
+            /><span class="brand-text"
+              ><strong>College for Research and Technology</strong
+              ><small>Student Organization Participation Tracker</small></span
+            ></a
+          >
+          <p>
+            A web-based platform for managing student organizations, monitoring
+            participation, organizing events, assigning tasks and tracking
+            attendance.
+          </p>
+        </div>
+        <div>
+          <h4>Navigate</h4>
+          <ul>
+            <li><a href="#home">Home</a></li>
+            <li><a href="#about">About</a></li>
+            <li><a href="#features">Features</a></li>
+            <li><a href="#how-it-works">How It Works</a></li>
+            <li><a href="#faq">FAQ</a></li>
+          </ul>
+        </div>
+        <div>
+          <h4>Contact</h4>
+          <ul class="contact">
+            <li>
+              <i data-lucide="map-pin"></i
+              ><span
+                >College for Research and Technology, San Jose Campus<br />Sanchez
+                St., Brgy. Crisanto Sanchez, San Jose City, Nueva Ecija</span
+              >
+            </li>
+            <li>
+              <i data-lucide="phone"></i><span>803-3630</span> /
+              <a href="tel:+639913759823">0991 375 9823</a>
+            </li>
+            <li>
+              <i data-lucide="globe"></i
+              ><a
+                href="https://web.facebook.com/CRTsanjose1988"
+                target="_blank"
+                rel="noopener"
+                >facebook.com/CRTsanjose1988</a
+              >
+            </li>
+          </ul>
+        </div>
+      </div>
+      <div class="container copyright">
+        <span
+          >&copy; <span id="year">2026</span> College for Research and
+          Technology. All rights reserved.</span
+        >
+        <span>CRT Student Organization Participation Tracker</span>
+      </div>
+    </footer>
+  </body>
+</html>

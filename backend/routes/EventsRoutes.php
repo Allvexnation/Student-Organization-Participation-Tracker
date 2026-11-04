@@ -12,7 +12,9 @@ class EventsRoutes {
     public function handle($method, $uri) {
         $uri = rtrim($uri, '/');
         
-        if ($method === 'GET' && $uri === '/api/admin/events') {
+        if ($method === 'GET' && $uri === '/api/web/events') {
+            $this->controller->getPublic();
+        } elseif ($method === 'GET' && $uri === '/api/admin/events') {
             $this->controller->getAll();
         } elseif ($method === 'GET' && preg_match('#^/api/admin/events/(\d+)$#', $uri, $matches)) {
             $this->controller->getOne($matches[1]);

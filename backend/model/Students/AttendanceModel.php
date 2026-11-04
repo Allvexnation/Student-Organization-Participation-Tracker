@@ -14,22 +14,90 @@ class StudentAttendanceModel {
         }
     }
 
+    private function generateSchedulesFromRange($eventDayStart, $eventDayEnd) {
+        if (empty($eventDayStart) || empty($eventDayEnd)) {
+            return [];
+        }
+
+        try {
+            $start = new DateTime($eventDayStart);
+            $end = new DateTime($eventDayEnd);
+            $end->modify('+1 day');
+            $period = new DatePeriod($start, new DateInterval('P1D'), $end);
+
+            $generated = [];
+            foreach ($period as $dt) {
+                $generated[] = [
+                    'id' => null,
+                    'schedule_date' => $dt->format('Y-m-d'),
+                    'start_time' => '08:00:00',
+                    'end_time' => '17:00:00'
+                ];
+            }
+            return $generated;
+        } catch (Exception $e) {
+            return [];
+        }
+    }
+
+    private function attachDailySchedules(array &$events) {
+        if (empty($events)) {
+            return;
+        }
+
+        $eventIds = array_values(array_unique(array_filter(array_map(function ($event) {
+            return (int)($event['id'] ?? 0);
+        }, $events))));
+
+        $schedulesByEvent = [];
+        if (!empty($eventIds)) {
+            $placeholders = implode(',', array_fill(0, count($eventIds), '?'));
+            $schedQuery = "SELECT id, event_id, schedule_date, start_time, end_time
+                           FROM event_daily_schedules
+                           WHERE event_id IN ($placeholders)
+                           ORDER BY schedule_date ASC";
+            $schedStmt = $this->conn->prepare($schedQuery);
+            $schedStmt->execute($eventIds);
+            foreach ($schedStmt->fetchAll(PDO::FETCH_ASSOC) as $schedule) {
+                $schedulesByEvent[(int)$schedule['event_id']][] = [
+                    'id' => $schedule['id'],
+                    'schedule_date' => $schedule['schedule_date'],
+                    'start_time' => $schedule['start_time'],
+                    'end_time' => $schedule['end_time']
+                ];
+            }
+        }
+
+        foreach ($events as &$event) {
+            $eventId = (int)($event['id'] ?? 0);
+            $schedules = $schedulesByEvent[$eventId] ?? [];
+            if (empty($schedules)) {
+                $schedules = $this->generateSchedulesFromRange(
+                    $event['event_day_start'] ?? null,
+                    $event['event_day_end'] ?? null
+                );
+            }
+            $event['daily_schedules'] = $schedules;
+        }
+        unset($event);
+    }
+
     public function getEventsForStudent($student_id) {
         if (!$this->conn) return false;
 
         $query = "SELECT DISTINCT e.id, e.title, e.description, e.event_day_start, e.event_day_end, 
                                  e.venue, e.event_category, 
-                                 COALESCE(eo.organization_id, e.organization_id) as organization_id, 
+                                 eo.organization_id, 
                                  o.name as organization_name,
                                  COALESCE(o.adviser_id, eo.approver_id, 1) as adviser_id,
                                  adv.name as adviser_name
                   FROM events e
-                  LEFT JOIN event_registrations er ON er.event_id = e.id AND er.student_id = :student_id_1
-                  LEFT JOIN event_organizations eo ON eo.event_id = e.id
-                  LEFT JOIN organization_memberships om ON om.organization_id = eo.organization_id AND om.student_id = :student_id_2
-                  LEFT JOIN organizations o ON o.id = COALESCE(eo.organization_id, e.organization_id)
+                  INNER JOIN event_organizations eo ON eo.event_id = e.id
+                  LEFT JOIN organization_memberships om ON om.organization_id = eo.organization_id AND om.student_id = :student_id_1
+                  LEFT JOIN event_registrations er ON er.event_id = e.id AND er.student_id = :student_id_2
+                  LEFT JOIN organizations o ON o.id = eo.organization_id
                   LEFT JOIN advisers adv ON adv.id = COALESCE(o.adviser_id, eo.approver_id)
-                  WHERE er.id IS NOT NULL OR om.id IS NOT NULL
+                  WHERE om.id IS NOT NULL OR er.id IS NOT NULL
                   ORDER BY e.event_day_start DESC, e.id DESC";
 
         try {
@@ -37,39 +105,8 @@ class StudentAttendanceModel {
             $stmt->bindParam(':student_id_1', $student_id);
             $stmt->bindParam(':student_id_2', $student_id);
             $stmt->execute();
-            $events = $stmt->fetchAll(PDO::FETCH_ASSOC);
-
-            foreach ($events as &$event) {
-                $schedQuery = "SELECT id, schedule_date, start_time, end_time 
-                               FROM event_daily_schedules 
-                               WHERE event_id = :event_id 
-                               ORDER BY schedule_date ASC";
-                $schedStmt = $this->conn->prepare($schedQuery);
-                $schedStmt->bindParam(':event_id', $event['id']);
-                $schedStmt->execute();
-                $schedules = $schedStmt->fetchAll(PDO::FETCH_ASSOC);
-
-                if (empty($schedules) && !empty($event['event_day_start']) && !empty($event['event_day_end'])) {
-                    $start = new DateTime($event['event_day_start']);
-                    $end = new DateTime($event['event_day_end']);
-                    $end->modify('+1 day');
-                    $period = new DatePeriod($start, new DateInterval('P1D'), $end);
-
-                    $generated = [];
-                    foreach ($period as $dt) {
-                        $generated[] = [
-                            'id' => null,
-                            'schedule_date' => $dt->format('Y-m-d'),
-                            'start_time' => '08:00:00',
-                            'end_time' => '17:00:00'
-                        ];
-                    }
-                    $schedules = $generated;
-                }
-
-                $event['daily_schedules'] = $schedules;
-            }
-
+            $events = $stmt->fetchAll(PDO::FETCH_ASSOC) ?: [];
+            $this->attachDailySchedules($events);
             return $events;
         } catch (PDOException $e) {
             error_log("Error fetching student events for attendance: " . $e->getMessage());

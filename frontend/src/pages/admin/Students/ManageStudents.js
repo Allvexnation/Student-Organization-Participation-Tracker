@@ -9,6 +9,8 @@ import { showToast } from '../../../components/ToastMessage.js';
 import { CrudMenu } from '../../../components/CrudMenu.js';
 import { skeletonTableRows } from '../../../components/SkeletonLoading.js';
 import { getDefaultProfileSVG } from '../../../static/Profile/DefaultProfile.js';
+import { logChange } from '../../../api/AuditLogs/AuditLogs.js';
+import { decodeToken, getToken } from '../../../utils/jwt.js';
 
 export function ManageStudents() {
     return `
@@ -63,6 +65,9 @@ export function ManageStudents() {
 export async function initManageStudents() {
     protectAdminRoute();
     await initAdminNavbar();
+
+    const adminToken = getToken('admin');
+    const adminUser = decodeToken(adminToken) || {};
 
     initManageStudentsAnimations();
 
@@ -182,13 +187,27 @@ export async function initManageStudents() {
                     await StudentsAPI.updateStudent(id, data);
                 } else {
                     const response = await StudentsAPI.createStudent(data);
+                    try {
+                        await logChange({
+                            user_id: adminUser.user_id,
+                            user_type: 'admin',
+                            action: 'create',
+                            table_name: 'students',
+                            record_id: response.id,
+                            field_name: 'all',
+                            old_value: null,
+                            new_value: `Student: ${data.first_name} ${data.last_name}`
+                        });
+                    } catch (error) {
+                        console.error('Failed to log student creation:', error);
+                    }
                     await CacheService.remove('cachedStudents');
-                    
+
                     loadStudents(true);
                     return response;
                 }
                 await CacheService.remove('cachedStudents');
-                
+
                 loadStudents(true);
             }
         });
@@ -199,9 +218,31 @@ export async function initManageStudents() {
             mode: 'edit',
             studentId: id,
             onSubmit: async (id, data) => {
+                const oldStudent = students.find(s => s.id === id);
                 await StudentsAPI.updateStudent(id, data);
+
+                const fieldsToLog = ['first_name', 'last_name', 'student_number', 'email', 'program', 'year_level', 'profile_photo'];
+                for (const field of fieldsToLog) {
+                    if (oldStudent && oldStudent[field] !== data[field]) {
+                        try {
+                            await logChange({
+                                user_id: adminUser.user_id,
+                                user_type: 'admin',
+                                action: 'update',
+                                table_name: 'students',
+                                record_id: id,
+                                field_name: field,
+                                old_value: field === 'profile_photo' ? (oldStudent[field] ? 'Base64 image data' : 'None') : (oldStudent[field] || 'None'),
+                                new_value: field === 'profile_photo' ? (data[field] ? 'Base64 image data' : 'Removed') : (data[field] || 'Removed')
+                            });
+                        } catch (error) {
+                            console.error(`Failed to log student ${field} change:`, error);
+                        }
+                    }
+                }
+
                 await CacheService.remove('cachedStudents');
-                
+
                 loadStudents(true);
             }
         });
@@ -221,7 +262,24 @@ export async function initManageStudents() {
             showReason: true,
             onConfirm: async (reason) => {
                 try {
+                    const oldStudent = students.find(s => s.id === id);
                     await StudentsAPI.deleteStudent(id, reason);
+
+                    try {
+                        await logChange({
+                            user_id: adminUser.user_id,
+                            user_type: 'admin',
+                            action: 'delete',
+                            table_name: 'students',
+                            record_id: id,
+                            field_name: 'all',
+                            old_value: `Student: ${oldStudent?.first_name} ${oldStudent?.last_name || 'Unknown'}`,
+                            new_value: null
+                        });
+                    } catch (error) {
+                        console.error('Failed to log student deletion:', error);
+                    }
+
                     loadStudents(true);
                     showToast('Student deleted successfully', 'success');
                 } catch (error) {

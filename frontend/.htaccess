@@ -1,4 +1,8 @@
 RewriteEngine On
+
+# Block /app.js route
+RewriteRule ^app\.js/?$ - [F,L]
+
 RewriteCond %{REQUEST_FILENAME} !-f
 RewriteCond %{REQUEST_FILENAME} !-d
 RewriteCond %{REQUEST_URI} !\.js$

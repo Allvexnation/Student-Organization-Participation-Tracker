@@ -36,15 +36,47 @@ class EventsController {
         }
     }
 
+    public function getPublic() {
+        header('Content-Type: application/json');
+
+        $events = CacheService::remember('events_public', 300, function() {
+            return $this->eventsModel->readPublicRegistered();
+        });
+
+        if ($events !== false) {
+            http_response_code(200);
+            echo json_encode(['events' => $events]);
+            return;
+        }
+
+        http_response_code(500);
+        echo json_encode(['message' => 'Failed to fetch events']);
+    }
+
     public function getOne($id) {
         header('Content-Type: application/json');
         
         $headers = getallheaders();
         $token = isset($headers['Authorization']) ? str_replace('Bearer ', '', $headers['Authorization']) : null;
         
-        if (!$token || !JWT::validate($token)) {
+        if (!$token) {
             http_response_code(401);
             echo json_encode(['message' => 'Unauthorized']);
+            return;
+        }
+
+        if (!JWT::validate($token)) {
+            http_response_code(401);
+            echo json_encode(['message' => 'Unauthorized']);
+            return;
+        }
+
+        $payload = JWT::decode($token);
+        $userType = isset($payload['user_type']) ? $payload['user_type'] : (isset($payload['role']) ? $payload['role'] : null);
+
+        if ($userType !== 'admin' && $userType !== 'adviser') {
+            http_response_code(403);
+            echo json_encode(['message' => 'Forbidden']);
             return;
         }
 
@@ -79,7 +111,7 @@ class EventsController {
             return;
         }
 
-        if (!isset($data['organization_ids']) || !is_array($data['organization_ids']) || empty($data['organization_ids']) || !isset($data['title']) || !isset($data['event_day_start']) || !isset($data['event_day_end']) || !isset($data['event_category'])) {
+        if (!isset($data['title']) || !isset($data['event_day_start']) || !isset($data['event_day_end']) || !isset($data['event_category'])) {
             http_response_code(400);
             echo json_encode(['message' => 'Missing required fields']);
             return;
@@ -88,6 +120,7 @@ class EventsController {
         $result = $this->eventsModel->create($data);
         if ($result) {
             CacheService::forget('events_all');
+            CacheService::forget('events_public');
         }
 
         if ($result) {
@@ -119,7 +152,7 @@ class EventsController {
             return;
         }
 
-        if (!isset($data['organization_ids']) || !is_array($data['organization_ids']) || empty($data['organization_ids']) || !isset($data['title']) || !isset($data['event_day_start']) || !isset($data['event_day_end']) || !isset($data['event_category'])) {
+        if (!isset($data['title']) || !isset($data['event_day_start']) || !isset($data['event_day_end']) || !isset($data['event_category'])) {
             http_response_code(400);
             echo json_encode(['message' => 'Missing required fields']);
             return;
@@ -128,6 +161,7 @@ class EventsController {
         $result = $this->eventsModel->update($id, $data);
         if ($result) {
             CacheService::forget('events_all');
+            CacheService::forget('events_public');
             CacheService::forget('event_' . $id);
         }
 
@@ -159,6 +193,7 @@ class EventsController {
         $result = $this->eventsModel->delete($id);
         if ($result) {
             CacheService::forget('events_all');
+            CacheService::forget('events_public');
             CacheService::forget('event_' . $id);
         }
 

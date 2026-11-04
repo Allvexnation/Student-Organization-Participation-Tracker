@@ -8,6 +8,8 @@ import { openConfirmDialog } from '../../../components/Dialog/ConfirmDialog.js';
 import { showToast } from '../../../components/ToastMessage.js';
 import { CrudMenu } from '../../../components/CrudMenu.js';
 import { skeletonTableRows } from '../../../components/SkeletonLoading.js';
+import { logChange } from '../../../api/AuditLogs/AuditLogs.js';
+import { decodeToken, getToken } from '../../../utils/jwt.js';
 
 export function ManageRoles() {
     return `
@@ -60,6 +62,9 @@ export function ManageRoles() {
 export async function initManageRoles() {
     protectAdminRoute();
     await initAdminNavbar();
+
+    const adminToken = getToken('admin');
+    const adminUser = decodeToken(adminToken) || {};
 
     initManageRolesAnimations();
 
@@ -173,7 +178,21 @@ export async function initManageRoles() {
                 if (id) {
                     await RolesAPI.updateRole(id, data);
                 } else {
-                    await RolesAPI.createRole(data);
+                    const response = await RolesAPI.createRole(data);
+                    try {
+                        await logChange({
+                            user_id: adminUser.user_id,
+                            user_type: 'admin',
+                            action: 'create',
+                            table_name: 'roles',
+                            record_id: response.id,
+                            field_name: 'all',
+                            old_value: null,
+                            new_value: `Role: ${data.role_name}`
+                        });
+                    } catch (error) {
+                        console.error('Failed to log role creation:', error);
+                    }
                 }
                 loadRoles(true);
             }
@@ -185,7 +204,29 @@ export async function initManageRoles() {
             mode: 'edit',
             roleId: id,
             onSubmit: async (id, data) => {
+                const oldRole = roles.find(r => r.id === id);
                 await RolesAPI.updateRole(id, data);
+
+                const fieldsToLog = ['role_name', 'description'];
+                for (const field of fieldsToLog) {
+                    if (oldRole && oldRole[field] !== data[field]) {
+                        try {
+                            await logChange({
+                                user_id: adminUser.user_id,
+                                user_type: 'admin',
+                                action: 'update',
+                                table_name: 'roles',
+                                record_id: id,
+                                field_name: field,
+                                old_value: oldRole[field] || 'None',
+                                new_value: data[field] || 'Removed'
+                            });
+                        } catch (error) {
+                            console.error(`Failed to log role ${field} change:`, error);
+                        }
+                    }
+                }
+
                 loadRoles(true);
             }
         });
@@ -204,7 +245,24 @@ export async function initManageRoles() {
             type: 'danger',
             onConfirm: async () => {
                 try {
+                    const oldRole = roles.find(r => r.id === id);
                     await RolesAPI.deleteRole(id);
+
+                    try {
+                        await logChange({
+                            user_id: adminUser.user_id,
+                            user_type: 'admin',
+                            action: 'delete',
+                            table_name: 'roles',
+                            record_id: id,
+                            field_name: 'all',
+                            old_value: `Role: ${oldRole?.role_name || 'Unknown'}`,
+                            new_value: null
+                        });
+                    } catch (error) {
+                        console.error('Failed to log role deletion:', error);
+                    }
+
                     loadRoles(true);
                     showToast('Role deleted successfully', 'success');
                 } catch (error) {

@@ -19,6 +19,14 @@ function normalizeRole(role) {
     return 'admin';
 }
 
+export function isValidJwt(token) {
+    if (!token || typeof token !== 'string') return false;
+    const clean = token.trim();
+    const parts = clean.split('.');
+    if (parts.length !== 3) return false;
+    return parts.every(part => /^[A-Za-z0-9_-]+$/.test(part));
+}
+
 export function getTokenKey(role = 'admin') {
     const norm = normalizeRole(role);
     return `${norm}Token`;
@@ -145,15 +153,21 @@ export function getStoredToken(role = 'admin') {
     const norm = normalizeRole(role);
 
     if (memoryTokens[norm]) {
-        return memoryTokens[norm];
+        if (isValidJwt(memoryTokens[norm])) {
+            return memoryTokens[norm];
+        }
+        memoryTokens[norm] = null;
     }
 
     try {
         if (typeof sessionStorage !== 'undefined') {
             const sessionVal = sessionStorage.getItem(getTokenKey(norm));
             if (sessionVal) {
-                memoryTokens[norm] = sessionVal;
-                return sessionVal;
+                if (isValidJwt(sessionVal)) {
+                    memoryTokens[norm] = sessionVal;
+                    return sessionVal;
+                }
+                sessionStorage.removeItem(getTokenKey(norm));
             }
         }
     } catch (e) {}
@@ -161,7 +175,7 @@ export function getStoredToken(role = 'admin') {
     const cookieVal = getSecureCookie(getCookieName('tok', norm));
     if (cookieVal) {
         const plainToken = decodeDevice(cookieVal);
-        if (plainToken) {
+        if (plainToken && isValidJwt(plainToken)) {
             memoryTokens[norm] = plainToken;
             try {
                 if (typeof sessionStorage !== 'undefined') {
@@ -169,6 +183,8 @@ export function getStoredToken(role = 'admin') {
                 }
             } catch (e) {}
             return plainToken;
+        } else if (cookieVal) {
+            removeSecureCookie(getCookieName('tok', norm));
         }
     }
 
