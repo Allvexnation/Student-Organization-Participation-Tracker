@@ -1,4 +1,10 @@
 RewriteEngine On
+
+# Block access to sensitive directories
+RewriteRule ^template/ - [F,L]
+RewriteRule ^utils/ - [F,L]
+RewriteRule ^validator/ - [F,L]
+
 RewriteCond %{REQUEST_FILENAME} !-f
 RewriteCond %{REQUEST_FILENAME} !-d
 RewriteRule ^(.*)$ index.php [QSA,L]
