@@ -198,7 +198,7 @@ function setSupportFormVisible(form, visible) {
     form.classList.toggle('hidden', !visible);
     form.toggleAttribute('hidden', !visible);
     if (!visible) {
-        // Layout flex classes also force display; strip them when hiding.
+        
         form.classList.remove(...FORM_LAYOUT_CLASSES);
     }
 }

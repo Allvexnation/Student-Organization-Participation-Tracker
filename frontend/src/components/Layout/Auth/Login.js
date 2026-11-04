@@ -696,14 +696,6 @@ export function initAuthLogin({
 }) {
     initNetworkListener();
 
-    (async () => {
-        const authenticated = await isAuthenticated(role);
-        if (authenticated && getUserRole(role) === role) {
-            navigate(dashboardPath);
-            return;
-        }
-    })();
-
     document.body.classList.remove('admin-page', 'adviser-page', 'student-page');
     if (bodyClass) document.body.classList.add(bodyClass);
 
@@ -951,4 +943,20 @@ export function initAuthLogin({
             }
         });
     }
+
+    (async () => {
+        const authenticated = await isAuthenticated(role);
+        if (!(authenticated && getUserRole(role) === role)) return;
+
+        busy = true;
+        form?.querySelectorAll('button, input, a').forEach((el) => {
+            el.toggleAttribute('disabled', true);
+            el.classList.add('pointer-events-none', 'opacity-70');
+        });
+        if (googleLoginBtn) googleLoginBtn.disabled = true;
+
+        const portal = ROLES[roleKey]?.label || 'your';
+        await showToast(`You're already signed in. Redirecting to the ${portal} dashboard...`, 'info', 1600);
+        await navigateAfterLogin(dashboardPath);
+    })();
 }

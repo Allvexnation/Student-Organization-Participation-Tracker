@@ -235,30 +235,6 @@ export async function render(root, routes, initFunctions) {
         }
     }
 
-    if (route === '/auth/admin/login') {
-        const authAdmin = await isAuthenticated('admin');
-        if (authAdmin && getUserRole('admin') === 'admin') {
-            navigate('/admin/dashboard');
-            return;
-        }
-    }
-
-    if (route === '/auth/adviser/login') {
-        const authAdviser = await isAuthenticated('adviser');
-        if (authAdviser && getUserRole('adviser') === 'adviser') {
-            navigate('/adviser/dashboard');
-            return;
-        }
-    }
-
-    if (route === '/auth/student/login') {
-        const authStudent = await isAuthenticated('student');
-        if (authStudent && getUserRole('student') === 'student') {
-            navigate('/student/dashboard');
-            return;
-        }
-    }
-
     if (route === '/admin/admins') {
         const authAdmin = await isAuthenticated('admin');
         if (!authAdmin || !isSuperAdmin('admin')) {

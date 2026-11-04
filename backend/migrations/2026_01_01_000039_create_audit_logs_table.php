@@ -34,24 +34,6 @@ class Create_audit_logs_table extends Migration {
         } catch (PDOException $e) {
             echo "Foreign key for admins may already exist or not applicable: " . $e->getMessage() . "\n";
         }
-
-        try {
-            $this->conn->exec("ALTER TABLE audit_logs 
-                ADD CONSTRAINT fk_audit_logs_adviser 
-                FOREIGN KEY (user_id) REFERENCES advisers(id) 
-                ON DELETE CASCADE");
-        } catch (PDOException $e) {
-            echo "Foreign key for advisers may already exist or not applicable: " . $e->getMessage() . "\n";
-        }
-
-        try {
-            $this->conn->exec("ALTER TABLE audit_logs 
-                ADD CONSTRAINT fk_audit_logs_student 
-                FOREIGN KEY (user_id) REFERENCES students(id) 
-                ON DELETE CASCADE");
-        } catch (PDOException $e) {
-            echo "Foreign key for students may already exist or not applicable: " . $e->getMessage() . "\n";
-        }
         
         try {
             $this->conn->exec("ALTER TABLE audit_logs ADD INDEX idx_user_id (user_id)");

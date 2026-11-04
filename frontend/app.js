@@ -11,6 +11,8 @@ loadGoogleOAuth();
 export class App {
     constructor(root) {
         this.root = root;
+        this.renderSeq = 0;
+        this.renderPending = null;
 
         window.addEventListener('popstate', () => this.render());
 
@@ -19,10 +21,17 @@ export class App {
 
     navigate(path) {
         navigate(path);
-        this.render();
+        return this.render();
     }
 
     async render() {
-        await render(this.root, routes, initFunctions);
+        const seq = ++this.renderSeq;
+        const run = async () => {
+            if (seq !== this.renderSeq) return;
+            await render(this.root, routes, initFunctions);
+        };
+
+        this.renderPending = (this.renderPending || Promise.resolve()).catch(() => {}).then(run);
+        return this.renderPending;
     }
 }

@@ -250,8 +250,7 @@ export function consumeDashboardFromLogin() {
 
 function goToPath(path) {
     if (window.appNavigate) {
-        window.appNavigate(path);
-        return;
+        return window.appNavigate(path);
     }
 
     window.history.pushState({}, '', path);
@@ -286,7 +285,18 @@ export async function navigateAfterLogin(path) {
         }
     }
 
-    goToPath(path);
+    const leavingRoot = authShell || document.getElementById('root');
+    leavingRoot?.getAnimations?.({ subtree: true })?.forEach((animation) => {
+        try {
+            animation.cancel();
+        } catch {
+
+        }
+    });
+    overflowLocks = 0;
+    overflowState = null;
+
+    await goToPath(path);
 }
 
 export async function navigateAfterLogout(path) {
