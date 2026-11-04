@@ -22,17 +22,23 @@ export function showContactSupportModal(type = 'contact') {
                     </button>
                 </div>
             </div>
-            <form id="contactForm" class="manage-modal-form space-y-4 ${isContact ? '' : 'hidden'}">
+            <form id="contactForm" class="manage-modal-form space-y-4${isContact ? '' : ' hidden'}"${isContact ? '' : ' hidden'}>
                 ${getContactForm()}
             </form>
-            <form id="reportForm" class="manage-modal-form space-y-4 ${isContact ? 'hidden' : ''}">
+            <form id="reportForm" class="manage-modal-form space-y-4${isContact ? ' hidden' : ''}"${isContact ? ' hidden' : ''}>
                 ${getReportForm()}
             </form>
         </div>
     `;
 
     openModal(isContact ? 'Contact Us' : 'Report a Problem', formContent, 'mid-large');
-    applyModalDomino();
+
+    const contactForm = document.getElementById('contactForm');
+    const reportForm = document.getElementById('reportForm');
+    setSupportFormVisible(contactForm, isContact);
+    setSupportFormVisible(reportForm, !isContact);
+
+    applyModalDomino(isContact ? contactForm : reportForm);
     setupFormHandlers();
 }
 
@@ -190,8 +196,9 @@ const FORM_LAYOUT_CLASSES = [
 function setSupportFormVisible(form, visible) {
     if (!form) return;
     form.classList.toggle('hidden', !visible);
+    form.toggleAttribute('hidden', !visible);
     if (!visible) {
-        // `flex` overrides Tailwind `hidden` — strip layout classes when hiding.
+        // Layout flex classes also force display; strip them when hiding.
         form.classList.remove(...FORM_LAYOUT_CLASSES);
     }
 }
