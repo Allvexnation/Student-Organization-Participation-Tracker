@@ -66,17 +66,20 @@ function emptyState(icon, title, subtitle) {
 
 function skeletonCards(count = 4) {
     return Array.from({ length: count }, () => `
-        <div class="org-mobile-card rounded-2xl border border-line bg-white/90 p-4">
-            <div class="flex items-center gap-3">
-                <div class="w-12 h-12 rounded-2xl skeleton-shimmer shrink-0"></div>
-                <div class="flex-1 space-y-2 min-w-0">
-                    <div class="h-4 w-32 skeleton-shimmer rounded"></div>
-                    <div class="h-3 w-44 skeleton-shimmer rounded"></div>
+        <div class="org-mobile-card rounded-[1.35rem] border border-line bg-white/90 overflow-hidden">
+            <div class="org-mobile-card-band"></div>
+            <div class="p-4">
+                <div class="flex items-center gap-3">
+                    <div class="w-12 h-12 rounded-2xl skeleton-shimmer shrink-0"></div>
+                    <div class="flex-1 space-y-2 min-w-0">
+                        <div class="h-4 w-32 skeleton-shimmer rounded"></div>
+                        <div class="h-3 w-44 skeleton-shimmer rounded"></div>
+                    </div>
                 </div>
-            </div>
-            <div class="mt-4 grid grid-cols-2 gap-2">
-                <div class="h-12 skeleton-shimmer rounded-xl"></div>
-                <div class="h-12 skeleton-shimmer rounded-xl"></div>
+                <div class="mt-4 grid grid-cols-2 gap-2">
+                    <div class="h-12 skeleton-shimmer rounded-xl"></div>
+                    <div class="h-12 skeleton-shimmer rounded-xl"></div>
+                </div>
             </div>
         </div>
     `).join('');
@@ -84,7 +87,7 @@ function skeletonCards(count = 4) {
 
 function toolbar({ searchId, addId, placeholder }) {
     return `
-        <div class="reveal mb-4 md:mb-5" data-domino-enter>
+        <div class="org-toolbar reveal mb-4 md:mb-5" data-domino-enter>
             <div class="flex items-center gap-2.5">
                 <div class="relative flex-1 md:flex-none">
                     <i data-lucide="search" class="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted"></i>
@@ -92,7 +95,7 @@ function toolbar({ searchId, addId, placeholder }) {
                         type="search"
                         id="${searchId}"
                         placeholder="${placeholder}"
-                        class="w-full md:w-80 pl-9 pr-3 py-2.5 text-sm border border-line rounded-xl bg-white text-ink placeholder:text-muted focus:outline-none focus:ring-2 focus:ring-blue-600/15 focus:border-blue-600">
+                        class="w-full md:w-80 pl-9 pr-3 py-2.5 text-sm border border-line rounded-2xl md:rounded-xl bg-white/95 text-ink placeholder:text-muted focus:outline-none focus:ring-2 focus:ring-blue-600/15 focus:border-blue-600">
                 </div>
                 <button
                     type="button"
@@ -264,7 +267,7 @@ export function AdminOrganizations() {
                             <th class="px-5 py-3.5 text-center w-28">Actions</th>
                         `
                     })}
-                    <div id="orgMobileList" class="md:hidden space-y-3">${skeletonCards()}</div>
+                    <div id="orgMobileList" class="md:hidden org-mobile-stack space-y-3">${skeletonCards()}</div>
                 </section>
 
                 <section id="membershipsSection" class="hidden">
@@ -282,7 +285,7 @@ export function AdminOrganizations() {
                             <th class="px-5 py-3.5 text-center w-28">Actions</th>
                         `
                     })}
-                    <div id="orgMemMobileList" class="md:hidden space-y-3">${skeletonCards()}</div>
+                    <div id="orgMemMobileList" class="md:hidden org-mobile-stack space-y-3">${skeletonCards()}</div>
                 </section>
             </main>
 
@@ -386,34 +389,37 @@ export async function initAdminOrganizations() {
         if (isMobileView()) {
             tbody.innerHTML = '';
             mobile.innerHTML = list.map((org) => `
-                <article class="org-mobile-card reveal rounded-2xl border border-line bg-white overflow-hidden" data-domino-enter>
-                    <div class="p-4">
-                        <div class="flex items-start gap-3">
-                            ${orgMonogram(org.org_code)}
-                            <div class="min-w-0 flex-1">
-                                <div class="flex items-start justify-between gap-2">
-                                    <div class="min-w-0">
-                                        <h3 class="text-sm font-semibold text-ink truncate">${escapeHtml(org.name)}</h3>
-                                        <p class="text-[11px] text-muted font-mono mt-0.5">${escapeHtml(org.org_code || '—')}</p>
+                <article class="org-mobile-card reveal rounded-[1.35rem] border border-line bg-white overflow-hidden" data-domino-enter>
+                    <div class="org-parallax-inner">
+                        <div class="org-mobile-card-band"></div>
+                        <div class="p-4">
+                            <div class="flex items-start gap-3">
+                                ${orgMonogram(org.org_code)}
+                                <div class="min-w-0 flex-1">
+                                    <div class="flex items-start justify-between gap-2">
+                                        <div class="min-w-0">
+                                            <h3 class="text-sm font-semibold text-ink truncate">${escapeHtml(org.name)}</h3>
+                                            <p class="text-[11px] text-muted font-mono mt-0.5">${escapeHtml(org.org_code || '—')}</p>
+                                        </div>
+                                        ${statusPill(org.status)}
                                     </div>
-                                    ${statusPill(org.status)}
                                 </div>
                             </div>
+                            <div class="mt-3.5 grid grid-cols-2 gap-2">
+                                ${metaTile('Adviser', escapeHtml(org.adviser || 'N/A'))}
+                                ${metaTile('Created', formatShortDate(org.created_at))}
+                            </div>
                         </div>
-                        <div class="mt-3.5 grid grid-cols-2 gap-2">
-                            ${metaTile('Adviser', escapeHtml(org.adviser || 'N/A'))}
-                            ${metaTile('Created', formatShortDate(org.created_at))}
+                        <div class="px-3 py-2.5 border-t border-line bg-surface/70 flex justify-end">
+                            ${CrudMenu({
+                                id: String(org.id),
+                                showView: true,
+                                onView: 'viewOrg',
+                                onEdit: 'editOrg',
+                                onDelete: 'deleteOrg',
+                                deleteLabel: org.name
+                            })}
                         </div>
-                    </div>
-                    <div class="px-3 py-2.5 border-t border-line bg-surface/70 flex justify-end">
-                        ${CrudMenu({
-                            id: String(org.id),
-                            showView: true,
-                            onView: 'viewOrg',
-                            onEdit: 'editOrg',
-                            onDelete: 'deleteOrg',
-                            deleteLabel: org.name
-                        })}
                     </div>
                 </article>
             `).join('');
@@ -640,34 +646,37 @@ export async function initAdminOrganizations() {
                 const studentName = membership.student_name || 'Unknown';
                 const initial = String(studentName).charAt(0).toUpperCase();
                 return `
-                <article class="org-mobile-card reveal rounded-2xl border border-line bg-white overflow-hidden" data-domino-enter>
-                    <div class="p-4">
-                        <div class="flex items-start gap-3">
-                            <div class="w-12 h-12 bg-blue-600 text-white rounded-2xl flex items-center justify-center font-semibold text-sm shadow-sm shrink-0">${escapeHtml(initial)}</div>
-                            <div class="min-w-0 flex-1">
-                                <div class="flex items-start justify-between gap-2">
-                                    <div class="min-w-0">
-                                        <h3 class="text-sm font-semibold text-ink truncate">${escapeHtml(studentName)}</h3>
-                                        <p class="text-[11px] text-muted truncate mt-0.5">${escapeHtml(membership.organization_name || 'Unknown')}</p>
+                <article class="org-mobile-card reveal rounded-[1.35rem] border border-line bg-white overflow-hidden" data-domino-enter>
+                    <div class="org-parallax-inner">
+                        <div class="org-mobile-card-band org-mobile-card-band--mem"></div>
+                        <div class="p-4">
+                            <div class="flex items-start gap-3">
+                                <div class="w-12 h-12 bg-blue-600 text-white rounded-2xl flex items-center justify-center font-semibold text-sm shadow-sm shrink-0">${escapeHtml(initial)}</div>
+                                <div class="min-w-0 flex-1">
+                                    <div class="flex items-start justify-between gap-2">
+                                        <div class="min-w-0">
+                                            <h3 class="text-sm font-semibold text-ink truncate">${escapeHtml(studentName)}</h3>
+                                            <p class="text-[11px] text-muted truncate mt-0.5">${escapeHtml(membership.organization_name || 'Unknown')}</p>
+                                        </div>
+                                        ${statusPill(membership.membership_status)}
                                     </div>
-                                    ${statusPill(membership.membership_status)}
                                 </div>
                             </div>
+                            <div class="mt-3.5 grid grid-cols-2 gap-2">
+                                ${metaTile('Position', escapeHtml(membership.role_name || membership.position || 'N/A'))}
+                                ${metaTile('Joined', formatShortDate(membership.date_joined))}
+                            </div>
                         </div>
-                        <div class="mt-3.5 grid grid-cols-2 gap-2">
-                            ${metaTile('Position', escapeHtml(membership.role_name || membership.position || 'N/A'))}
-                            ${metaTile('Joined', formatShortDate(membership.date_joined))}
+                        <div class="px-3 py-2.5 border-t border-line bg-surface/70 flex justify-end">
+                            ${CrudMenu({
+                                id: String(membership.id),
+                                showView: true,
+                                onView: 'viewOrgMem',
+                                onEdit: 'editOrgMem',
+                                onDelete: 'deleteOrgMem',
+                                deleteLabel: `${membership.student_name || 'Student'} - ${membership.organization_name || 'Organization'}`
+                            })}
                         </div>
-                    </div>
-                    <div class="px-3 py-2.5 border-t border-line bg-surface/70 flex justify-end">
-                        ${CrudMenu({
-                            id: String(membership.id),
-                            showView: true,
-                            onView: 'viewOrgMem',
-                            onEdit: 'editOrgMem',
-                            onDelete: 'deleteOrgMem',
-                            deleteLabel: `${membership.student_name || 'Student'} - ${membership.organization_name || 'Organization'}`
-                        })}
                     </div>
                 </article>
                 `;

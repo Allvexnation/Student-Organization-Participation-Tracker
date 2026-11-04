@@ -2544,23 +2544,66 @@ h2 {
     opacity: 1;
 }
 
+#admin-orgs-page .org-mobile-card-band {
+    display: none;
+}
+
+#admin-orgs-page .org-parallax-inner {
+    transform-origin: 50% 80%;
+    will-change: transform;
+}
+
 @media (max-width: 767px) {
     #admin-orgs-page {
         background:
-            radial-gradient(120% 80% at 100% -10%, rgba(250, 204, 21, 0.16), transparent 46%),
-            radial-gradient(90% 60% at -10% 0%, rgba(37, 99, 235, 0.12), transparent 42%),
-            #f5f7fb;
+            radial-gradient(120% 80% at 100% -10%, rgba(250, 204, 21, 0.18), transparent 46%),
+            radial-gradient(90% 60% at -10% 0%, rgba(37, 99, 235, 0.14), transparent 42%),
+            linear-gradient(180deg, #eef3fb 0%, #f5f7fb 38%, #f5f7fb 100%);
+    }
+
+    #admin-orgs-page .orgs-tab-bar {
+        backdrop-filter: blur(14px);
+        background: rgba(255, 255, 255, 0.9);
+        box-shadow: 0 10px 24px rgba(22, 58, 99, 0.08);
+    }
+
+    #admin-orgs-page .org-toolbar input {
+        box-shadow: 0 8px 18px rgba(22, 58, 99, 0.06);
+    }
+
+    #admin-orgs-page .org-mobile-stack {
+        perspective: 1100px;
+        padding-bottom: 0.25rem;
     }
 
     #admin-orgs-page .org-mobile-card {
-        backdrop-filter: blur(8px);
-        border-left-width: 4px;
-        border-left-color: var(--navy, #163a63);
+        backdrop-filter: blur(10px);
+        background: rgba(255, 255, 255, 0.92);
+        border-left-width: 0;
+        box-shadow: 0 14px 28px rgba(22, 58, 99, 0.1);
+    }
+
+    #admin-orgs-page .org-mobile-card-band {
+        display: block;
+        height: 6px;
+        background: linear-gradient(90deg, #163a63 0%, #2563eb 58%, #facc15 100%);
+    }
+
+    #admin-orgs-page .org-mobile-card-band--mem {
+        background: linear-gradient(90deg, #1d4ed8 0%, #2563eb 52%, #facc15 100%);
     }
 
     #admin-orgs-page .org-stat-chip {
         background: rgba(255, 255, 255, 0.86);
         box-shadow: 0 6px 16px rgba(22, 58, 99, 0.08);
+        border-radius: 1.1rem;
+    }
+}
+
+@media (prefers-reduced-motion: reduce) {
+    #admin-orgs-page .org-parallax-inner {
+        transform: none !important;
+        will-change: auto;
     }
 }
 

@@ -587,44 +587,40 @@ export function skeletonStudentView() {
 
 export function skeletonOrgForm() {
     return `
-        <form class="space-y-5">
-            <fieldset>
-                <legend class="text-xs font-semibold text-gray-500 uppercase tracking-wider mb-3 skeleton-shimmer w-56 h-4 rounded"></legend>
+        <form class="manage-modal-form space-y-4">
+            <section class="manage-modal-section rounded-2xl border border-line bg-white p-4 sm:p-5">
+                <div class="h-3 w-40 skeleton-shimmer rounded mb-3"></div>
                 <div class="space-y-3">
-                    <div class="space-y-1">
-                        <div class="h-4 w-40 skeleton-shimmer rounded"></div>
-                        <div class="h-10 w-full skeleton-shimmer rounded"></div>
+                    <div class="space-y-1.5">
+                        <div class="h-4 w-36 skeleton-shimmer rounded"></div>
+                        <div class="h-10 w-full skeleton-shimmer rounded-xl"></div>
                     </div>
-                    <div class="space-y-1">
+                    <div class="space-y-1.5">
                         <div class="h-4 w-40 skeleton-shimmer rounded"></div>
-                        <div class="h-10 w-full skeleton-shimmer rounded"></div>
+                        <div class="h-10 w-full skeleton-shimmer rounded-xl"></div>
                     </div>
-                    <div class="space-y-1">
-                        <div class="h-4 w-28 skeleton-shimmer rounded"></div>
-                        <div class="h-20 w-full skeleton-shimmer rounded"></div>
+                    <div class="space-y-1.5">
+                        <div class="h-4 w-24 skeleton-shimmer rounded"></div>
+                        <div class="h-20 w-full skeleton-shimmer rounded-xl"></div>
                     </div>
                 </div>
-            </fieldset>
-
-            <hr class="border-gray-100">
-
-            <fieldset>
-                <legend class="text-xs font-semibold text-gray-500 uppercase tracking-wider mb-3 skeleton-shimmer w-40 h-4 rounded"></legend>
-                <div class="space-y-3">
-                    <div class="space-y-1">
+            </section>
+            <section class="manage-modal-section rounded-2xl border border-line bg-white p-4 sm:p-5">
+                <div class="h-3 w-36 skeleton-shimmer rounded mb-3"></div>
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-3">
+                    <div class="space-y-1.5">
                         <div class="h-4 w-16 skeleton-shimmer rounded"></div>
-                        <div class="h-10 w-full skeleton-shimmer rounded"></div>
+                        <div class="h-10 w-full skeleton-shimmer rounded-xl"></div>
                     </div>
-                    <div class="space-y-1">
+                    <div class="space-y-1.5">
                         <div class="h-4 w-16 skeleton-shimmer rounded"></div>
-                        <div class="h-10 w-full skeleton-shimmer rounded"></div>
+                        <div class="h-10 w-full skeleton-shimmer rounded-xl"></div>
                     </div>
                 </div>
-            </fieldset>
-
-            <div class="flex justify-end pt-3 border-t border-gray-100 flex-row gap-2">
-                <div class="h-9 w-20 skeleton-shimmer rounded"></div>
-                <div class="h-9 w-32 skeleton-shimmer rounded"></div>
+            </section>
+            <div class="manage-modal-actions flex flex-col-reverse sm:flex-row sm:justify-end gap-2">
+                <div class="h-10 w-full sm:w-24 skeleton-shimmer rounded-xl"></div>
+                <div class="h-10 w-full sm:w-36 skeleton-shimmer rounded-xl"></div>
             </div>
         </form>
     `;
@@ -632,64 +628,36 @@ export function skeletonOrgForm() {
 
 export function skeletonOrgView() {
     return `
-        <div class="space-y-5">
-            <div class="flex flex-col sm:flex-row sm:items-center gap-4 bg-gray-50 rounded-lg p-4 border border-gray-100">
-                <div class="flex-shrink-0 w-24 h-24 sm:w-32 sm:h-32 rounded-lg skeleton-shimmer mx-auto sm:mx-0"></div>
-                <div class="text-center sm:text-left space-y-2 flex-1">
-                    <div class="h-6 w-48 skeleton-shimmer rounded mx-auto sm:mx-0"></div>
-                    <div class="h-4 w-32 skeleton-shimmer rounded mx-auto sm:mx-0"></div>
-                    <div class="h-6 w-20 skeleton-shimmer rounded mx-auto sm:mx-0"></div>
+        <div class="space-y-4">
+            <div class="manage-modal-hero rounded-2xl border border-line overflow-hidden bg-white">
+                <div class="manage-modal-hero-band"></div>
+                <div class="flex flex-col md:flex-row md:items-center gap-3 md:gap-4 p-4 sm:p-5">
+                    <div class="flex-shrink-0 w-20 h-20 md:w-28 md:h-28 rounded-2xl skeleton-shimmer mx-auto md:mx-0"></div>
+                    <div class="text-center md:text-left space-y-2 flex-1">
+                        <div class="h-6 w-48 skeleton-shimmer rounded mx-auto md:mx-0"></div>
+                        <div class="h-4 w-32 skeleton-shimmer rounded mx-auto md:mx-0"></div>
+                        <div class="h-6 w-20 skeleton-shimmer rounded mx-auto md:mx-0"></div>
+                    </div>
                 </div>
             </div>
 
-            <div class="border-b border-gray-200 pb-4">
-                <h4 class="text-xs font-semibold text-gray-500 uppercase tracking-wider mb-3 skeleton-shimmer w-56 h-4 rounded"></h4>
-                <dl class="grid grid-cols-1 sm:grid-cols-2 gap-x-6 gap-y-3">
-                    <div class="space-y-1">
-                        <div class="h-3 w-40 skeleton-shimmer rounded"></div>
-                        <div class="h-4 w-32 skeleton-shimmer rounded"></div>
-                    </div>
-                    <div class="space-y-1">
-                        <div class="h-3 w-40 skeleton-shimmer rounded"></div>
-                        <div class="h-4 w-48 skeleton-shimmer rounded"></div>
-                    </div>
-                    <div class="sm:col-span-2 space-y-1">
-                        <div class="h-3 w-28 skeleton-shimmer rounded"></div>
-                        <div class="h-4 w-64 skeleton-shimmer rounded"></div>
-                    </div>
-                </dl>
-            </div>
-
-            <div class="border-b border-gray-200 pb-4">
-                <h4 class="text-xs font-semibold text-gray-500 uppercase tracking-wider mb-3 skeleton-shimmer w-40 h-4 rounded"></h4>
-                <dl class="grid grid-cols-1 sm:grid-cols-2 gap-x-6 gap-y-3">
-                    <div class="space-y-1">
-                        <div class="h-3 w-16 skeleton-shimmer rounded"></div>
-                        <div class="h-4 w-32 skeleton-shimmer rounded"></div>
-                    </div>
-                    <div class="space-y-1">
-                        <div class="h-3 w-16 skeleton-shimmer rounded"></div>
-                        <div class="h-4 w-24 skeleton-shimmer rounded"></div>
-                    </div>
-                </dl>
-            </div>
-
-            <div class="border-b border-gray-200 pb-4">
-                <h4 class="text-xs font-semibold text-gray-500 uppercase tracking-wider mb-3 skeleton-shimmer w-32 h-4 rounded"></h4>
-                <dl class="grid grid-cols-1 sm:grid-cols-2 gap-x-6 gap-y-3">
-                    <div class="space-y-1">
-                        <div class="h-3 w-20 skeleton-shimmer rounded"></div>
-                        <div class="h-4 w-36 skeleton-shimmer rounded"></div>
-                    </div>
-                    <div class="space-y-1">
-                        <div class="h-3 w-20 skeleton-shimmer rounded"></div>
-                        <div class="h-4 w-36 skeleton-shimmer rounded"></div>
-                    </div>
-                </dl>
-            </div>
-
-            <div class="flex justify-end pt-3 border-t border-gray-100 flex-col sm:flex-row gap-2">
-                <div class="h-9 w-20 skeleton-shimmer rounded"></div>
+            <section class="manage-modal-section rounded-2xl border border-line bg-white p-4 sm:p-5">
+                <div class="h-3 w-40 skeleton-shimmer rounded mb-3"></div>
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-2.5">
+                    <div class="h-16 skeleton-shimmer rounded-xl"></div>
+                    <div class="h-16 skeleton-shimmer rounded-xl"></div>
+                    <div class="md:col-span-2 h-16 skeleton-shimmer rounded-xl"></div>
+                </div>
+            </section>
+            <section class="manage-modal-section rounded-2xl border border-line bg-white p-4 sm:p-5">
+                <div class="h-3 w-36 skeleton-shimmer rounded mb-3"></div>
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-2.5">
+                    <div class="h-16 skeleton-shimmer rounded-xl"></div>
+                    <div class="h-16 skeleton-shimmer rounded-xl"></div>
+                </div>
+            </section>
+            <div class="manage-modal-actions flex flex-col-reverse sm:flex-row sm:justify-end gap-2">
+                <div class="h-10 w-full sm:w-24 skeleton-shimmer rounded-xl"></div>
             </div>
         </div>
     `;
