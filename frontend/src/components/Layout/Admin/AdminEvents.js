@@ -521,13 +521,13 @@ export async function initAdminEvents() {
             mode: 'add',
             onSubmit: async (id, data) => {
                 if (id) {
-                    const oldEvent = await EventsAPI.getEvent(id);
+                    const oldEvent = events.find(e => e.id === id);
                     await EventsAPI.updateEvent(id, data);
                     const user = getUserData('admin');
 
                     const fields = ['title', 'description', 'venue', 'event_category', 'event_day_start', 'event_day_end'];
                     for (const field of fields) {
-                        if (oldEvent[field] !== data[field]) {
+                        if (oldEvent && oldEvent[field] !== data[field]) {
                             await logChange({
                                 user_id: getUserId('admin'),
                                 user_type: 'admin',

@@ -725,7 +725,45 @@ export async function initManageUsers() {
             mode: 'add',
             onSubmit: async (id, data) => {
                 if (id) {
+                    const oldAdviser = advisers.find(a => a.id === id);
                     await AdviserAPI.updateAdviser(id, data);
+
+                    const fieldsToLog = ['name', 'username', 'email', 'role', 'status'];
+                    for (const field of fieldsToLog) {
+                        if (oldAdviser && oldAdviser[field] !== data[field]) {
+                            try {
+                                await logChange({
+                                    user_id: adminUser.user_id,
+                                    user_type: 'admin',
+                                    action: 'update',
+                                    table_name: 'advisers',
+                                    record_id: id,
+                                    field_name: field,
+                                    old_value: oldAdviser[field] || 'None',
+                                    new_value: data[field] || 'Removed'
+                                });
+                            } catch (error) {
+                                console.error(`Failed to log adviser ${field} change:`, error);
+                            }
+                        }
+                    }
+
+                    if (oldAdviser && oldAdviser.profile_photo !== data.profile_photo) {
+                        try {
+                            await logChange({
+                                user_id: adminUser.user_id,
+                                user_type: 'admin',
+                                action: 'update',
+                                table_name: 'advisers',
+                                record_id: id,
+                                field_name: 'profile_photo',
+                                old_value: oldAdviser.profile_photo ? 'Base64 image data' : 'None',
+                                new_value: data.profile_photo ? 'Base64 image data' : 'Removed'
+                            });
+                        } catch (error) {
+                            console.error('Failed to log adviser profile photo change:', error);
+                        }
+                    }
                 } else {
                     const response = await AdviserAPI.createAdviser(data);
                     try {
@@ -959,7 +997,28 @@ export async function initManageUsers() {
             mode: 'add',
             onSubmit: async (id, data) => {
                 if (id) {
+                    const oldStudent = students.find(s => s.id === id);
                     await StudentsAPI.updateStudent(id, data);
+
+                    const fieldsToLog = ['first_name', 'last_name', 'student_number', 'email', 'program', 'year_level', 'profile_photo'];
+                    for (const field of fieldsToLog) {
+                        if (oldStudent && oldStudent[field] !== data[field]) {
+                            try {
+                                await logChange({
+                                    user_id: adminUser.user_id,
+                                    user_type: 'admin',
+                                    action: 'update',
+                                    table_name: 'students',
+                                    record_id: id,
+                                    field_name: field,
+                                    old_value: field === 'profile_photo' ? (oldStudent[field] ? 'Base64 image data' : 'None') : (oldStudent[field] || 'None'),
+                                    new_value: field === 'profile_photo' ? (data[field] ? 'Base64 image data' : 'Removed') : (data[field] || 'Removed')
+                                });
+                            } catch (error) {
+                                console.error(`Failed to log student ${field} change:`, error);
+                            }
+                        }
+                    }
                 } else {
                     const response = await StudentsAPI.createStudent(data);
                     try {
@@ -1178,7 +1237,28 @@ export async function initManageUsers() {
             mode: 'add',
             onSubmit: async (id, data) => {
                 if (id) {
+                    const oldRole = roles.find(r => r.id === id);
                     await RolesAPI.updateRole(id, data);
+
+                    const fieldsToLog = ['role_name', 'description'];
+                    for (const field of fieldsToLog) {
+                        if (oldRole && oldRole[field] !== data[field]) {
+                            try {
+                                await logChange({
+                                    user_id: adminUser.user_id,
+                                    user_type: 'admin',
+                                    action: 'update',
+                                    table_name: 'roles',
+                                    record_id: id,
+                                    field_name: field,
+                                    old_value: oldRole[field] || 'None',
+                                    new_value: data[field] || 'Removed'
+                                });
+                            } catch (error) {
+                                console.error(`Failed to log role ${field} change:`, error);
+                            }
+                        }
+                    }
                 } else {
                     const response = await RolesAPI.createRole(data);
                     try {

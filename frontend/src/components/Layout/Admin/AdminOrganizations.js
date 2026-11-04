@@ -454,13 +454,13 @@ export async function initAdminOrganizations() {
             mode: 'add',
             onSubmit: async (id, data) => {
                 if (id) {
-                    const oldOrg = await OrganizationsAPI.getOrganization(id);
+                    const oldOrg = organizations.find(o => o.id === id);
                     await OrganizationsAPI.updateOrganization(id, data);
                     const user = getUserData('admin');
 
                     const fields = ['org_code', 'name', 'description', 'adviser_id', 'status'];
                     for (const field of fields) {
-                        if (oldOrg[field] !== data[field]) {
+                        if (oldOrg && oldOrg[field] !== data[field]) {
                             let oldValue = oldOrg[field] || null;
                             let newValue = data[field] || null;
 
