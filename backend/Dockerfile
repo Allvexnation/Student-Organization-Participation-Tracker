@@ -23,6 +23,8 @@ RUN echo '#!/bin/bash' > /var/www/html/start.sh && \
     echo 'php /var/www/html/migrate.php migrate' >> /var/www/html/start.sh && \
     echo 'echo "Running seeder..."' >> /var/www/html/start.sh && \
     echo 'php /var/www/html/AdminSeeder.php' >> /var/www/html/start.sh && \
+    echo 'echo "Starting background ban cleanup cron daemon..."' >> /var/www/html/start.sh && \
+    echo 'php /var/www/html/config/cron.php --loop --interval=60 &' >> /var/www/html/start.sh && \
     echo 'echo "Starting Apache..."' >> /var/www/html/start.sh && \
     echo 'apache2-foreground' >> /var/www/html/start.sh && \
     chmod +x /var/www/html/start.sh

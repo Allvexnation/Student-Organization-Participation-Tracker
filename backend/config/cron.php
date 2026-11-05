@@ -9,6 +9,14 @@ loadEnv(__DIR__ . '/../.env');
 date_default_timezone_set('UTC');
 
 $isCli = (php_sapi_name() === 'cli' || empty($_SERVER['REMOTE_ADDR']));
+$isLoop = $isCli && (in_array('--loop', $argv ?? []) || in_array('--daemon', $argv ?? []));
+$interval = 60;
+
+foreach ($argv ?? [] as $arg) {
+    if (strpos($arg, '--interval=') === 0) {
+        $interval = max(5, (int)substr($arg, 11));
+    }
+}
 
 if (!$isCli) {
     header('Content-Type: application/json');
@@ -42,7 +50,6 @@ if (!$isCli) {
     }
 
     if ($cronSecret && $providedSecret !== $cronSecret) {
-
         require_once __DIR__ . '/jwt.php';
         $isAdmin = false;
         if (!empty($headers['Authorization']) && preg_match('/Bearer\s+(.*)$/i', $headers['Authorization'], $m)) {
@@ -63,7 +70,7 @@ if (!$isCli) {
     }
 }
 
-try {
+function runCleanup($isCli) {
     $db = Database::getInstance();
     $conn = $db->getConnection();
     if (!$conn) {
@@ -81,20 +88,43 @@ try {
     ];
 
     if ($isCli) {
-        echo "[" . gmdate('Y-m-d H:i:s') . " UTC] Ban Cron executed. Deactivated {$cleanedCount} expired bans.\n";
+        $platform = getenv('RENDER') ? '[Render Cron]' : '[Cron]';
+        echo "[" . gmdate('Y-m-d H:i:s') . " UTC] {$platform} Ban cleanup executed. Deactivated {$cleanedCount} expired bans.\n";
     } else {
         http_response_code(200);
         echo json_encode($response);
     }
-} catch (Exception $e) {
-    $error = [
-        'success' => false,
-        'message' => 'Cron execution failed: ' . $e->getMessage()
-    ];
-    if ($isCli) {
-        echo "[" . gmdate('Y-m-d H:i:s') . " UTC] Error: " . $e->getMessage() . "\n";
-    } else {
-        http_response_code(500);
-        echo json_encode($error);
+
+    return $cleanedCount;
+}
+
+if ($isLoop) {
+    echo "[" . gmdate('Y-m-d H:i:s') . " UTC] Starting Ban Cleanup Daemon (interval: {$interval}s)...\n";
+    while (true) {
+        try {
+            runCleanup(true);
+        } catch (Exception $e) {
+            echo "[" . gmdate('Y-m-d H:i:s') . " UTC] Error in daemon loop: " . $e->getMessage() . "\n";
+        }
+        sleep($interval);
+    }
+} else {
+    try {
+        runCleanup($isCli);
+        if ($isCli) {
+            exit(0);
+        }
+    } catch (Exception $e) {
+        $error = [
+            'success' => false,
+            'message' => 'Cron execution failed: ' . $e->getMessage()
+        ];
+        if ($isCli) {
+            echo "[" . gmdate('Y-m-d H:i:s') . " UTC] Error: " . $e->getMessage() . "\n";
+            exit(1);
+        } else {
+            http_response_code(500);
+            echo json_encode($error);
+        }
     }
 }
