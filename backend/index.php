@@ -82,6 +82,11 @@ $webAnalyticsRoutes = new WebAnalyticsRoutes();
 $contactsRoutes = new ContactsRoutes();
 $oauthRoutes = new OAuthRoutes();
 
+if (strpos($uri, '/api/cron') === 0 || $uri === '/cron.php') {
+    require_once __DIR__ . '/config/cron.php';
+    exit();
+}
+
 if (strpos($uri, '/api/oauth') === 0) {
     $oauthRoutes->handle($method, $uri);
 } elseif (strpos($uri, '/api/audit-logs') === 0) {

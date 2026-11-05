@@ -1,4 +1,4 @@
-export const API_BASE_URL = 'https://crtsopt-dev-server.onrender.com';
+export const API_BASE_URL = 'https://clicks-outer-constitution-asn.trycloudflare.com';
 
 export const API_ROUTES = {
     ADMIN: {
@@ -157,6 +157,7 @@ export const API_ROUTES = {
         BAN_DEACTIVATE: (id) => `${API_BASE_URL}/api/web/ban/deactivate/${id}`,
         BAN_ACTIVATE: (id) => `${API_BASE_URL}/api/web/ban/activate/${id}`,
         BAN_DELETE: (id) => `${API_BASE_URL}/api/web/ban/delete/${id}`,
+        BAN_UPDATE: (id) => `${API_BASE_URL}/api/web/ban/${id}`,
         BAN_CLEANUP: `${API_BASE_URL}/api/web/ban/cleanup`,
         STATISTICS: `${API_BASE_URL}/api/web/statistics`,
         EVENTS: `${API_BASE_URL}/api/web/events`,

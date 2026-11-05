@@ -211,12 +211,39 @@ class StudentController {
             return;
         }
 
+        require_once __DIR__ . '/../../model/web/BannedModel.php';
+        $bannedModel = new BannedModel();
+        $clientIp = $this->getClientIp();
+        $reqIp = !empty($data['ip_address']) ? trim($data['ip_address']) : null;
+        $ipCandidates = array_values(array_filter([$reqIp, $clientIp]));
+
+        $sessionBan = $bannedModel->findActiveBan(null, null, $data['session_id'] ?? null, $ipCandidates);
+        if ($sessionBan) {
+            http_response_code(403);
+            echo json_encode([
+                'message' => 'Your session has been banned: ' . ($sessionBan['reason'] ?? 'Access restricted.'),
+                'banned' => true,
+                'ban_info' => $sessionBan
+            ]);
+            return;
+        }
+
         $usernameOrEmail = $data['username_or_email'];
         $password = $data['password'];
 
         $student = $this->studentsModel->verifyLogin($usernameOrEmail, $password);
 
         if ($student) {
+            $activeBan = $bannedModel->findActiveBan('student', $student['id'], null, $ipCandidates);
+            if ($activeBan) {
+                http_response_code(403);
+                echo json_encode([
+                    'message' => 'Your account has been banned: ' . ($activeBan['reason'] ?? 'Access restricted.'),
+                    'banned' => true,
+                    'ban_info' => $activeBan
+                ]);
+                return;
+            }
             unset($student['password']);
             
             if (isset($student['profile_photo']) && !empty($student['profile_photo'])) {
@@ -301,11 +328,39 @@ class StudentController {
             return;
         }
 
+        require_once __DIR__ . '/../../model/web/BannedModel.php';
+        $bannedModel = new BannedModel();
+        $clientIp = $this->getClientIp();
+        $reqIp = !empty($data['ip_address']) ? trim($data['ip_address']) : null;
+        $ipCandidates = array_values(array_filter([$reqIp, $clientIp]));
+
+        $sessionBan = $bannedModel->findActiveBan(null, null, null, $ipCandidates);
+        if ($sessionBan) {
+            http_response_code(403);
+            echo json_encode([
+                'message' => 'Access denied: ' . ($sessionBan['reason'] ?? 'This session/IP is banned.'),
+                'banned' => true,
+                'ban_info' => $sessionBan
+            ]);
+            return;
+        }
+
         $student = $this->studentsModel->findByUsernameOrEmail(trim($data['username_or_email']));
 
         if (!$student) {
             http_response_code(404);
             echo json_encode(['message' => 'Account not found']);
+            return;
+        }
+
+        $activeBan = $bannedModel->findActiveBan('student', $student['id'], null, $ipCandidates);
+        if ($activeBan) {
+            http_response_code(403);
+            echo json_encode([
+                'message' => 'Your account has been banned: ' . ($activeBan['reason'] ?? 'Access restricted.'),
+                'banned' => true,
+                'ban_info' => $activeBan
+            ]);
             return;
         }
 

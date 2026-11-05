@@ -60,6 +60,7 @@ class Database {
                 ]
             );
             $this->conn->exec("set names utf8");
+            $this->conn->exec("SET time_zone = '+00:00'");
         } catch(PDOException $exception) {
             $errorMsg = "Connection error: " . $exception->getMessage();
             error_log($errorMsg);

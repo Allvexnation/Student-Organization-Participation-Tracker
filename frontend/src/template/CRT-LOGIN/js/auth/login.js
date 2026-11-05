@@ -49,7 +49,7 @@ async function leaveToDashboard(destination) {
         },
       ).finished;
     } catch {
-      // Continue even if the leave animation is interrupted.
+
     }
   }
 

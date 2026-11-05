@@ -1,4 +1,4 @@
-import { createBan, getSessions, getAllBans, deactivateBan, cleanupExpiredBans, deleteBan, activateBan } from '../../../api/web/Banned.js';
+import { createBan, updateBan, getSessions, getAllBans, deactivateBan, cleanupExpiredBans, deleteBan, activateBan } from '../../../api/web/Banned.js';
 import { showToast, updateToast } from '../../../components/ToastMessage.js';
 import { AdminNavbar, initAdminNavbar } from '../../../components/Navbar/AdminNavbar.js';
 import { protectAdminRoute } from '../../../middleware/AdminMiddleware.js';
@@ -157,10 +157,10 @@ export async function initManageBanned() {
                     </span>
                 </td>
                 <td class="px-3 sm:px-5 py-2 sm:py-3.5 hidden sm:table-cell text-gray-600 text-sm whitespace-nowrap">
-                    ${ban.expires_at ? new Date(ban.expires_at).toLocaleDateString() : '—'}
+                    ${ban.expires_at ? new Date(ban.expires_at).toLocaleString() : '—'}
                 </td>
                 <td class="px-3 sm:px-5 py-2 sm:py-3.5 hidden sm:table-cell text-gray-600 text-sm whitespace-nowrap">
-                    ${ban.created_at ? new Date(ban.created_at).toLocaleDateString() : '—'}
+                    ${ban.created_at ? new Date(ban.created_at).toLocaleString() : '—'}
                 </td>
                 <td class="px-3 sm:px-5 py-2 sm:py-3.5 text-center">
                     ${CrudMenu({
@@ -204,13 +204,13 @@ export async function initManageBanned() {
     });
 
     window.editBan = (id) => {
-        const ban = bans.find(b => b.id === id);
+        const ban = bans.find(b => String(b.id) === String(id));
         openManageBannedModal({
             mode: 'edit',
             ban: ban,
             banId: id,
             onSubmit: async (id, data) => {
-
+                await updateBan(id, data);
                 loadBans(true);
             }
         });

@@ -36,7 +36,21 @@ class SessionController {
             $session = $this->sessionModel->validateToken($token, $clientIp, $deviceFingerprint);
 
             if ($session) {
+            require_once __DIR__ . '/../model/web/BannedModel.php';
+                $bannedModel = new BannedModel();
                 $userType = isset($payload['role']) ? $payload['role'] : ($session['user_type'] ?? 'admin');
+                $activeBan = $bannedModel->findActiveBan($userType, $payload['user_id'], $session['id'] ?? null, $clientIp);
+                if ($activeBan) {
+                    http_response_code(403);
+                    echo json_encode([
+                        'message' => 'Your session has been banned: ' . ($activeBan['reason'] ?? 'Access restricted.'),
+                        'valid' => false,
+                        'banned' => true,
+                        'ban_info' => $activeBan
+                    ]);
+                    return;
+                }
+
                 $user = $this->getUserData($payload['user_id'], $userType);
 
                 http_response_code(200);
@@ -88,6 +102,20 @@ class SessionController {
             }
 
             $user = $this->getUserData($session['user_id'], $userType);
+
+            require_once __DIR__ . '/../model/web/BannedModel.php';
+            $bannedModel = new BannedModel();
+            $activeBan = $bannedModel->findActiveBan($userType, $session['user_id'], $session['id'] ?? null, $clientIp);
+            if ($activeBan) {
+                http_response_code(403);
+                echo json_encode([
+                    'message' => 'Your session has been banned: ' . ($activeBan['reason'] ?? 'Access restricted.'),
+                    'valid' => false,
+                    'banned' => true,
+                    'ban_info' => $activeBan
+                ]);
+                return;
+            }
 
             http_response_code(200);
             echo json_encode([

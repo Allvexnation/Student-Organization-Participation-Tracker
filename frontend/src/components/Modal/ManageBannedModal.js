@@ -12,6 +12,14 @@ let users = {
     student: []
 };
 
+function toLocalDatetimeString(dateInput) {
+    if (!dateInput) return '';
+    const d = new Date(dateInput);
+    if (isNaN(d.getTime())) return '';
+    const pad = (n) => String(n).padStart(2, '0');
+    return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}`;
+}
+
 export function openManageBannedModal({ mode = 'add', ban = null, banId = null, onSubmit }) {
     const isEdit = mode === 'edit';
     const title = isEdit ? 'Edit Ban' : 'Create New Ban';
@@ -93,7 +101,7 @@ export function openManageBannedModal({ mode = 'add', ban = null, banId = null, 
                     </div>
                     <div id="expirationSection" class="${isEdit && ban?.expires_at ? '' : 'hidden'}">
                         <label for="expirationDate" class="${LABEL_CLASS}">Expiration Date & Time</label>
-                        <input type="datetime-local" id="expirationDate" name="expirationDate" value="${isEdit && ban?.expires_at ? ban.expires_at.slice(0, 16) : ''}" class="${FIELD_CLASS}">
+                        <input type="datetime-local" id="expirationDate" name="expirationDate" min="${toLocalDatetimeString(new Date())}" value="${isEdit && ban?.expires_at ? toLocalDatetimeString(ban.expires_at) : ''}" class="${FIELD_CLASS}">
                     </div>
                 </div>
             `)}
@@ -157,7 +165,7 @@ function populateFormWithBan(ban) {
     if (ban.expires_at) {
         const expirationDateInput = document.getElementById('expirationDate');
         if (expirationDateInput) {
-            expirationDateInput.value = ban.expires_at.slice(0, 16);
+            expirationDateInput.value = toLocalDatetimeString(ban.expires_at);
         }
     }
 
@@ -375,22 +383,31 @@ async function processBanSubmit(id, buttonText, onSubmit) {
     if (banDuration === 'temporary') {
         const expirationDate = document.getElementById('expirationDate').value;
         if (!expirationDate) {
-            showFormError('Please set an expiration date');
+            showFormError('Please set an expiration date and time');
             return;
         }
-        banData.expires_at = expirationDate;
+        const expDate = new Date(expirationDate);
+        if (isNaN(expDate.getTime())) {
+            showFormError('Please enter a valid expiration date');
+            return;
+        }
+        if (expDate.getTime() <= Date.now()) {
+            showFormError('Expiration date must be in the future');
+            return;
+        }
+        banData.expires_at = expDate.toISOString();
     }
 
     setModalButtonLoading('submitBtn', true, buttonText);
     try {
         await onSubmit(id, banData);
         closeManageBannedModal();
-        showToast('Ban created successfully', 'success');
+        showToast(id ? 'Ban updated successfully' : 'Ban created successfully', 'success');
     } catch (error) {
         console.error('Error saving ban:', error);
         showFormError('Failed to save ban. Please try again.');
         setModalButtonLoading('submitBtn', false, buttonText);
-        showToast('Failed to create ban', 'error');
+        showToast(id ? 'Failed to update ban' : 'Failed to create ban', 'error');
     }
 }
 

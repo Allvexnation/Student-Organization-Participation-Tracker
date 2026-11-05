@@ -14,6 +14,8 @@ class BannedRoutes {
         
         if ($method === 'POST' && $uri === '/api/web/ban') {
             $this->controller->createBan();
+        } elseif (($method === 'PUT' || $method === 'POST') && preg_match('#^/api/web/ban/(?:update/)?(\d+)$#', $uri, $matches)) {
+            $this->controller->updateBan($matches[1]);
         } elseif ($method === 'POST' && $uri === '/api/web/ban/check') {
             $this->controller->checkBan();
         } elseif ($method === 'POST' && $uri === '/api/web/ban/check-overall') {
@@ -24,7 +26,7 @@ class BannedRoutes {
             $this->controller->getSessions();
         } elseif ($method === 'GET' && $uri === '/api/web/ban/all') {
             $this->controller->getAllBans();
-        } elseif ($method === 'POST' && $uri === '/api/web/ban/cleanup') {
+        } elseif (($method === 'POST' || $method === 'GET') && $uri === '/api/web/ban/cleanup') {
             $this->controller->cleanupExpiredBans();
         } elseif ($method === 'POST' && preg_match('#^/api/web/ban/deactivate/(\d+)$#', $uri, $matches)) {
             $this->controller->deactivateBan($matches[1]);

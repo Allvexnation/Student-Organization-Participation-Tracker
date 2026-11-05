@@ -270,6 +270,27 @@ export function getUserRole(role = 'admin') {
     return decoded ? decoded.role : null;
 }
 
+export function getActiveSessionUser() {
+    const roles = ['admin', 'adviser', 'student'];
+    for (const role of roles) {
+        const token = getToken(role);
+        if (token && !isTokenExpired(token)) {
+            const userData = getUserData(role);
+            const decoded = decodeToken(token);
+            const id = (userData && userData.id) || (decoded && (decoded.user_id || decoded.id));
+            if (id) {
+                return {
+                    role: role,
+                    id: parseInt(id),
+                    user: userData || decoded,
+                    token: token
+                };
+            }
+        }
+    }
+    return null;
+}
+
 export function isCrtAdmin(role = 'admin') {
     const token = getToken(role);
     const decoded = decodeToken(token);

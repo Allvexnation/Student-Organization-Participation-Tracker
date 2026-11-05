@@ -25,7 +25,9 @@ export async function googleLogin(idToken, deviceInfo) {
         } else {
             return {
                 success: false,
-                message: data.message || 'Google login failed'
+                message: data.message || 'Google login failed',
+                banned: Boolean(data.banned),
+                ban_info: data.ban_info || null
             };
         }
     } catch (error) {
@@ -62,7 +64,9 @@ export async function adviserGoogleLogin(idToken, deviceInfo) {
         } else {
             return {
                 success: false,
-                message: data.message || 'Google login failed'
+                message: data.message || 'Google login failed',
+                banned: Boolean(data.banned),
+                ban_info: data.ban_info || null
             };
         }
     } catch (error) {
@@ -99,7 +103,9 @@ export async function studentGoogleLogin(idToken, deviceInfo) {
         } else {
             return {
                 success: false,
-                message: data.message || 'Google login failed'
+                message: data.message || 'Google login failed',
+                banned: Boolean(data.banned),
+                ban_info: data.ban_info || null
             };
         }
     } catch (error) {

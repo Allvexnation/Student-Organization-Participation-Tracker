@@ -35,7 +35,7 @@ import { EventTask, initEventTask } from '../pages/students/Task/EventTask.js';
 import { StudentAttendance, initStudentAttendance } from '../pages/students/Attendance/Attendance.js';
 import { StudentAuditLogs, initStudentAuditLogs } from '../pages/AuditLogs/StudentAuditLogs.js';
 import { NotFoundPage, initNotFoundPage } from '../pages/404/404.js';
-import { isAuthenticated, getUserRole, isSuperAdmin } from './jwt.js';
+import { isAuthenticated, getUserRole, isSuperAdmin, getActiveSessionUser } from './jwt.js';
 import { initUpdates, UpdatesPage, initUpdatesPage } from '../pages/web/Updates.js';
 import { Banned, initBanned } from '../pages/web/Banned.js';
 import { BannedContacts, initBannedContacts } from '../pages/Contacts/BannedContacts.js';
@@ -142,7 +142,7 @@ export function navigate(path) {
     updateCurrentUrl();
 }
 
-const BAN_CHECK_TTL_MS = 60000;
+const BAN_CHECK_TTL_MS = 5000;
 const BAN_CHECK_CACHE_KEY = 'soptBanCheck';
 
 function readBanCheckCache() {
@@ -158,75 +158,143 @@ function readBanCheckCache() {
 }
 
 function writeBanCheckCache(banCheck) {
-    sessionStorage.setItem(BAN_CHECK_CACHE_KEY, JSON.stringify({
-        at: Date.now(),
-        banned: !!banCheck?.banned,
-        ban_info: banCheck?.ban_info || null
-    }));
+    try {
+        sessionStorage.setItem(BAN_CHECK_CACHE_KEY, JSON.stringify({
+            at: Date.now(),
+            banned: !!banCheck?.banned,
+            ban_info: banCheck?.ban_info || null
+        }));
+    } catch (e) { }
 }
 
 function buildBanCheckData() {
     const checkData = {};
-    const userRole = getUserRole();
-
-    if (userRole && (userRole === 'admin' || userRole === 'adviser' || userRole === 'student')) {
-        const userData = JSON.parse(localStorage.getItem(`${userRole}Data`) || '{}');
-        if (userData && userData.id) {
-            checkData.target_type = userRole;
-            checkData.target_id = userData.id;
-        }
+    const active = getActiveSessionUser();
+    if (active) {
+        checkData.target_type = active.role;
+        checkData.target_id = active.id;
+        checkData.token = active.token;
     }
-
     return checkData;
 }
 
 function applyBanCheckResult(banCheck) {
     if (banCheck?.banned) {
         localStorage.setItem('banInfo', JSON.stringify(banCheck.ban_info));
+        writeBanCheckCache(banCheck);
         return true;
     }
 
     localStorage.removeItem('banInfo');
+    sessionStorage.removeItem(BAN_CHECK_CACHE_KEY);
+    writeBanCheckCache({ banned: false, ban_info: null });
     return false;
 }
 
 async function refreshBanCheck() {
     const banCheck = await checkBan(buildBanCheckData());
-    writeBanCheckCache(banCheck);
+    applyBanCheckResult(banCheck);
     return banCheck;
+}
+
+export const SESSION_BAN_ALLOWED_ROUTES = new Set([
+    '/',
+    '/events',
+    '/support',
+    '/updates',
+    '404',
+    '/404',
+    '/banned',
+    '/banned-contacts',
+    '/auth/admin/login',
+    '/auth/adviser/login',
+    '/auth/student/login',
+    '/auth/admin/forgot-password',
+    '/auth/adviser/forgot-password',
+    '/auth/student/forgot-password'
+]);
+
+export function isRouteAllowedForBan(route, banInfo) {
+    if (!banInfo) return true;
+    const cleanRoute = (route || '').replace(/\/$/, '') || '/';
+
+
+    if (banInfo.ban_type === 'session') {
+        return SESSION_BAN_ALLOWED_ROUTES.has(cleanRoute) || SESSION_BAN_ALLOWED_ROUTES.has(route);
+    }
+
+    return cleanRoute === '/banned' || cleanRoute === '/banned-contacts' || cleanRoute === '404' || cleanRoute === '/404' || isAuthLoginPath(cleanRoute);
+}
+
+let banWatcherInitialized = false;
+function initBanWatcher() {
+    if (banWatcherInitialized) return;
+    banWatcherInitialized = true;
+
+    setInterval(async () => {
+        const cur = getCurrentRoute();
+        try {
+            const banCheck = await refreshBanCheck();
+            if (applyBanCheckResult(banCheck)) {
+                if (!isRouteAllowedForBan(cur, banCheck.ban_info) && cur !== '/banned') {
+                    navigate('/banned');
+                    if (window.appNavigate) {
+                        window.appNavigate('/banned');
+                    }
+                }
+            }
+        } catch (e) { }
+    }, 6000);
 }
 
 export async function render(root, routes, initFunctions) {
     let route = getCurrentRoute();
+    initBanWatcher();
 
     if (route === '/app.js') {
         navigate('/404');
         return;
     }
 
-    if (route !== '/banned' && route !== '404') {
+    if (route === '/banned') {
+        try {
+            const banCheck = await refreshBanCheck();
+            if (!banCheck?.banned) {
+                applyBanCheckResult(banCheck);
+                navigate('/');
+                route = '/';
+            }
+        } catch (e) { }
+    } else {
         const cachedBanCheck = readBanCheckCache();
 
         if (cachedBanCheck?.banned) {
             localStorage.setItem('banInfo', JSON.stringify(cachedBanCheck.ban_info));
-            navigate('/banned');
-            route = '/banned';
+            if (!isRouteAllowedForBan(route, cachedBanCheck.ban_info)) {
+                navigate('/banned');
+                route = '/banned';
+            }
         } else if (!cachedBanCheck) {
             try {
                 const banCheck = await refreshBanCheck();
                 if (applyBanCheckResult(banCheck)) {
-                    navigate('/banned');
-                    route = '/banned';
+                    if (!isRouteAllowedForBan(route, banCheck.ban_info)) {
+                        navigate('/banned');
+                        route = '/banned';
+                    }
                 }
             } catch (error) {
                 console.error('Ban check error:', error);
             }
         } else {
             refreshBanCheck().then((banCheck) => {
-                if (applyBanCheckResult(banCheck) && getCurrentRoute() !== '/banned') {
-                    navigate('/banned');
-                    if (window.appNavigate) {
-                        window.appNavigate('/banned');
+                if (applyBanCheckResult(banCheck)) {
+                    const current = getCurrentRoute();
+                    if (!isRouteAllowedForBan(current, banCheck.ban_info) && current !== '/banned') {
+                        navigate('/banned');
+                        if (window.appNavigate) {
+                            window.appNavigate('/banned');
+                        }
                     }
                 }
             }).catch((error) => {

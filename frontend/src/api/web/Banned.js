@@ -1,4 +1,4 @@
-import { getToken } from '../../utils/jwt.js';
+import { getToken, getActiveSessionUser } from '../../utils/jwt.js';
 import { API_ROUTES } from '../server/api.js';
 
 async function getHeaders() {
@@ -34,18 +34,50 @@ export async function createBan(banData) {
     }
 }
 
-export async function checkBan(checkData) {
+export async function updateBan(banId, banData) {
     try {
+        const headers = await getHeaders();
+        const response = await fetch(API_ROUTES.WEB.BAN_UPDATE(banId), {
+            method: 'PUT',
+            headers: headers,
+            body: JSON.stringify(banData)
+        });
 
-        if (!checkData.ip_address) {
+        const data = await response.json();
+
+        if (!response.ok) {
+            throw new Error(data.message || 'Failed to update ban');
+        }
+
+        return data;
+    } catch (error) {
+        console.error('Error updating ban:', error);
+        throw error;
+    }
+}
+
+export async function checkBan(checkData = {}) {
+    try {
+        const payload = { ...checkData };
+
+        if (!payload.target_type || !payload.target_id) {
+            const active = getActiveSessionUser();
+            if (active) {
+                payload.target_type = active.role;
+                payload.target_id = active.id;
+                if (!payload.token) payload.token = active.token;
+            }
+        }
+
+        if (!payload.ip_address) {
             const cachedIp = sessionStorage.getItem('clientIpAddress');
             if (cachedIp) {
-                checkData.ip_address = cachedIp;
+                payload.ip_address = cachedIp;
             } else {
                 try {
                     const ipResponse = await fetch('https://api.ipify.org?format=json');
                     const ipData = await ipResponse.json();
-                    checkData.ip_address = ipData.ip;
+                    payload.ip_address = ipData.ip;
                     if (ipData.ip) {
                         sessionStorage.setItem('clientIpAddress', ipData.ip);
                     }
@@ -55,12 +87,21 @@ export async function checkBan(checkData) {
             }
         }
 
+        const headers = {
+            'Content-Type': 'application/json'
+        };
+
+        if (payload.token) {
+            headers['Authorization'] = `Bearer ${payload.token}`;
+        } else {
+            const adminToken = getToken('admin');
+            if (adminToken) headers['Authorization'] = `Bearer ${adminToken}`;
+        }
+
         const response = await fetch(API_ROUTES.WEB.BAN_CHECK, {
             method: 'POST',
-            headers: {
-                'Content-Type': 'application/json'
-            },
-            body: JSON.stringify(checkData)
+            headers: headers,
+            body: JSON.stringify(payload)
         });
         
         const data = await response.json();
@@ -99,20 +140,28 @@ export async function checkOverallBan(checkData) {
     }
 }
 
-export async function getBanInfo(infoData) {
+export async function getBanInfo(infoData = {}) {
     try {
+        const payload = { ...infoData };
+        if (!payload.target_type || !payload.target_id) {
+            const active = getActiveSessionUser();
+            if (active) {
+                payload.target_type = active.role;
+                payload.target_id = active.id;
+            }
+        }
+
         const response = await fetch(API_ROUTES.WEB.BAN_INFO, {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json'
             },
-            body: JSON.stringify(infoData)
+            body: JSON.stringify(payload)
         });
         
         const data = await response.json();
         
         if (!response.ok) {
-
             if (response.status === 404) {
                 return { ban: null };
             }
@@ -191,7 +240,12 @@ export async function deactivateBan(banId) {
 
 export async function cleanupExpiredBans() {
     try {
-        const headers = await getHeaders();
+        const headers = { 'Content-Type': 'application/json' };
+        const token = getToken('admin');
+        if (token) {
+            headers['Authorization'] = `Bearer ${token}`;
+        }
+
         const response = await fetch(API_ROUTES.WEB.BAN_CLEANUP, {
             method: 'POST',
             headers: headers

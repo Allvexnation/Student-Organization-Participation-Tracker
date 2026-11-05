@@ -1,4 +1,4 @@
-import { setToken, isAuthenticated, initNetworkListener, setUserData, getUserRole } from '../../../utils/jwt.js';
+import { setToken, getToken, removeToken, getUserData, isAuthenticated, initNetworkListener, setUserData, getUserRole } from '../../../utils/jwt.js';
 import { showToast, updateToast } from '../../ToastMessage.js';
 import { navigate } from '../../../utils/navigation.js';
 import { checkBan } from '../../../api/web/Banned.js';
@@ -799,7 +799,29 @@ export function initAuthLogin({
         if (message) return usernameInput.focus();
 
         setLoading(nextButton, true, 'Checking account');
+
+        try {
+            const currentBanCheck = await checkBan({});
+            if (currentBanCheck && currentBanCheck.banned) {
+                setLoading(nextButton, false);
+                const reason = currentBanCheck.ban_info?.reason ? `: ${currentBanCheck.ban_info.reason}` : '';
+                showToast(`Your account has been banned${reason}`, 'error');
+                localStorage.setItem('banInfo', JSON.stringify(currentBanCheck.ban_info));
+                setFieldError(usernameField, 'This session is banned from logging in.');
+                return;
+            }
+        } catch (e) {}
+
         const result = await lookupAccount(value);
+
+        if (result && result.banned) {
+            setLoading(nextButton, false);
+            const reason = result.ban_info?.reason ? `: ${result.ban_info.reason}` : (result.message ? `: ${result.message}` : '');
+            showToast(`Your account has been banned${reason}`, 'error');
+            if (result.ban_info) localStorage.setItem('banInfo', JSON.stringify(result.ban_info));
+            setFieldError(usernameField, result.message || 'This account is banned from logging in.');
+            return;
+        }
 
         if (!result.exists) {
             setLoading(nextButton, false);
@@ -821,15 +843,43 @@ export function initAuthLogin({
         setLoading(loginButton, true, 'Signing in');
         showToast('Logging in...', 'loading');
 
+        try {
+            const currentBanCheck = await checkBan({});
+            if (currentBanCheck && currentBanCheck.banned) {
+                setLoading(loginButton, false);
+                const reason = currentBanCheck.ban_info?.reason ? `: ${currentBanCheck.ban_info.reason}` : '';
+                updateToast(`Your account has been banned${reason}`, 'error');
+                localStorage.setItem('banInfo', JSON.stringify(currentBanCheck.ban_info));
+                setFieldError(passwordField, 'You are banned from logging in.');
+                return;
+            }
+        } catch (e) {}
+
         const result = await login(usernameInput.value.trim(), passwordInput.value);
+
+        if (result && result.banned) {
+            setLoading(loginButton, false);
+            const reason = result.ban_info?.reason ? `: ${result.ban_info.reason}` : (result.message ? `: ${result.message}` : '');
+            updateToast(`Your account has been banned${reason}`, 'error');
+            if (result.ban_info) localStorage.setItem('banInfo', JSON.stringify(result.ban_info));
+            setFieldError(passwordField, result.message || 'Your account has been banned.');
+            return;
+        }
 
         if (result.token) {
             try {
-                const banCheck = await checkBan({});
-                if (banCheck.banned) {
+                const targetId = result[userKey]?.id || result.user?.id || result.admin?.id || result.adviser?.id || result.student?.id;
+                const banCheck = await checkBan({
+                    token: result.token,
+                    target_type: role,
+                    target_id: targetId
+                });
+                if (banCheck && banCheck.banned) {
                     setLoading(loginButton, false);
-                    updateToast('Your account has been banned', 'error');
-                    setTimeout(() => navigate('/banned'), 1000);
+                    const reason = banCheck.ban_info?.reason ? `: ${banCheck.ban_info.reason}` : '';
+                    updateToast(`Your account has been banned${reason}`, 'error');
+                    localStorage.setItem('banInfo', JSON.stringify(banCheck.ban_info));
+                    setFieldError(passwordField, 'Your account has been banned.');
                     return;
                 }
             } catch (banError) {
@@ -892,6 +942,16 @@ export function initAuthLogin({
             try {
                 const deviceInfo = await getDeviceInfo();
 
+                try {
+                    const currentBanCheck = await checkBan({ ip_address: deviceInfo?.ip_address });
+                    if (currentBanCheck && currentBanCheck.banned) {
+                        const reason = currentBanCheck.ban_info?.reason ? `: ${currentBanCheck.ban_info.reason}` : '';
+                        showToast(`Your session has been banned${reason}`, 'error');
+                        localStorage.setItem('banInfo', JSON.stringify(currentBanCheck.ban_info));
+                        return;
+                    }
+                } catch (banCheckErr) {}
+
                 const client = window.google.accounts.oauth2.initTokenClient({
                     client_id: window.GOOGLE_CLIENT_ID,
                     scope: 'email profile',
@@ -903,12 +963,29 @@ export function initAuthLogin({
 
                             const result = await googleLogin(response.access_token, deviceInfo);
 
+                            if (result && result.banned) {
+                                const reason = result.ban_info?.reason ? `: ${result.ban_info.reason}` : (result.message ? `: ${result.message}` : '');
+                                updateToast(`Your account has been banned${reason}`, 'error');
+                                if (result.ban_info) localStorage.setItem('banInfo', JSON.stringify(result.ban_info));
+                                googleLoginBtn.disabled = false;
+                                googleLoginBtn.querySelector('span').textContent = 'Sign in with Google';
+                                return;
+                            }
+
                             if (result.success) {
                                 try {
-                                    const banCheck = await checkBan({});
-                                    if (banCheck.banned) {
-                                        updateToast('Your account has been banned', 'error');
-                                        setTimeout(() => navigate('/banned'), 1000);
+                                    const targetId = result[userKey]?.id || result.user?.id || result.admin?.id || result.adviser?.id || result.student?.id;
+                                    const banCheck = await checkBan({
+                                        token: result.token,
+                                        target_type: role,
+                                        target_id: targetId
+                                    });
+                                    if (banCheck && banCheck.banned) {
+                                        const reason = banCheck.ban_info?.reason ? `: ${banCheck.ban_info.reason}` : '';
+                                        updateToast(`Your account has been banned${reason}`, 'error');
+                                        localStorage.setItem('banInfo', JSON.stringify(banCheck.ban_info));
+                                        googleLoginBtn.disabled = false;
+                                        googleLoginBtn.querySelector('span').textContent = 'Sign in with Google';
                                         return;
                                     }
                                 } catch (banError) {
@@ -947,6 +1024,27 @@ export function initAuthLogin({
     (async () => {
         const authenticated = await isAuthenticated(role);
         if (!(authenticated && getUserRole(role) === role)) return;
+
+        try {
+            const token = getToken(role);
+            const userData = getUserData(role);
+            const banCheck = await checkBan({
+                token: token,
+                target_type: role,
+                target_id: userData?.id
+            });
+
+            if (banCheck && banCheck.banned) {
+                removeToken(role);
+                localStorage.setItem('banInfo', JSON.stringify(banCheck.ban_info));
+                const reason = banCheck.ban_info?.reason ? `: ${banCheck.ban_info.reason}` : '';
+                const banType = banCheck.ban_info?.ban_type === 'session' ? 'session' : 'account';
+                showToast(`Your ${banType} has been banned${reason}`, 'error');
+                return;
+            }
+        } catch (e) {
+            console.error('Ban check in auto-login check failed:', e);
+        }
 
         busy = true;
         form?.querySelectorAll('button, input, a').forEach((el) => {

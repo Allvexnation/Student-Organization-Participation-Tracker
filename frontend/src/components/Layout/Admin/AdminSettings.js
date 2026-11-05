@@ -9,7 +9,7 @@ import { ProfileValidator } from '../../../validator/ProfileValidator.js';
 import { getDefaultProfileSVG } from '../../../static/Profile/DefaultProfile.js';
 import { logChange } from '../../../api/AuditLogs/AuditLogs.js';
 import { getAllAuditLogs, deleteAuditLog, cleanupOldAuditLogs } from '../../../api/AuditLogs/AuditLogs.js';
-import { createBan, getAllBans, deactivateBan, deleteBan, activateBan } from '../../../api/web/Banned.js';
+import { createBan, updateBan, getAllBans, deactivateBan, deleteBan, activateBan } from '../../../api/web/Banned.js';
 import { getAllAnalytics, getAnalyticsStats, deleteAnalytics } from '../../../api/web/WebAnalytics.js';
 import { openManageBannedModal } from '../../../components/Modal/ManageBannedModal.js';
 import { CrudMenu } from '../../../components/CrudMenu.js';
@@ -1008,7 +1008,7 @@ export async function initAdminSettings() {
                         <p class="mt-3 text-xs text-body line-clamp-2">${escapeHtml(ban.reason || 'No reason provided')}</p>
                         <div class="mt-3.5 grid grid-cols-2 gap-2">
                             ${metaTile('Duration', escapeHtml(ban.ban_duration_type || '—'))}
-                            ${metaTile('Expires', ban.expires_at ? new Date(ban.expires_at).toLocaleDateString() : '—')}
+                            ${metaTile('Expires', ban.expires_at ? new Date(ban.expires_at).toLocaleString() : '—')}
                         </div>
                     </div>
                     <div class="px-3 py-2.5 border-t border-line bg-surface/70 flex justify-end">
@@ -1027,8 +1027,8 @@ export async function initAdminSettings() {
                     <td class="px-5 py-4 text-body truncate max-w-xs">${escapeHtml(ban.reason || '—')}</td>
                     <td class="px-5 py-4">${tonePill(ban.is_active === 1 ? 'Active' : 'Not Active', ban.is_active === 1 ? 'green' : 'gray')}</td>
                     <td class="px-5 py-4">${tonePill(ban.ban_duration_type || '—', ban.ban_duration_type === 'permanent' ? 'gray' : 'orange')}</td>
-                    <td class="px-5 py-4 text-body">${ban.expires_at ? new Date(ban.expires_at).toLocaleDateString() : '—'}</td>
-                    <td class="px-5 py-4 text-body">${ban.created_at ? new Date(ban.created_at).toLocaleDateString() : '—'}</td>
+                    <td class="px-5 py-4 text-body">${ban.expires_at ? new Date(ban.expires_at).toLocaleString() : '—'}</td>
+                    <td class="px-5 py-4 text-body">${ban.created_at ? new Date(ban.created_at).toLocaleString() : '—'}</td>
                     <td class="px-5 py-4 text-center">${banActions(ban)}</td>
                 </tr>
             `).join('');
@@ -1042,8 +1042,8 @@ export async function initAdminSettings() {
     });
 
     window.editBan = (id) => {
-        const ban = bans.find((b) => b.id === id);
-        openManageBannedModal({ mode: 'edit', ban, banId: id, onSubmit: async () => { loadBans(); }});
+        const ban = bans.find((b) => String(b.id) === String(id));
+        openManageBannedModal({ mode: 'edit', ban, banId: id, onSubmit: async (id, data) => { await updateBan(id, data); loadBans(); }});
     };
 
     window.deleteBan = (id, deleteLabel) => {

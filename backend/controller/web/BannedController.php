@@ -5,6 +5,8 @@ require_once __DIR__ . '/../../model/SessionModel.php';
 require_once __DIR__ . '/../../config/jwt.php';
 require_once __DIR__ . '/../../config/db.php';
 
+date_default_timezone_set('UTC');
+
 class BannedController {
     private $bannedModel;
     private $sessionModel;
@@ -20,7 +22,9 @@ class BannedController {
     private function getClientIp() {
         $ip = '';
 
-        if (!empty($_SERVER['HTTP_X_FORWARDED_FOR'])) {
+        if (!empty($_SERVER['HTTP_CF_CONNECTING_IP'])) {
+            $ip = $_SERVER['HTTP_CF_CONNECTING_IP'];
+        } elseif (!empty($_SERVER['HTTP_X_FORWARDED_FOR'])) {
             $ip = $_SERVER['HTTP_X_FORWARDED_FOR'];
         } elseif (!empty($_SERVER['HTTP_X_REAL_IP'])) {
             $ip = $_SERVER['HTTP_X_REAL_IP'];
@@ -35,35 +39,27 @@ class BannedController {
             $ip = trim($ips[0]);
         }
 
-        if (filter_var($ip, FILTER_VALIDATE_IP, FILTER_FLAG_IPV4)) {
-            return $ip;
-        }
-        
-        if (filter_var($ip, FILTER_VALIDATE_IP, FILTER_FLAG_IPV6)) {
-
-            if ($ip === '::1' || $ip === '::1/128') {
-                return $ip;
-            }
-            return $ip;
-        }
-        
-        return $ip;
+        return trim($ip);
     }
 
     private function validateAdmin() {
-        $headers = getallheaders();
-        $token = isset($headers['Authorization']) ? str_replace('Bearer ', '', $headers['Authorization']) : null;
-        
+        $headers = function_exists('getallheaders') ? getallheaders() : [];
+        $authHeader = $headers['Authorization'] ?? $headers['authorization'] ?? null;
+        $token = null;
+        if ($authHeader && preg_match('/Bearer\s+(.*)$/i', $authHeader, $matches)) {
+            $token = trim($matches[1]);
+        }
+
         if (!$token || !JWT::validate($token)) {
             return false;
         }
-        
+
         return JWT::getUserId($token);
     }
 
     public function createBan() {
         header('Content-Type: application/json');
-        
+
         $adminId = $this->validateAdmin();
         if (!$adminId) {
             http_response_code(401);
@@ -72,14 +68,8 @@ class BannedController {
         }
 
         $data = json_decode(file_get_contents('php://input'), true);
-        
-        if (!$data) {
-            http_response_code(400);
-            echo json_encode(['message' => 'Invalid data']);
-            return;
-        }
 
-        if (!isset($data['ban_type']) || !isset($data['reason'])) {
+        if (!$data || !isset($data['ban_type']) || !isset($data['reason'])) {
             http_response_code(400);
             echo json_encode(['message' => 'Missing required fields']);
             return;
@@ -88,27 +78,27 @@ class BannedController {
         $banType = $data['ban_type'];
         $banData = [
             'ban_type' => $banType,
-            'reason' => $data['reason'],
+            'reason' => trim($data['reason']),
             'banned_by' => $adminId,
             'ban_duration_type' => $data['ban_duration_type'] ?? 'permanent',
             'expires_at' => null,
-            'target_type' => null,
-            'target_id' => null,
-            'session_id' => null,
-            'ip_address' => null
+            'target_type' => $data['target_type'] ?? null,
+            'target_id' => !empty($data['target_id']) ? (int)$data['target_id'] : null,
+            'session_id' => !empty($data['session_id']) ? (int)$data['session_id'] : null,
+            'ip_address' => !empty($data['ip_address']) ? trim($data['ip_address']) : null
         ];
 
         if ($banType === 'session') {
-            if (!isset($data['session_id'])) {
+            if (empty($data['session_id'])) {
                 http_response_code(400);
                 echo json_encode(['message' => 'Session ID is required for session ban']);
                 return;
             }
 
-            $session = $this->conn->prepare("SELECT * FROM sessions WHERE id = :id LIMIT 0,1");
-            $session->bindParam(':id', $data['session_id']);
-            $session->execute();
-            $sessionData = $session->fetch(PDO::FETCH_ASSOC);
+            $stmt = $this->conn->prepare("SELECT * FROM sessions WHERE id = :id LIMIT 1");
+            $stmt->bindParam(':id', $data['session_id']);
+            $stmt->execute();
+            $sessionData = $stmt->fetch(PDO::FETCH_ASSOC);
 
             if (!$sessionData) {
                 http_response_code(404);
@@ -116,57 +106,50 @@ class BannedController {
                 return;
             }
 
-            $banData['session_id'] = $data['session_id'];
+            $banData['session_id'] = (int)$data['session_id'];
             $banData['target_type'] = $sessionData['user_type'];
-            $banData['target_id'] = $sessionData['user_id'];
-            $banData['ip_address'] = $sessionData['ip_address'];
+            $banData['target_id'] = (int)$sessionData['user_id'];
+            $banData['ip_address'] = $sessionData['ip_address'] ?? null;
+            if (empty($banData['ip_address'])) {
+                $banData['ip_address'] = !empty($data['ip_address']) ? trim($data['ip_address']) : $this->getClientIp();
+            }
 
         } elseif ($banType === 'overall') {
-            if (!isset($data['target_type']) || !isset($data['target_id'])) {
+            if (empty($data['target_type']) || empty($data['target_id'])) {
                 http_response_code(400);
                 echo json_encode(['message' => 'Target type and target ID are required for overall ban']);
                 return;
             }
 
             $banData['target_type'] = $data['target_type'];
-            $banData['target_id'] = $data['target_id'];
+            $banData['target_id'] = (int)$data['target_id'];
 
-            if (isset($data['session_id'])) {
-                $session = $this->conn->prepare("SELECT * FROM sessions WHERE id = :id LIMIT 0,1");
-                $session->bindParam(':id', $data['session_id']);
-                $session->execute();
-                $sessionData = $session->fetch(PDO::FETCH_ASSOC);
+            if (!empty($data['session_id'])) {
+                $stmt = $this->conn->prepare("SELECT * FROM sessions WHERE id = :id LIMIT 1");
+                $stmt->bindParam(':id', $data['session_id']);
+                $stmt->execute();
+                $sessionData = $stmt->fetch(PDO::FETCH_ASSOC);
                 if ($sessionData) {
-                    $banData['session_id'] = $data['session_id'];
-                    $banData['ip_address'] = $sessionData['ip_address'];
+                    $banData['session_id'] = (int)$data['session_id'];
+                    if (empty($banData['ip_address'])) {
+                        $banData['ip_address'] = $sessionData['ip_address'];
+                    }
                 }
             }
 
         } elseif ($banType === 'ip') {
-            if (!isset($data['ip_address'])) {
+            if (empty($data['ip_address'])) {
                 http_response_code(400);
                 echo json_encode(['message' => 'IP address is required for IP ban']);
                 return;
             }
 
-            $banData['ip_address'] = $data['ip_address'];
-
-            if (isset($data['ip_ban_scope'])) {
-                $banData['ban_type'] = $data['ip_ban_scope'];
-            }
-
-            if (isset($data['target_type']) && isset($data['target_id'])) {
-                $banData['target_type'] = $data['target_type'];
-                $banData['target_id'] = $data['target_id'];
-            }
-        } else {
-            http_response_code(400);
-            echo json_encode(['message' => 'Invalid ban type']);
-            return;
+            $banData['ip_address'] = trim($data['ip_address']);
+            $banData['ban_type'] = 'ip';
         }
 
         if ($banData['ban_duration_type'] === 'temporary') {
-            if (!isset($data['expires_at'])) {
+            if (empty($data['expires_at'])) {
                 http_response_code(400);
                 echo json_encode(['message' => 'Expiration date is required for temporary ban']);
                 return;
@@ -185,33 +168,84 @@ class BannedController {
         }
     }
 
+    public function updateBan($banId) {
+        header('Content-Type: application/json');
+
+        $adminId = $this->validateAdmin();
+        if (!$adminId) {
+            http_response_code(401);
+            echo json_encode(['message' => 'Unauthorized']);
+            return;
+        }
+
+        $data = json_decode(file_get_contents('php://input'), true);
+        if (!$data) {
+            http_response_code(400);
+            echo json_encode(['message' => 'Invalid data']);
+            return;
+        }
+
+        $result = $this->bannedModel->update($banId, $data);
+
+        if ($result) {
+            http_response_code(200);
+            echo json_encode(['message' => 'Ban updated successfully']);
+        } else {
+            http_response_code(500);
+            echo json_encode(['message' => 'Failed to update ban']);
+        }
+    }
+
     public function checkBan() {
         header('Content-Type: application/json');
 
-        $data = json_decode(file_get_contents('php://input'), true);
+        $this->bannedModel->cleanupExpiredBans();
 
-        if (!$data) {
-            $data = [];
+        $data = json_decode(file_get_contents('php://input'), true) ?? [];
+
+        $headers = function_exists('getallheaders') ? getallheaders() : [];
+        $authHeader = $headers['Authorization'] ?? $headers['authorization'] ?? null;
+        $token = null;
+        if ($authHeader && preg_match('/Bearer\s+(.*)$/i', $authHeader, $matches)) {
+            $token = trim($matches[1]);
+        } elseif (!empty($data['token'])) {
+            $token = trim($data['token']);
         }
 
-        $ban = null;
-        $ipAddress = $data['ip_address'] ?? $this->getClientIp();
+        $targetType = !empty($data['target_type']) ? $data['target_type'] : null;
+        $targetId = !empty($data['target_id']) ? (int)$data['target_id'] : null;
+        $sessionId = !empty($data['session_id']) ? (int)$data['session_id'] : null;
 
-        if ($ipAddress) {
-            $ban = $this->bannedModel->checkBanByIP($ipAddress);
+        if ($token && (!$targetType || !$targetId || !$sessionId)) {
+            try {
+                $stmt = $this->conn->prepare("SELECT id, user_id, user_type, ip_address FROM sessions WHERE token = :token LIMIT 1");
+                $stmt->bindParam(':token', $token);
+                $stmt->execute();
+                $session = $stmt->fetch(PDO::FETCH_ASSOC);
+                if ($session) {
+                    if (!$sessionId) $sessionId = (int)$session['id'];
+                    if (!$targetType) $targetType = $session['user_type'];
+                    if (!$targetId) $targetId = (int)$session['user_id'];
+                    if (empty($reqIp) && !empty($session['ip_address'])) {
+                        $reqIp = $session['ip_address'];
+                    }
+                }
+            } catch (Exception $e) {}
+
+            if ((!$targetType || !$targetId) && JWT::validate($token)) {
+                $payload = JWT::decode($token);
+                if ($payload) {
+                    if (!$targetId && !empty($payload['user_id'])) $targetId = (int)$payload['user_id'];
+                    if (!$targetType && !empty($payload['role'])) $targetType = $payload['role'];
+                }
+            }
         }
 
-        if (!$ban && isset($data['session_id'])) {
-            $ban = $this->bannedModel->checkBanBySession($data['session_id'], $ipAddress);
-        }
+        $clientIp = $this->getClientIp();
+        $reqIp = !empty($data['ip_address']) ? trim($data['ip_address']) : $reqIp;
+        $ipCandidates = array_values(array_filter([$reqIp, $clientIp]));
 
-        if (!$ban && isset($data['target_type']) && isset($data['target_id'])) {
-            $ban = $this->bannedModel->checkBanByTarget($data['target_type'], $data['target_id']);
-        }
-
-        if (!$ban && isset($data['target_type']) && isset($data['target_id'])) {
-            $ban = $this->bannedModel->checkOverallBan($data['target_type'], $data['target_id'], $ipAddress);
-        }
+        $ban = $this->bannedModel->findActiveBan($targetType, $targetId, $sessionId, $ipCandidates);
 
         if ($ban) {
             http_response_code(200);
@@ -226,15 +260,15 @@ class BannedController {
         header('Content-Type: application/json');
 
         $data = json_decode(file_get_contents('php://input'), true);
-        
+
         if (!$data || !isset($data['target_type']) || !isset($data['target_id'])) {
             http_response_code(400);
             echo json_encode(['message' => 'Target type and target ID are required']);
             return;
         }
 
-        $ipAddress = $data['ip_address'] ?? $this->getClientIp();
-        $ban = $this->bannedModel->checkOverallBan($data['target_type'], $data['target_id'], $ipAddress);
+        $ipAddress = !empty($data['ip_address']) ? trim($data['ip_address']) : $this->getClientIp();
+        $ban = $this->bannedModel->checkOverallBan($data['target_type'], (int)$data['target_id'], $ipAddress);
 
         if ($ban) {
             http_response_code(200);
@@ -248,18 +282,12 @@ class BannedController {
     public function getBanInfo() {
         header('Content-Type: application/json');
 
-        $data = json_decode(file_get_contents('php://input'), true);
-        
-        if (!$data) {
-            http_response_code(400);
-            echo json_encode(['message' => 'Invalid data']);
-            return;
-        }
+        $data = json_decode(file_get_contents('php://input'), true) ?? [];
 
-        $sessionId = $data['session_id'] ?? null;
-        $ipAddress = $data['ip_address'] ?? $this->getClientIp();
+        $sessionId = !empty($data['session_id']) ? (int)$data['session_id'] : null;
+        $ipAddress = !empty($data['ip_address']) ? trim($data['ip_address']) : $this->getClientIp();
         $targetType = $data['target_type'] ?? null;
-        $targetId = $data['target_id'] ?? null;
+        $targetId = !empty($data['target_id']) ? (int)$data['target_id'] : null;
 
         $ban = $this->bannedModel->getBanInfo($sessionId, $ipAddress, $targetType, $targetId);
 
@@ -274,7 +302,7 @@ class BannedController {
 
     public function getAllBans() {
         header('Content-Type: application/json');
-        
+
         $adminId = $this->validateAdmin();
         if (!$adminId) {
             http_response_code(401);
@@ -337,7 +365,7 @@ class BannedController {
 
     public function getSessions() {
         header('Content-Type: application/json');
-        
+
         $adminId = $this->validateAdmin();
         if (!$adminId) {
             http_response_code(401);
@@ -361,7 +389,7 @@ class BannedController {
             $stmt = $this->conn->prepare($query);
             $stmt->execute();
             $sessions = $stmt->fetchAll(PDO::FETCH_ASSOC);
-            
+
             http_response_code(200);
             echo json_encode(['sessions' => $sessions]);
         } catch(PDOException $e) {
@@ -373,13 +401,6 @@ class BannedController {
 
     public function cleanupExpiredBans() {
         header('Content-Type: application/json');
-        
-        $adminId = $this->validateAdmin();
-        if (!$adminId) {
-            http_response_code(401);
-            echo json_encode(['message' => 'Unauthorized']);
-            return;
-        }
 
         $result = $this->bannedModel->cleanupExpiredBans();
 
@@ -394,7 +415,7 @@ class BannedController {
 
     public function deleteBan($banId) {
         header('Content-Type: application/json');
-        
+
         $adminId = $this->validateAdmin();
         if (!$adminId) {
             http_response_code(401);

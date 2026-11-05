@@ -1,5 +1,5 @@
 import { getBanInfo, checkBan, cleanupExpiredBans } from '../../api/web/Banned.js';
-import { getUserRole, getUserData } from '../../utils/jwt.js';
+import { getActiveSessionUser, getUserData } from '../../utils/jwt.js';
 import { showBannedContactsModal } from '../../components/Modal/Contacts/BannedContactsModal.js';
 import { BannedHero } from '../../components/Layout/Hero.js';
 import { LockedFooter } from '../../components/Layout/Footer.js';
@@ -23,7 +23,6 @@ export function Banned() {
 }
 
 export function initBanned() {
-
     if (typeof lucide !== 'undefined') {
         lucide.createIcons();
     }
@@ -38,40 +37,54 @@ export function initBanned() {
 
     let checkInterval = null;
     let timerInterval = null;
+    let isRedirecting = false;
+
+    function handleUnbanSuccess() {
+        if (isRedirecting) return;
+        isRedirecting = true;
+        if (checkInterval) {
+            clearInterval(checkInterval);
+            checkInterval = null;
+        }
+        if (timerInterval) {
+            clearInterval(timerInterval);
+            timerInterval = null;
+        }
+        try {
+            localStorage.removeItem('banInfo');
+            sessionStorage.removeItem('soptBanCheck');
+            sessionStorage.setItem('soptBanCheck', JSON.stringify({ at: Date.now(), banned: false, ban_info: null }));
+        } catch (e) {}
+
+        window.location.href = '/';
+    }
+
+    function buildCurrentCheckData() {
+        const checkData = {};
+
+        const cachedIp = sessionStorage.getItem('clientIpAddress');
+        if (cachedIp) {
+            checkData.ip_address = cachedIp;
+        }
+
+        const active = getActiveSessionUser();
+        if (active) {
+            checkData.target_type = active.role;
+            checkData.target_id = active.id;
+            checkData.token = active.token;
+        }
+
+        return checkData;
+    }
 
     async function checkBanStatus() {
+        if (isRedirecting) return false;
         try {
-            const checkData = {};
-
-            try {
-                const ipResponse = await fetch('https://api.ipify.org?format=json');
-                const ipData = await ipResponse.json();
-                checkData.ip_address = ipData.ip;
-            } catch (ipError) {
-                console.error('Failed to detect IP:', ipError);
-            }
-
-            try {
-                const userRole = getUserRole();
-                const userData = getUserData(userRole);
-                
-                if (userData && userData.id) {
-                    checkData.target_type = userRole;
-                    checkData.target_id = userData.id;
-                }
-            } catch (e) {
-
-                console.log('User data not available, checking by IP only');
-            }
-            
+            const checkData = buildCurrentCheckData();
             const banCheck = await checkBan(checkData);
             
-            if (!banCheck.banned) {
-
-                localStorage.removeItem('banInfo');
-                if (checkInterval) clearInterval(checkInterval);
-                if (timerInterval) clearInterval(timerInterval);
-                window.location.href = '/';
+            if (!banCheck || !banCheck.banned) {
+                handleUnbanSuccess();
                 return false;
             }
             
@@ -164,18 +177,31 @@ export function initBanned() {
         const timerEl = document.getElementById('banTimer');
         if (!timerEl || !expiresAt) return;
 
-        const now = new Date().getTime();
+        const now = Date.now();
         const expiry = new Date(expiresAt).getTime();
         const diff = expiry - now;
 
         if (diff <= 0) {
-            timerEl.innerHTML = '<span class="text-green-600 font-semibold">Ban expired! Cleaning up and redirecting...</span>';
+            if (timerInterval) {
+                clearInterval(timerInterval);
+                timerInterval = null;
+            }
 
-            cleanupExpiredBans().catch(err => console.error('Failed to cleanup expired bans:', err));
+            timerEl.innerHTML = '<span class="text-green-600 font-semibold">Ban expired! Unbanning and redirecting...</span>';
 
-            localStorage.removeItem('banInfo');
+            cleanupExpiredBans().catch(() => {});
 
-            checkBanStatus();
+            try {
+                localStorage.removeItem('banInfo');
+                sessionStorage.removeItem('soptBanCheck');
+            } catch (e) {}
+
+            setTimeout(async () => {
+                const isStillBanned = await checkBanStatus();
+                if (!isStillBanned) {
+                    handleUnbanSuccess();
+                }
+            }, 600);
             return;
         }
 
@@ -196,106 +222,123 @@ export function initBanned() {
         const titleEl = document.getElementById('banTitle');
         const subtitleEl = document.getElementById('banSubtitle');
 
-        let banInfo = localStorage.getItem('banInfo');
+        let banInfo = null;
+        try {
+            const raw = localStorage.getItem('banInfo');
+            if (raw) banInfo = JSON.parse(raw);
+        } catch (e) {}
 
         if (!banInfo) {
-            const isStillBanned = await checkBanStatus();
-            if (!isStillBanned) return;
-            banInfo = localStorage.getItem('banInfo');
+            try {
+                const checkData = buildCurrentCheckData();
+                const banCheck = await checkBan(checkData);
+                if (!banCheck || !banCheck.banned) {
+                    handleUnbanSuccess();
+                    return;
+                }
+                banInfo = banCheck.ban_info;
+                if (banInfo) {
+                    localStorage.setItem('banInfo', JSON.stringify(banInfo));
+                }
+            } catch (err) {
+                console.error('Failed to load ban check on load:', err);
+            }
         }
         
         if (banInfo) {
             try {
-                const ban = JSON.parse(banInfo);
+                const ban = banInfo;
                 const banTypeLabel = ban.ban_type === 'session' ? 'Session Ban' : 
                                      ban.ban_type === 'overall' ? 'Overall Ban' : 'IP Ban';
 
-                const isIpOnlyBan = !ban.target_type || !ban.target_id;
+                const isIpOnlyBan = ban.ban_type === 'ip' || (!ban.target_type && !ban.target_id);
 
                 if (isIpOnlyBan) {
-                    titleEl.textContent = 'IP Address Restricted';
-                    subtitleEl.textContent = 'Your IP address has been restricted from accessing this system';
+                    if (titleEl) titleEl.textContent = 'IP Address Restricted';
+                    if (subtitleEl) subtitleEl.textContent = 'Your IP address has been restricted from accessing this system';
                 } else {
-                    titleEl.textContent = 'Account Banned';
-                    subtitleEl.textContent = 'Your account has been banned from accessing this system';
+                    if (titleEl) titleEl.textContent = 'Account Banned';
+                    if (subtitleEl) subtitleEl.textContent = 'Your account has been banned from accessing this system';
                 }
                 
-                const isTemporary = ban.ban_duration_type !== 'permanent' && ban.expires_at;
+                const isTemporary = ban.ban_duration_type === 'temporary' && ban.expires_at;
                 
-                container.innerHTML = `
-                    <div class="ban-details-card">
-                        <div class="ban-details-head">
-                            <div class="ban-details-icon">
-                                <i data-lucide="ban"></i>
+                if (container) {
+                    container.innerHTML = `
+                        <div class="ban-details-card">
+                            <div class="ban-details-head">
+                                <div class="ban-details-icon">
+                                    <i data-lucide="ban"></i>
+                                </div>
+                                <div class="ban-details-head-text">
+                                    <h3>${banTypeLabel}</h3>
+                                    <p>Review your ban details below</p>
+                                </div>
                             </div>
-                            <div class="ban-details-head-text">
-                                <h3>${banTypeLabel}</h3>
-                                <p>Review your ban details below</p>
-                            </div>
-                        </div>
 
-                        <div class="ban-details-list">
-                            <div class="ban-details-row">
-                                <span class="ban-details-label">Reason</span>
-                                <span class="ban-details-value">${ban.reason}</span>
-                            </div>
-                            ${ban.admin_name ? `
-                            <div class="ban-details-row">
-                                <span class="ban-details-label">Banned by</span>
-                                <span class="ban-details-value">${ban.admin_name}</span>
-                            </div>
-                            ` : ''}
-                            <div class="ban-details-row">
-                                <span class="ban-details-label">Duration</span>
-                                <span class="ban-details-value">${ban.ban_duration_type === 'permanent' ? 'Permanent' : 'Temporary'}</span>
-                            </div>
-                            ${ban.expires_at ? `
-                            <div class="ban-details-row">
-                                <span class="ban-details-label">Expires</span>
-                                <span class="ban-details-value">${new Date(ban.expires_at).toLocaleString()}</span>
-                            </div>
-                            ` : ''}
-                            ${isTemporary ? `
-                            <div class="ban-details-row">
-                                <span class="ban-details-label">Time remaining</span>
-                                <span id="banTimer" class="ban-details-value ban-details-timer">Loading...</span>
-                            </div>
-                            ` : ''}
-                            ${ban.target_name ? `
-                            <div class="ban-details-row">
-                                <span class="ban-details-label">User</span>
-                                <span class="ban-details-value">${ban.target_name}</span>
-                            </div>
-                            ` : ''}
-                            ${renderIpRow('IP Address', ban.ip_address)}
-                            ${renderIpRow('Session IP', ban.session_ip)}
-                            <div class="ban-details-row ban-details-row-last">
-                                <span class="ban-details-label">Banned on</span>
-                                <span class="ban-details-value">${new Date(ban.created_at).toLocaleString()}</span>
-                            </div>
-                        </div>
-
-                        ${ban.session_ip ? `
-                        <div class="ban-details-session">
-                            <h4>Session Information</h4>
                             <div class="ban-details-list">
                                 <div class="ban-details-row">
-                                    <span class="ban-details-label">Device Type</span>
-                                    <span class="ban-details-value">${ban.device_type || 'Unknown'}</span>
+                                    <span class="ban-details-label">Reason</span>
+                                    <span class="ban-details-value">${escapeAttr(ban.reason || 'No reason provided')}</span>
                                 </div>
+                                ${ban.admin_name ? `
                                 <div class="ban-details-row">
-                                    <span class="ban-details-label">Browser</span>
-                                    <span class="ban-details-value">${ban.browser || 'Unknown'}</span>
+                                    <span class="ban-details-label">Banned by</span>
+                                    <span class="ban-details-value">${escapeAttr(ban.admin_name)}</span>
                                 </div>
+                                ` : ''}
+                                <div class="ban-details-row">
+                                    <span class="ban-details-label">Duration</span>
+                                    <span class="ban-details-value">${ban.ban_duration_type === 'temporary' ? 'Temporary' : 'Permanent'}</span>
+                                </div>
+                                ${ban.expires_at ? `
+                                <div class="ban-details-row">
+                                    <span class="ban-details-label">Expires</span>
+                                    <span class="ban-details-value">${new Date(ban.expires_at).toLocaleString()}</span>
+                                </div>
+                                ` : ''}
+                                ${isTemporary ? `
+                                <div class="ban-details-row">
+                                    <span class="ban-details-label">Time remaining</span>
+                                    <span id="banTimer" class="ban-details-value ban-details-timer">Loading...</span>
+                                </div>
+                                ` : ''}
+                                ${ban.target_name ? `
+                                <div class="ban-details-row">
+                                    <span class="ban-details-label">User</span>
+                                    <span class="ban-details-value">${escapeAttr(ban.target_name)}</span>
+                                </div>
+                                ` : ''}
+                                ${renderIpRow('IP Address', ban.ip_address)}
+                                ${renderIpRow('Session IP', ban.session_ip)}
                                 <div class="ban-details-row ban-details-row-last">
-                                    <span class="ban-details-label">OS</span>
-                                    <span class="ban-details-value">${ban.os || 'Unknown'}</span>
+                                    <span class="ban-details-label">Banned on</span>
+                                    <span class="ban-details-value">${ban.created_at ? new Date(ban.created_at).toLocaleString() : '—'}</span>
                                 </div>
                             </div>
+
+                            ${ban.session_ip ? `
+                            <div class="ban-details-session">
+                                <h4>Session Information</h4>
+                                <div class="ban-details-list">
+                                    <div class="ban-details-row">
+                                        <span class="ban-details-label">Device Type</span>
+                                        <span class="ban-details-value">${escapeAttr(ban.device_type || 'Unknown')}</span>
+                                    </div>
+                                    <div class="ban-details-row">
+                                        <span class="ban-details-label">Browser</span>
+                                        <span class="ban-details-value">${escapeAttr(ban.browser || 'Unknown')}</span>
+                                    </div>
+                                    <div class="ban-details-row ban-details-row-last">
+                                        <span class="ban-details-label">OS</span>
+                                        <span class="ban-details-value">${escapeAttr(ban.os || 'Unknown')}</span>
+                                    </div>
+                                </div>
+                            </div>
+                            ` : ''}
                         </div>
-                        ` : ''}
-                    </div>
-                `;
+                    `;
+                }
 
                 if (isTemporary && ban.expires_at) {
                     updateTimer(ban.expires_at);
@@ -304,21 +347,27 @@ export function initBanned() {
                 }
 
                 if (checkInterval) clearInterval(checkInterval);
-                checkInterval = setInterval(checkBanStatus, 5000);
+                checkInterval = setInterval(checkBanStatus, 3000);
             } catch (error) {
-                console.error('Error parsing ban info:', error);
+                console.error('Error rendering ban info:', error);
+                if (container) {
+                    container.innerHTML = `
+                        <div class="bg-yellow-50 border border-yellow-200 rounded-lg p-4">
+                            <p class="text-sm text-yellow-700">Unable to load ban details. Please contact the administrator.</p>
+                        </div>
+                    `;
+                }
+            }
+        } else {
+            if (container) {
                 container.innerHTML = `
                     <div class="bg-yellow-50 border border-yellow-200 rounded-lg p-4">
-                        <p class="text-sm text-yellow-700">Unable to load ban details. Please contact the administrator.</p>
+                        <p class="text-sm text-yellow-700">No active ban information found. If you are seeing this page, please try refreshing or returning home.</p>
                     </div>
                 `;
             }
-        } else {
-            container.innerHTML = `
-                <div class="bg-yellow-50 border border-yellow-200 rounded-lg p-4">
-                    <p class="text-sm text-yellow-700">No active ban information found. If you are seeing this page, please try refreshing or contact support.</p>
-                </div>
-            `;
+            if (checkInterval) clearInterval(checkInterval);
+            checkInterval = setInterval(checkBanStatus, 3000);
         }
         
         if (typeof lucide !== 'undefined') {
