@@ -6,8 +6,3 @@ services:
     region: oregon
     dockerfilePath: ./Dockerfile
     dockerContext: .
-    envVars:
-      - key: BAN_CRON_SECRET
-        generateValue: true
-      - key: BAN_CRON_INTERVAL
-        value: "60"

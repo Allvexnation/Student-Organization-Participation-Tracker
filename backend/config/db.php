@@ -40,12 +40,7 @@ class Database {
 
     public function getConnection($withoutDatabase = false) {
         if ($this->conn !== null) {
-            try {
-                $this->conn->query("SELECT 1");
-                return $this->conn;
-            } catch (Exception $e) {
-                $this->conn = null;
-            }
+            return $this->conn;
         }
 
         try {
