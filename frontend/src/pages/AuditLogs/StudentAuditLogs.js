@@ -1,4 +1,6 @@
 import { StudentNavbar, initStudentNavbar } from '../../components/Navbar/StudentNavbar.js';
+import { getAllAuditLogs } from '../../api/AuditLogs/AuditLogs.js';
+import { getAllAdviserAuditLogs } from '../../api/AuditLogs/AdviserAuditLogs.js';
 import { getAllStudentAuditLogs } from '../../api/AuditLogs/StudentAuditLogs.js';
 import { protectStudentRoute } from '../../middleware/StudentMiddleware.js';
 import { skeletonTableRows } from '../../components/SkeletonLoading.js';
@@ -7,7 +9,10 @@ import { initAuditLogsAnimations, animateDominoList } from '../../provider/Anima
 const TABLE_OPTIONS = `
     <option value="">All</option>
     <option value="students">Student Profile</option>
+    <option value="organizations">Organizations</option>
     <option value="organization_memberships">Memberships</option>
+    <option value="tasks">Tasks</option>
+    <option value="events">Events</option>
     <option value="attendance">Attendance</option>
 `;
 
@@ -232,7 +237,7 @@ function auditLogsPanel({ title, subtitle, showHeading = true }) {
 export function StudentAuditLogsEmbedded() {
     return auditLogsPanel({
         title: 'Recent audit logs',
-        subtitle: 'Your latest profile and activity changes',
+        subtitle: 'Your activity and associated adviser logs across organizations, tasks, events, and attendance',
     });
 }
 
@@ -248,12 +253,12 @@ export function StudentAuditLogs() {
                     </span>
                     <div class="mt-3 min-w-0">
                         <h1 class="text-[1.65rem] sm:text-3xl font-semibold tracking-tight text-ink leading-tight">Audit Logs</h1>
-                        <p class="mt-1.5 max-w-2xl text-sm text-body">Review changes made to your profile, memberships, and attendance.</p>
+                        <p class="mt-1.5 max-w-2xl text-sm text-body">Review your logs and associated adviser activity for shared organizations, tasks, events, and attendance. Adviser device and IP details are hidden, and logs cannot be deleted.</p>
                     </div>
                 </header>
                 ${auditLogsPanel({
                     title: 'Recent audit logs',
-                    subtitle: 'Your latest profile and activity changes',
+                    subtitle: 'Your activity and associated adviser logs across organizations, tasks, events, and attendance',
                     showHeading: false,
                 })}
             </main>
@@ -275,6 +280,7 @@ export function initStudentAuditLogs(options = {}) {
 
     let currentPage = 0;
     const pageSize = 20;
+    let allLogs = [];
     let listReady = false;
 
     function finishRender(animate = true) {
@@ -344,24 +350,54 @@ export function initStudentAuditLogs(options = {}) {
         }
 
         try {
-            const response = await getAllStudentAuditLogs({
-                ...filters,
-                limit: pageSize,
-                offset: currentPage * pageSize
-            }, 'student');
+            const [adminResponse, adviserResponse, studentResponse] = await Promise.all([
+                getAllAuditLogs({
+                    ...filters,
+                    limit: 200
+                }, 'student').catch((err) => {
+                    console.error('Admin audit logs fetch error:', err);
+                    return { success: false, data: [], total: 0 };
+                }),
+                getAllAdviserAuditLogs({
+                    ...filters,
+                    limit: 200
+                }, 'student').catch((err) => {
+                    console.error('Adviser audit logs fetch error:', err);
+                    return { success: false, data: [], total: 0 };
+                }),
+                getAllStudentAuditLogs({
+                    ...filters,
+                    limit: 200
+                }, 'student').catch((err) => {
+                    console.error('Student audit logs fetch error:', err);
+                    return { success: false, data: [], total: 0 };
+                })
+            ]);
 
-            if (response && response.success) {
-                const logs = response.data || [];
-                renderLogs(logs, response.total || 0);
-                const countEl = document.getElementById('logsCount');
-                if (countEl) countEl.textContent = response.total || 0;
-                const prevBtn = document.getElementById('prevPage');
-                const nextBtn = document.getElementById('nextPage');
-                if (prevBtn) prevBtn.disabled = currentPage === 0;
-                if (nextBtn) nextBtn.disabled = (currentPage + 1) * pageSize >= (response.total || 0);
-            } else {
-                renderError('Failed to load audit logs. Invalid response from server.');
+            let combinedLogs = [];
+            if (adminResponse?.success && Array.isArray(adminResponse.data)) {
+                combinedLogs = [...combinedLogs, ...adminResponse.data];
             }
+            if (adviserResponse?.success && Array.isArray(adviserResponse.data)) {
+                combinedLogs = [...combinedLogs, ...adviserResponse.data];
+            }
+            if (studentResponse?.success && Array.isArray(studentResponse.data)) {
+                combinedLogs = [...combinedLogs, ...studentResponse.data];
+            }
+
+            combinedLogs.sort((a, b) => new Date(b.created_at) - new Date(a.created_at));
+            allLogs = combinedLogs;
+            const totalLogs = combinedLogs.length;
+            const startIndex = currentPage * pageSize;
+            const paginatedLogs = combinedLogs.slice(startIndex, startIndex + pageSize);
+
+            renderLogs(paginatedLogs, totalLogs);
+            const countEl = document.getElementById('logsCount');
+            if (countEl) countEl.textContent = totalLogs;
+            const prevBtn = document.getElementById('prevPage');
+            const nextBtn = document.getElementById('nextPage');
+            if (prevBtn) prevBtn.disabled = currentPage === 0;
+            if (nextBtn) nextBtn.disabled = (currentPage + 1) * pageSize >= totalLogs;
         } catch (error) {
             console.error('Failed to load audit logs:', error);
             renderError('Failed to load audit logs. Please try again.');
@@ -521,9 +557,10 @@ export function initStudentAuditLogs(options = {}) {
             if (el) el.textContent = value;
         };
         setText('logsStatTotal', total);
-        setText('logsStatCreate', list.filter((log) => (log.action || '').toUpperCase() === 'CREATE').length);
-        setText('logsStatUpdate', list.filter((log) => (log.action || '').toUpperCase() === 'UPDATE').length);
-        setText('logsStatDelete', list.filter((log) => (log.action || '').toUpperCase() === 'DELETE').length);
+        const source = allLogs.length ? allLogs : list;
+        setText('logsStatCreate', source.filter((log) => (log.action || '').toUpperCase() === 'CREATE').length);
+        setText('logsStatUpdate', source.filter((log) => (log.action || '').toUpperCase() === 'UPDATE').length);
+        setText('logsStatDelete', source.filter((log) => (log.action || '').toUpperCase() === 'DELETE').length);
     }
 
     function getReadableFieldName(fieldName) {
@@ -637,10 +674,10 @@ export function initStudentAuditLogs(options = {}) {
         if (!logs || logs.length === 0) {
             if (isMobileView()) {
                 tbody.innerHTML = '';
-                mobile.innerHTML = emptyState('file-text', 'No audit logs found for your account.', 'Activity will appear here as changes are made.');
+                mobile.innerHTML = emptyState('file-text', 'No audit logs found for your account and associated advisers.', 'Activity will appear here as changes are made.');
             } else {
                 mobile.innerHTML = '';
-                tbody.innerHTML = `<tr data-domino-enter class="reveal"><td colspan="8">${emptyState('file-text', 'No audit logs found for your account.', 'Activity will appear here as changes are made.')}</td></tr>`;
+                tbody.innerHTML = `<tr data-domino-enter class="reveal"><td colspan="8">${emptyState('file-text', 'No audit logs found for your account and associated advisers.', 'Activity will appear here as changes are made.')}</td></tr>`;
             }
             finishRender(true);
             return;
@@ -649,11 +686,11 @@ export function initStudentAuditLogs(options = {}) {
         if (isMobileView()) {
             tbody.innerHTML = '';
             mobile.innerHTML = logs.map(log => {
-                const isAdmin = log.user_type === 'admin';
-                const censoredDevice = isAdmin ? 'Hidden' : (log.device_type || '—');
-                const censoredBrowser = isAdmin ? 'Hidden' : (log.browser || '—');
-                const censoredOs = isAdmin ? 'Hidden' : (log.os || '—');
-                const censoredIp = isAdmin ? 'Hidden' : (log.ip_address || '—');
+                const hideDevice = log.user_type === 'admin' || log.user_type === 'adviser';
+                const censoredDevice = hideDevice ? 'Hidden' : (log.device_type || '—');
+                const censoredBrowser = hideDevice ? 'Hidden' : (log.browser || '—');
+                const censoredOs = hideDevice ? 'Hidden' : (log.os || '—');
+                const censoredIp = hideDevice ? 'Hidden' : (log.ip_address || '—');
                 const action = (log.action || '').toUpperCase();
 
                 return `
@@ -685,11 +722,11 @@ export function initStudentAuditLogs(options = {}) {
         } else {
             mobile.innerHTML = '';
             tbody.innerHTML = logs.map(log => {
-                const isAdmin = log.user_type === 'admin';
-                const censoredDevice = isAdmin ? 'Hidden' : (log.device_type || '-');
-                const censoredBrowser = isAdmin ? 'Hidden' : (log.browser || '-');
-                const censoredOs = isAdmin ? 'Hidden' : (log.os || '-');
-                const censoredIp = isAdmin ? 'Hidden' : (log.ip_address || '-');
+                const hideDevice = log.user_type === 'admin' || log.user_type === 'adviser';
+                const censoredDevice = hideDevice ? 'Hidden' : (log.device_type || '-');
+                const censoredBrowser = hideDevice ? 'Hidden' : (log.browser || '-');
+                const censoredOs = hideDevice ? 'Hidden' : (log.os || '-');
+                const censoredIp = hideDevice ? 'Hidden' : (log.ip_address || '-');
 
                 return `
                     <tr class="reveal hover:bg-surface/80 transition-colors" data-domino-enter>

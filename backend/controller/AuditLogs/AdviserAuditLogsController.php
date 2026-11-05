@@ -2,6 +2,7 @@
 
 require_once __DIR__ . '/../../model/AuditLogs/AdviserAuditLogModel.php';
 require_once __DIR__ . '/../../config/jwt.php';
+require_once __DIR__ . '/../../utils/AuditLogScope.php';
 
 class AdviserAuditLogsController {
     private $model;
@@ -83,84 +84,22 @@ class AdviserAuditLogsController {
             if ($user['role'] === 'adviser') {
                 $adviserId = $user['user_id'] ?? $user['id'] ?? null;
                 $filters['adviser_id'] = $adviserId;
-                
-                $orgIds = [];
-                $membershipIds = [];
-                $studentIds = [];
-                $eventIds = [];
-                $taskIds = [];
-                $attendanceIds = [];
-
-                if ($adviserId) {
-                    try {
-                        $database = Database::getInstance();
-                        $db = $database->getConnection();
-
-                        $stmtOrg = $db->prepare("SELECT id FROM organizations WHERE adviser_id = :adviser_id");
-                        $stmtOrg->bindParam(':adviser_id', $adviserId, PDO::PARAM_INT);
-                        $stmtOrg->execute();
-                        $orgIds = $stmtOrg->fetchAll(PDO::FETCH_COLUMN);
-
-                        $stmtAdv = $db->prepare("SELECT current_organization_id FROM advisers WHERE id = :adviser_id");
-                        $stmtAdv->bindParam(':adviser_id', $adviserId, PDO::PARAM_INT);
-                        $stmtAdv->execute();
-                        $currOrg = $stmtAdv->fetchColumn();
-                        if ($currOrg && !in_array($currOrg, $orgIds)) {
-                            $orgIds[] = (int)$currOrg;
-                        }
-
-                        if (!empty($orgIds)) {
-                            $placeholders = implode(',', array_fill(0, count($orgIds), '?'));
-                            $stmtMem = $db->prepare("SELECT id, student_id FROM organization_memberships WHERE organization_id IN ($placeholders)");
-                            $stmtMem->execute($orgIds);
-                            $memberships = $stmtMem->fetchAll(PDO::FETCH_ASSOC);
-                            foreach ($memberships as $m) {
-                                if (!empty($m['id'])) $membershipIds[] = (int)$m['id'];
-                                if (!empty($m['student_id'])) $studentIds[] = (int)$m['student_id'];
-                            }
-
-                            try {
-                                $stmtEvents = $db->prepare("SELECT event_id FROM event_organizations WHERE organization_id IN ($placeholders)");
-                                $stmtEvents->execute($orgIds);
-                                $eventIds = $stmtEvents->fetchAll(PDO::FETCH_COLUMN);
-                            } catch (Exception $e) {
-                                error_log("Error retrieving adviser event associations: " . $e->getMessage());
-                            }
-
-                            try {
-                                $stmtTasks = $db->prepare("SELECT id FROM member_tasks WHERE organization_id IN ($placeholders)");
-                                $stmtTasks->execute($orgIds);
-                                $taskIds = $stmtTasks->fetchAll(PDO::FETCH_COLUMN);
-                            } catch (Exception $e) {
-                                error_log("Error retrieving adviser task associations: " . $e->getMessage());
-                            }
-
-                            try {
-                                $stmtAtt = $db->prepare("SELECT id FROM attendances WHERE organization_id IN ($placeholders)");
-                                $stmtAtt->execute($orgIds);
-                                $attendanceIds = $stmtAtt->fetchAll(PDO::FETCH_COLUMN);
-                            } catch (Exception $e) {
-                                error_log("Error retrieving adviser attendance associations: " . $e->getMessage());
-                            }
-                        }
-                    } catch (Exception $e) {
-                        error_log("Error retrieving adviser associations: " . $e->getMessage());
-                    }
-                }
-
-                $filters['organization_ids'] = array_values(array_unique($orgIds));
-                $filters['membership_ids'] = array_values(array_unique($membershipIds));
-                $filters['student_ids'] = array_values(array_unique($studentIds));
-                $filters['event_ids'] = array_values(array_unique($eventIds));
-                $filters['task_ids'] = array_values(array_unique($taskIds));
-                $filters['attendance_ids'] = array_values(array_unique($attendanceIds));
+                $filters = AuditLogScope::merge($filters, AuditLogScope::forAdviser($adviserId));
+            } elseif ($user['role'] === 'student') {
+                $studentId = $user['user_id'] ?? $user['id'] ?? null;
+                $filters['student_id'] = $studentId;
+                $filters = AuditLogScope::merge($filters, AuditLogScope::forStudent($studentId));
             } elseif ($user['role'] !== 'admin') {
                 http_response_code(403);
-                return ['success' => false, 'message' => 'Access denied. Admin or adviser only.'];
+                return ['success' => false, 'message' => 'Access denied.'];
             }
 
             $logs = $this->model->getAll($filters);
             $total = $this->model->count($filters);
+
+            if ($user['role'] === 'student') {
+                $logs = AuditLogScope::redactForStudent($logs);
+            }
 
             return [
                 'success' => true,

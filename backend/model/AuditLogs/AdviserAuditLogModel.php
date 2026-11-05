@@ -1,6 +1,7 @@
 <?php
 
 require_once __DIR__ . '/../../config/db.php';
+require_once __DIR__ . '/../../utils/AuditLogScope.php';
 
 class AdviserAuditLogModel {
     private $conn;
@@ -99,65 +100,7 @@ class AdviserAuditLogModel {
             $query .= " AND al.created_at <= :end_date";
         }
 
-        if (!empty($filters['adviser_id'])) {
-            $orgIds = $filters['organization_ids'] ?? [];
-            $studentIds = $filters['student_ids'] ?? [];
-            $membershipIds = $filters['membership_ids'] ?? [];
-            $eventIds = $filters['event_ids'] ?? [];
-            $taskIds = $filters['task_ids'] ?? [];
-            $attendanceIds = $filters['attendance_ids'] ?? [];
-            $adviserId = (int)$filters['adviser_id'];
-            
-            error_log("Adviser filtering: adviser_id=$adviserId, orgs=" . json_encode($orgIds) . ", students=" . json_encode($studentIds));
-            
-            $conditions = [];
-
-            $conditions[] = "(al.user_id = $adviserId AND al.user_type = 'adviser')";
-
-            $conditions[] = "(al.table_name = 'advisers' AND al.record_id = $adviserId)";
-
-            if (!empty($orgIds)) {
-                $orgIdsStr = implode(',', array_map('intval', $orgIds));
-                $conditions[] = "(al.table_name = 'organizations' AND al.record_id IN ($orgIdsStr))";
-            }
-
-            if (!empty($studentIds)) {
-                $studentIdsStr = implode(',', array_map('intval', $studentIds));
-                $conditions[] = "(al.table_name = 'students' AND al.record_id IN ($studentIdsStr))";
-            }
-
-            if (!empty($membershipIds)) {
-                $membershipIdsStr = implode(',', array_map('intval', $membershipIds));
-                $conditions[] = "(al.table_name = 'organization_memberships' AND al.record_id IN ($membershipIdsStr))";
-            }
-            if (!empty($orgIds)) {
-                $orgIdsStr = implode(',', array_map('intval', $orgIds));
-                $conditions[] = "(al.table_name = 'organization_memberships' AND (al.old_value REGEXP '(^|,)$orgIdsStr(,|$)' OR al.new_value REGEXP '(^|,)$orgIdsStr(,|$)'))";
-            }
-
-            if (!empty($eventIds)) {
-                $eventIdsStr = implode(',', array_map('intval', $eventIds));
-                $conditions[] = "(al.table_name = 'events' AND al.record_id IN ($eventIdsStr))";
-            }
-
-            if (!empty($taskIds)) {
-                $taskIdsStr = implode(',', array_map('intval', $taskIds));
-                $conditions[] = "(al.table_name IN ('tasks', 'member_tasks') AND al.record_id IN ($taskIdsStr))";
-            }
-
-            if (!empty($attendanceIds)) {
-                $attIdsStr = implode(',', array_map('intval', $attendanceIds));
-                $conditions[] = "(al.table_name IN ('attendance', 'attendances') AND al.record_id IN ($attIdsStr))";
-            }
-            
-            error_log("Adviser conditions: " . json_encode($conditions));
-            
-            if (!empty($conditions)) {
-                $query .= " AND (" . implode(' OR ', $conditions) . ")";
-            } else {
-                $query .= " AND ((al.table_name = 'advisers' AND al.record_id = $adviserId) OR (al.user_id = $adviserId AND al.user_type = 'adviser'))";
-            }
-        }
+        $query .= AuditLogScope::visibilitySql('al', $filters);
 
         $query .= " ORDER BY al.created_at DESC";
 
@@ -298,61 +241,7 @@ class AdviserAuditLogModel {
             $query .= " AND created_at <= :end_date";
         }
 
-        if (!empty($filters['adviser_id'])) {
-            $orgIds = $filters['organization_ids'] ?? [];
-            $studentIds = $filters['student_ids'] ?? [];
-            $membershipIds = $filters['membership_ids'] ?? [];
-            $eventIds = $filters['event_ids'] ?? [];
-            $taskIds = $filters['task_ids'] ?? [];
-            $attendanceIds = $filters['attendance_ids'] ?? [];
-            $adviserId = (int)$filters['adviser_id'];
-            
-            $conditions = [];
-
-            $conditions[] = "(user_id = $adviserId AND user_type = 'adviser')";
-
-            $conditions[] = "(table_name = 'advisers' AND record_id = $adviserId)";
-
-            if (!empty($orgIds)) {
-                $orgIdsStr = implode(',', array_map('intval', $orgIds));
-                $conditions[] = "(table_name = 'organizations' AND record_id IN ($orgIdsStr))";
-            }
-
-            if (!empty($studentIds)) {
-                $studentIdsStr = implode(',', array_map('intval', $studentIds));
-                $conditions[] = "(table_name = 'students' AND record_id IN ($studentIdsStr))";
-            }
-
-            if (!empty($membershipIds)) {
-                $membershipIdsStr = implode(',', array_map('intval', $membershipIds));
-                $conditions[] = "(table_name = 'organization_memberships' AND record_id IN ($membershipIdsStr))";
-            }
-            if (!empty($orgIds)) {
-                $orgIdsStr = implode(',', array_map('intval', $orgIds));
-                $conditions[] = "(table_name = 'organization_memberships' AND (old_value REGEXP '(^|,)$orgIdsStr(,|$)' OR new_value REGEXP '(^|,)$orgIdsStr(,|$)'))";
-            }
-
-            if (!empty($eventIds)) {
-                $eventIdsStr = implode(',', array_map('intval', $eventIds));
-                $conditions[] = "(table_name = 'events' AND record_id IN ($eventIdsStr))";
-            }
-
-            if (!empty($taskIds)) {
-                $taskIdsStr = implode(',', array_map('intval', $taskIds));
-                $conditions[] = "(table_name IN ('tasks', 'member_tasks') AND record_id IN ($taskIdsStr))";
-            }
-
-            if (!empty($attendanceIds)) {
-                $attIdsStr = implode(',', array_map('intval', $attendanceIds));
-                $conditions[] = "(table_name IN ('attendance', 'attendances') AND record_id IN ($attIdsStr))";
-            }
-            
-            if (!empty($conditions)) {
-                $query .= " AND (" . implode(' OR ', $conditions) . ")";
-            } else {
-                $query .= " AND ((table_name = 'advisers' AND record_id = $adviserId) OR (user_id = $adviserId AND user_type = 'adviser'))";
-            }
-        }
+        $query .= AuditLogScope::visibilitySql('', $filters);
 
         $stmt = $this->conn->prepare($query);
 

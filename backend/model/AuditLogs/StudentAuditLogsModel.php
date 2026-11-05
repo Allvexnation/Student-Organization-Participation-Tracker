@@ -1,6 +1,7 @@
 <?php
 
 require_once __DIR__ . '/../../config/db.php';
+require_once __DIR__ . '/../../utils/AuditLogScope.php';
 
 class StudentAuditLogsModel {
     private $conn;
@@ -99,27 +100,7 @@ class StudentAuditLogsModel {
             $query .= " AND al.created_at <= :end_date";
         }
 
-        if (!empty($filters['student_id'])) {
-            $studentId = (int)$filters['student_id'];
-            
-            error_log("Student filtering: student_id=$studentId");
-  
-            $conditions = [];
-
-            $conditions[] = "(al.user_id = $studentId AND al.user_type = 'student')";
-
-            $conditions[] = "(al.table_name = 'students' AND al.record_id = $studentId)";
-
-            $conditions[] = "(al.table_name IN ('attendance', 'attendances') AND (al.record_id = $studentId OR al.record_id IN (SELECT id FROM attendances WHERE student_id = $studentId)))";
-            
-            error_log("Student conditions: " . json_encode($conditions));
-            
-            if (!empty($conditions)) {
-                $query .= " AND (" . implode(' OR ', $conditions) . ")";
-            } else {
-                $query .= " AND ((al.table_name = 'students' AND al.record_id = $studentId) OR (al.user_id = $studentId AND al.user_type = 'student'))";
-            }
-        }
+        $query .= AuditLogScope::visibilitySql('al', $filters);
 
         $query .= " ORDER BY al.created_at DESC";
 
@@ -260,23 +241,7 @@ class StudentAuditLogsModel {
             $query .= " AND created_at <= :end_date";
         }
 
-        if (!empty($filters['student_id'])) {
-            $studentId = (int)$filters['student_id'];
-            
-            $conditions = [];
-
-            $conditions[] = "(user_id = $studentId AND user_type = 'student')";
-
-            $conditions[] = "(table_name = 'students' AND record_id = $studentId)";
-
-            $conditions[] = "(table_name IN ('attendance', 'attendances') AND (record_id = $studentId OR record_id IN (SELECT id FROM attendances WHERE student_id = $studentId)))";
-            
-            if (!empty($conditions)) {
-                $query .= " AND (" . implode(' OR ', $conditions) . ")";
-            } else {
-                $query .= " AND ((table_name = 'students' AND record_id = $studentId) OR (user_id = $studentId AND user_type = 'student'))";
-            }
-        }
+        $query .= AuditLogScope::visibilitySql('', $filters);
 
         $stmt = $this->conn->prepare($query);
 

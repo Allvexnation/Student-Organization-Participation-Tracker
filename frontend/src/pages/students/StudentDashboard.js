@@ -16,6 +16,8 @@ export function StudentDashboard() {
         displayName,
         badge: 'Student portal',
         subtitle: 'See your organizations, events, tasks, and attendance in one view.',
+        extraLabel: 'Organization activity',
+        extraHint: 'Logs from you and associated advisers across shared organizations, tasks, events, and attendance. Adviser device and IP details are hidden, and logs cannot be deleted.',
         extra: StudentAuditLogsEmbedded()
     });
 }

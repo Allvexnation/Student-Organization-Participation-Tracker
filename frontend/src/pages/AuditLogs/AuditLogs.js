@@ -1,5 +1,5 @@
 import { AdminNavbar, initAdminNavbar } from '../../components/Navbar/AdminNavbar.js';
-import { getAllAuditLogs } from '../../api/AuditLogs/AuditLogs.js';
+import { getCombinedAuditLogs } from '../../api/AuditLogs/AuditLogs.js';
 import { protectAdminRoute } from '../../middleware/AdminMiddleware.js';
 import { navigate } from '../../utils/navigation.js';
 
@@ -210,24 +210,22 @@ export function initAuditLogsEmbedded() {
         if (!tbody) return;
 
         try {
-            const response = await getAllAuditLogs({
-                ...filters,
-                limit: pageSize,
-                offset: currentPage * pageSize
-            });
+            const response = await getCombinedAuditLogs(filters, 'admin');
 
             if (!document.getElementById('auditLogsTableBody')) return;
 
             if (response && response.success) {
                 allLogs = response.data || [];
-                renderLogs(allLogs);
+                const totalLogs = allLogs.length;
+                const startIndex = currentPage * pageSize;
+                renderLogs(allLogs.slice(startIndex, startIndex + pageSize));
                 const logsCount = document.getElementById('logsCount');
-                if (logsCount) logsCount.textContent = response.total || 0;
+                if (logsCount) logsCount.textContent = totalLogs;
 
                 const prevPage = document.getElementById('prevPage');
                 const nextPage = document.getElementById('nextPage');
                 if (prevPage) prevPage.disabled = currentPage === 0;
-                if (nextPage) nextPage.disabled = (currentPage + 1) * pageSize >= (response.total || 0);
+                if (nextPage) nextPage.disabled = (currentPage + 1) * pageSize >= totalLogs;
             } else {
                 setTableMessage('Failed to load audit logs. Invalid response from server.', true);
             }
@@ -405,7 +403,7 @@ export function initAuditLogsEmbedded() {
         }
 
         tbody.innerHTML = logs.map(log => `
-            <tr class="hover:bg-gray-50 cursor-pointer audit-log-row" data-log-id="${log.id}">
+            <tr class="hover:bg-gray-50 cursor-pointer audit-log-row" data-log-id="${log.display_id || log.id}">
                 <td class="px-4 py-3 text-sm text-gray-900 whitespace-nowrap">
                     ${formatDate(log.created_at)}
                 </td>
@@ -623,24 +621,22 @@ export function initAuditLogs() {
         if (!document.getElementById('auditLogsTableBody')) return;
 
         try {
-            const response = await getAllAuditLogs({
-                ...filters,
-                limit: pageSize,
-                offset: currentPage * pageSize
-            });
+            const response = await getCombinedAuditLogs(filters, 'admin');
 
             if (!document.getElementById('auditLogsTableBody')) return;
 
             if (response && response.success) {
                 allLogs = response.data || [];
-                renderLogs(allLogs);
+                const totalLogs = allLogs.length;
+                const startIndex = currentPage * pageSize;
+                renderLogs(allLogs.slice(startIndex, startIndex + pageSize));
                 const logsCount = document.getElementById('logsCount');
-                if (logsCount) logsCount.textContent = response.total || 0;
+                if (logsCount) logsCount.textContent = totalLogs;
 
                 const prevPage = document.getElementById('prevPage');
                 const nextPage = document.getElementById('nextPage');
                 if (prevPage) prevPage.disabled = currentPage === 0;
-                if (nextPage) nextPage.disabled = (currentPage + 1) * pageSize >= (response.total || 0);
+                if (nextPage) nextPage.disabled = (currentPage + 1) * pageSize >= totalLogs;
 
                 if (highlightLogId) {
                     highlightLog(highlightLogId);
@@ -657,7 +653,8 @@ export function initAuditLogs() {
     function highlightLog(logId) {
         const tbody = document.getElementById('auditLogsTableBody');
         if (!tbody) return;
-        const targetRow = tbody.querySelector(`[data-log-id="${logId}"]`);
+        const targetRow = tbody.querySelector(`[data-log-id="${logId}"]`)
+            || tbody.querySelector(`[data-log-id$="-${logId}"]`);
         if (targetRow) {
             targetRow.classList.add('bg-blue-100', 'border-l-4', 'border-blue-500');
             targetRow.scrollIntoView({ behavior: 'smooth', block: 'center' });
@@ -832,7 +829,7 @@ export function initAuditLogs() {
         }
 
         tbody.innerHTML = logs.map(log => `
-            <tr class="hover:bg-gray-50 cursor-pointer audit-log-row" data-log-id="${log.id}">
+            <tr class="hover:bg-gray-50 cursor-pointer audit-log-row" data-log-id="${log.display_id || log.id}">
                 <td class="px-4 py-3 text-sm text-gray-900 whitespace-nowrap">
                     ${formatDate(log.created_at)}
                 </td>

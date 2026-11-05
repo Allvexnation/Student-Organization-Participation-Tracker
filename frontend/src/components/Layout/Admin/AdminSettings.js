@@ -8,7 +8,9 @@ import { showToast, updateToast } from '../../../components/ToastMessage.js';
 import { ProfileValidator } from '../../../validator/ProfileValidator.js';
 import { getDefaultProfileSVG } from '../../../static/Profile/DefaultProfile.js';
 import { logChange } from '../../../api/AuditLogs/AuditLogs.js';
-import { getAllAuditLogs, deleteAuditLog, cleanupOldAuditLogs } from '../../../api/AuditLogs/AuditLogs.js';
+import { getCombinedAuditLogs, deleteAuditLog, cleanupOldAuditLogs } from '../../../api/AuditLogs/AuditLogs.js';
+import { deleteAdviserAuditLog, cleanupOldAdviserAuditLogs } from '../../../api/AuditLogs/AdviserAuditLogs.js';
+import { deleteStudentAuditLog, cleanupOldStudentAuditLogs } from '../../../api/AuditLogs/StudentAuditLogs.js';
 import { createBan, updateBan, getAllBans, deactivateBan, deleteBan, activateBan } from '../../../api/web/Banned.js';
 import { getAllAnalytics, getAnalyticsStats, deleteAnalytics } from '../../../api/web/WebAnalytics.js';
 import { openManageBannedModal } from '../../../components/Modal/ManageBannedModal.js';
@@ -733,14 +735,16 @@ export async function initAdminSettings() {
 
     async function loadAuditLogs(filters = {}) {
         try {
-            const response = await getAllAuditLogs({ ...filters, limit: pageSize, offset: currentPage * pageSize });
+            const response = await getCombinedAuditLogs(filters, 'admin');
             if (response && response.success) {
                 allLogs = response.data || [];
-                renderLogs(allLogs);
-                document.getElementById('logsCount').textContent = response.total || 0;
-                setTabCount('auditLogsCount', response.total || 0);
+                const totalLogs = allLogs.length;
+                const startIndex = currentPage * pageSize;
+                renderLogs(allLogs.slice(startIndex, startIndex + pageSize));
+                document.getElementById('logsCount').textContent = totalLogs;
+                setTabCount('auditLogsCount', response.sourceTotal || totalLogs);
                 document.getElementById('prevPage').disabled = currentPage === 0;
-                document.getElementById('nextPage').disabled = (currentPage + 1) * pageSize >= (response.total || 0);
+                document.getElementById('nextPage').disabled = (currentPage + 1) * pageSize >= totalLogs;
                 hasLoadedAuditLogs = true;
                 if (highlightLogId) highlightLog(highlightLogId);
             }
@@ -759,7 +763,8 @@ export async function initAdminSettings() {
     }
 
     function highlightLog(logId) {
-        const target = document.querySelector(`[data-log-id="${logId}"]`);
+        const target = document.querySelector(`[data-log-id="${logId}"]`)
+            || document.querySelector(`[data-log-id$="-${logId}"]`);
         if (target) {
             target.classList.add('ring-2', 'ring-blue-600', 'bg-blue-50');
             target.scrollIntoView({ behavior: 'smooth', block: 'center' });
@@ -818,7 +823,7 @@ export async function initAdminSettings() {
         if (isMobileView()) {
             tbody.innerHTML = '';
             mobile.innerHTML = list.map((log) => `
-                <article class="settings-mobile-card reveal rounded-2xl border border-line bg-white overflow-hidden" data-domino-enter data-log-id="${log.id}">
+                <article class="settings-mobile-card reveal rounded-2xl border border-line bg-white overflow-hidden" data-domino-enter data-log-id="${log.display_id || log.id}">
                     <div class="p-4">
                         <div class="flex items-start justify-between gap-2">
                             <div class="min-w-0">
@@ -836,14 +841,14 @@ export async function initAdminSettings() {
                         <div class="mt-3 text-xs">${renderChangesCell(log)}</div>
                     </div>
                     <div class="px-4 py-2.5 border-t border-line bg-surface/70 flex justify-end">
-                        <button type="button" onclick="deleteLog(${log.id})" class="text-red-600 hover:text-red-800 text-xs font-semibold">Delete</button>
+                        <button type="button" onclick="deleteLog(${log.id}, '${log.log_source || 'admin'}')" class="text-red-600 hover:text-red-800 text-xs font-semibold">Delete</button>
                     </div>
                 </article>
             `).join('');
         } else {
             mobile.innerHTML = '';
             tbody.innerHTML = list.map((log) => `
-                <tr class="reveal hover:bg-surface/80 transition-colors audit-log-row" data-domino-enter data-log-id="${log.id}">
+                <tr class="reveal hover:bg-surface/80 transition-colors audit-log-row" data-domino-enter data-log-id="${log.display_id || log.id}">
                     <td class="px-4 py-3 text-sm text-ink whitespace-nowrap">${formatDate(log.created_at)}</td>
                     <td class="px-4 py-3 text-sm text-ink"><div class="font-medium">${escapeHtml(log.user_name || 'Unknown')}</div><div class="text-xs text-muted">${escapeHtml(log.user_type)}</div></td>
                     <td class="px-4 py-3">${tonePill(log.action || '—', getActionTone(log.action))}</td>
@@ -852,7 +857,7 @@ export async function initAdminSettings() {
                     <td class="px-4 py-3 text-sm text-ink max-w-sm">${renderChangesCell(log)}</td>
                     <td class="px-4 py-3 text-sm text-ink"><div class="text-xs">${escapeHtml(log.device_type || '-')}</div><div class="text-xs text-muted">${escapeHtml(log.browser || '-')} / ${escapeHtml(log.os || '-')}</div></td>
                     <td class="px-4 py-3 text-sm text-ink font-mono text-xs">${escapeHtml(log.ip_address || '-')}</td>
-                    <td class="px-4 py-3 text-center"><button type="button" onclick="deleteLog(${log.id})" class="text-red-600 hover:text-red-800 text-xs font-medium">Delete</button></td>
+                    <td class="px-4 py-3 text-center"><button type="button" onclick="deleteLog(${log.id}, '${log.log_source || 'admin'}')" class="text-red-600 hover:text-red-800 text-xs font-medium">Delete</button></td>
                 </tr>
             `).join('');
         }
@@ -860,7 +865,7 @@ export async function initAdminSettings() {
         finishRender('auditLogsSection', animate);
     }
 
-    window.deleteLog = async function(logId) {
+    window.deleteLog = async function(logId, source = 'admin') {
         openConfirmDialog({
             title: 'Delete Audit Log',
             message: 'Are you sure you want to delete this audit log? This action cannot be undone.',
@@ -869,7 +874,13 @@ export async function initAdminSettings() {
             type: 'danger',
             onConfirm: async () => {
                 try {
-                    await deleteAuditLog(logId);
+                    if (source === 'adviser') {
+                        await deleteAdviserAuditLog(logId, 'admin');
+                    } else if (source === 'student') {
+                        await deleteStudentAuditLog(logId, 'admin');
+                    } else {
+                        await deleteAuditLog(logId);
+                    }
                     showToast('Audit log deleted successfully', 'success');
                     loadAuditLogs(getCurrentFilters());
                 } catch (error) {
@@ -884,7 +895,7 @@ export async function initAdminSettings() {
             user_type: document.getElementById('filterUserType').value,
             action: document.getElementById('filterAction').value,
             table_name: document.getElementById('filterTable').value,
-            date: document.getElementById('filterDate').value
+            start_date: document.getElementById('filterDate').value
         };
     }
 
@@ -898,7 +909,11 @@ export async function initAdminSettings() {
             type: 'danger',
             onConfirm: async () => {
                 try {
-                    await cleanupOldAuditLogs();
+                    await Promise.all([
+                        cleanupOldAuditLogs(),
+                        cleanupOldAdviserAuditLogs(90, 'admin'),
+                        cleanupOldStudentAuditLogs(90, 'admin')
+                    ]);
                     showToast('Old logs cleaned up successfully', 'success');
                     loadAuditLogs(getCurrentFilters());
                 } catch (error) {
@@ -1243,13 +1258,13 @@ export async function initAdminSettings() {
 
     async function loadTabCounts() {
         const [auditRes, bansRes, analyticsRes] = await Promise.allSettled([
-            getAllAuditLogs({ limit: 1, offset: 0 }),
+            getCombinedAuditLogs({ limit: 1, offset: 0 }, 'admin'),
             getAllBans(),
             getAllAnalytics()
         ]);
 
         if (auditRes.status === 'fulfilled' && auditRes.value?.success) {
-            setTabCount('auditLogsCount', auditRes.value.total || 0);
+            setTabCount('auditLogsCount', auditRes.value.sourceTotal || auditRes.value.total || 0);
         }
         if (bansRes.status === 'fulfilled' && bansRes.value) {
             setTabCount('bansCount', (bansRes.value.bans || []).length);

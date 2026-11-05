@@ -168,10 +168,10 @@ export async function getAdviserAuditLogsByRecord(tableName, recordId, limit = 5
     return await response.json();
 }
 
-export async function deleteAdviserAuditLog(id) {
+export async function deleteAdviserAuditLog(id, role = 'adviser') {
     const response = await fetch(`${API_BASE_URL}/api/adviser-audit-logs/${id}`, {
         method: 'DELETE',
-        headers: getAuthHeaders()
+        headers: getAuthHeaders(role)
     });
     
     if (!response.ok) {
@@ -181,10 +181,10 @@ export async function deleteAdviserAuditLog(id) {
     return await response.json();
 }
 
-export async function cleanupOldAdviserAuditLogs(days = 90) {
+export async function cleanupOldAdviserAuditLogs(days = 90, role = 'adviser') {
     const response = await fetch(`${API_BASE_URL}/api/adviser-audit-logs/cleanup?days=${days}`, {
         method: 'DELETE',
-        headers: getAuthHeaders()
+        headers: getAuthHeaders(role)
     });
     
     if (!response.ok) {

@@ -1,5 +1,7 @@
 import { API_BASE_URL } from '../server/api.js';
 import { getToken } from '../../utils/jwt.js';
+import { getAllAdviserAuditLogs } from './AdviserAuditLogs.js';
+import { getAllStudentAuditLogs } from './StudentAuditLogs.js';
 
 function getAuthHeaders(role = 'admin') {
     const token = getToken(role);
@@ -132,6 +134,82 @@ export async function getAllAuditLogs(filters = {}, role = 'admin') {
     }
     
     return await response.json();
+}
+
+function emptyLogsResponse() {
+    return { success: false, data: [], total: 0 };
+}
+
+function withLogSource(logs, source) {
+    return (logs || []).map((log) => ({
+        ...log,
+        log_source: source,
+        display_id: `${source}-${log.id}`
+    }));
+}
+
+export async function getCombinedAuditLogs(filters = {}, role = 'admin') {
+    const { user_type = '', limit, offset, date, start_date, ...sharedFilters } = filters;
+    const query = {
+        ...sharedFilters,
+        limit: 200
+    };
+    if (user_type) {
+        query.user_type = user_type;
+    }
+    const dateFilter = start_date || date;
+    if (dateFilter) {
+        query.start_date = dateFilter;
+    }
+
+    const shouldFetchAdviser = !user_type || user_type === 'adviser';
+    const shouldFetchStudent = !user_type || user_type === 'student';
+
+    const [adminResponse, adviserResponse, studentResponse] = await Promise.all([
+        getAllAuditLogs(query, role).catch((err) => {
+            console.error('Admin audit logs fetch error:', err);
+            return emptyLogsResponse();
+        }),
+        shouldFetchAdviser
+            ? getAllAdviserAuditLogs(query, role).catch((err) => {
+                console.error('Adviser audit logs fetch error:', err);
+                return emptyLogsResponse();
+            })
+            : Promise.resolve(emptyLogsResponse()),
+        shouldFetchStudent
+            ? getAllStudentAuditLogs(query, role).catch((err) => {
+                console.error('Student audit logs fetch error:', err);
+                return emptyLogsResponse();
+            })
+            : Promise.resolve(emptyLogsResponse())
+    ]);
+
+    let combinedLogs = [];
+
+    if (adminResponse?.success && Array.isArray(adminResponse.data)) {
+        combinedLogs = [...combinedLogs, ...withLogSource(adminResponse.data, 'admin')];
+    }
+    if (adviserResponse?.success && Array.isArray(adviserResponse.data)) {
+        combinedLogs = [...combinedLogs, ...withLogSource(adviserResponse.data, 'adviser')];
+    }
+    if (studentResponse?.success && Array.isArray(studentResponse.data)) {
+        combinedLogs = [...combinedLogs, ...withLogSource(studentResponse.data, 'student')];
+    }
+
+    combinedLogs.sort((a, b) => new Date(b.created_at) - new Date(a.created_at));
+
+    const anySuccess = [adminResponse, adviserResponse, studentResponse].some((response) => response?.success);
+    const total =
+        (adminResponse?.success ? (adminResponse.total || 0) : 0) +
+        (adviserResponse?.success ? (adviserResponse.total || 0) : 0) +
+        (studentResponse?.success ? (studentResponse.total || 0) : 0);
+
+    return {
+        success: anySuccess,
+        data: combinedLogs,
+        total: combinedLogs.length,
+        sourceTotal: total
+    };
 }
 
 export async function getAuditLogById(id) {

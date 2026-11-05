@@ -15,6 +15,8 @@ export function AdviserDashboard() {
         displayName,
         badge: 'Adviser portal',
         subtitle: 'Track your organizations, events, memberships, and pending requests.',
+        extraLabel: 'Organization activity',
+        extraHint: 'Logs from you and associated students across shared organizations, tasks, events, and attendance. Logs cannot be deleted.',
         extra: AdviserAuditLogsEmbedded()
     });
 }

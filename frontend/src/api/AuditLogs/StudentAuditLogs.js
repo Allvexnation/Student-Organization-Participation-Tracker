@@ -168,10 +168,10 @@ export async function getStudentAuditLogsByRecord(tableName, recordId, limit = 5
     return await response.json();
 }
 
-export async function deleteStudentAuditLog(id) {
+export async function deleteStudentAuditLog(id, role = 'student') {
     const response = await fetch(`${API_BASE_URL}/api/student-audit-logs/${id}`, {
         method: 'DELETE',
-        headers: getAuthHeaders()
+        headers: getAuthHeaders(role)
     });
     
     if (!response.ok) {
@@ -181,10 +181,10 @@ export async function deleteStudentAuditLog(id) {
     return await response.json();
 }
 
-export async function cleanupOldStudentAuditLogs(days = 90) {
+export async function cleanupOldStudentAuditLogs(days = 90, role = 'student') {
     const response = await fetch(`${API_BASE_URL}/api/student-audit-logs/cleanup?days=${days}`, {
         method: 'DELETE',
-        headers: getAuthHeaders()
+        headers: getAuthHeaders(role)
     });
     
     if (!response.ok) {

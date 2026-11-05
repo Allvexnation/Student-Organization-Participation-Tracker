@@ -2,6 +2,7 @@
 
 require_once __DIR__ . '/../../model/AuditLogs/StudentAuditLogsModel.php';
 require_once __DIR__ . '/../../config/jwt.php';
+require_once __DIR__ . '/../../utils/AuditLogScope.php';
 
 class StudentAuditLogsController {
     private $model;
@@ -95,13 +96,22 @@ class StudentAuditLogsController {
             if ($user['role'] === 'student') {
                 $studentId = $user['user_id'] ?? $user['id'] ?? null;
                 $filters['student_id'] = $studentId;
+                $filters = AuditLogScope::merge($filters, AuditLogScope::forStudent($studentId));
+            } elseif ($user['role'] === 'adviser') {
+                $adviserId = $user['user_id'] ?? $user['id'] ?? null;
+                $filters['adviser_id'] = $adviserId;
+                $filters = AuditLogScope::merge($filters, AuditLogScope::forAdviser($adviserId));
             } elseif ($user['role'] !== 'admin') {
                 http_response_code(403);
-                return ['success' => false, 'message' => 'Access denied. Admin or student only.'];
+                return ['success' => false, 'message' => 'Access denied.'];
             }
 
             $logs = $this->model->getAll($filters);
             $total = $this->model->count($filters);
+
+            if ($user['role'] === 'student') {
+                $logs = AuditLogScope::redactForStudent($logs);
+            }
 
             return [
                 'success' => true,

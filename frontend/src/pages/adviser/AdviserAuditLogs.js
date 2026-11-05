@@ -1,6 +1,7 @@
 import { AdviserNavbar, initAdviserNavbar } from '../../components/Navbar/AdviserNavbar.js';
 import { getAllAuditLogs } from '../../api/AuditLogs/AuditLogs.js';
 import { getAllAdviserAuditLogs } from '../../api/AuditLogs/AdviserAuditLogs.js';
+import { getAllStudentAuditLogs } from '../../api/AuditLogs/StudentAuditLogs.js';
 import { protectAdviserRoute } from '../../middleware/AdviserMiddleware.js';
 import { getUserData } from '../../utils/jwt.js';
 import { skeletonTableRows } from '../../components/SkeletonLoading.js';
@@ -238,7 +239,7 @@ function auditLogsPanel({ title, subtitle, showHeading = true }) {
 export function AdviserAuditLogsEmbedded() {
     return auditLogsPanel({
         title: 'Recent audit logs',
-        subtitle: 'Latest changes in your organization',
+        subtitle: 'Your activity and associated student logs across organizations, tasks, events, and attendance',
     });
 }
 
@@ -254,12 +255,12 @@ export function AdviserAuditLogs() {
                     </span>
                     <div class="mt-3 min-w-0">
                         <h1 class="text-[1.65rem] sm:text-3xl font-semibold tracking-tight text-ink leading-tight">Audit Logs</h1>
-                        <p class="mt-1.5 max-w-2xl text-sm text-body">Review changes made to your organizations, students, events, and attendance.</p>
+                        <p class="mt-1.5 max-w-2xl text-sm text-body">Review your logs and associated student activity for shared organizations, tasks, events, and attendance. Logs cannot be deleted.</p>
                     </div>
                 </header>
                 ${auditLogsPanel({
                     title: 'Recent audit logs',
-                    subtitle: 'Latest changes in your organization',
+                    subtitle: 'Your activity and associated student logs across organizations, tasks, events, and attendance',
                     showHeading: false,
                 })}
             </main>
@@ -362,7 +363,7 @@ export function initAdviserAuditLogs(options = {}) {
         }
 
         try {
-            const [adminResponse, adviserResponse] = await Promise.all([
+            const [adminResponse, adviserResponse, studentResponse] = await Promise.all([
                 getAllAuditLogs({
                     ...filters,
                     limit: 200
@@ -376,6 +377,13 @@ export function initAdviserAuditLogs(options = {}) {
                 }, 'adviser').catch(err => {
                     console.error('Adviser audit logs fetch error:', err);
                     return { success: false, data: [], total: 0 };
+                }),
+                getAllStudentAuditLogs({
+                    ...filters,
+                    limit: 200
+                }, 'adviser').catch(err => {
+                    console.error('Student audit logs fetch error:', err);
+                    return { success: false, data: [], total: 0 };
                 })
             ]);
 
@@ -387,6 +395,10 @@ export function initAdviserAuditLogs(options = {}) {
 
             if (adviserResponse && adviserResponse.success && Array.isArray(adviserResponse.data)) {
                 combinedLogs = [...combinedLogs, ...adviserResponse.data];
+            }
+
+            if (studentResponse && studentResponse.success && Array.isArray(studentResponse.data)) {
+                combinedLogs = [...combinedLogs, ...studentResponse.data];
             }
 
             combinedLogs.sort((a, b) => new Date(b.created_at) - new Date(a.created_at));
@@ -673,10 +685,10 @@ export function initAdviserAuditLogs(options = {}) {
         if (!logs || logs.length === 0) {
             if (isMobileView()) {
                 tbody.innerHTML = '';
-                mobile.innerHTML = emptyState('file-text', 'No audit logs found for your organizations and students.', 'Activity will appear here as changes are made.');
+                mobile.innerHTML = emptyState('file-text', 'No audit logs found for your organizations and associated students.', 'Activity will appear here as changes are made.');
             } else {
                 mobile.innerHTML = '';
-                tbody.innerHTML = `<tr data-domino-enter class="reveal"><td colspan="8">${emptyState('file-text', 'No audit logs found for your organizations and students.', 'Activity will appear here as changes are made.')}</td></tr>`;
+                tbody.innerHTML = `<tr data-domino-enter class="reveal"><td colspan="8">${emptyState('file-text', 'No audit logs found for your organizations and associated students.', 'Activity will appear here as changes are made.')}</td></tr>`;
             }
             finishRender(true);
             return;

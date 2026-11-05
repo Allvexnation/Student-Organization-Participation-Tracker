@@ -73,6 +73,8 @@ export function DashboardLayout({
     navbar = '',
     displayName = '',
     extra = '',
+    extraLabel = 'Recent activity',
+    extraHint = '',
     badge = 'Dashboard',
     subtitle = 'Review your latest counts, activity, and records in one place.',
 } = {}) {
@@ -81,6 +83,8 @@ export function DashboardLayout({
     const safeName = escapeHtml(displayName);
     const safeBadge = escapeHtml(badge);
     const safeSubtitle = escapeHtml(subtitle);
+    const safeExtraLabel = escapeHtml(extraLabel);
+    const safeExtraHint = extraHint ? escapeHtml(extraHint) : '';
 
     return `
         <div class="min-h-screen bg-surface font-sans text-ink" data-dashboard-page>
@@ -142,7 +146,8 @@ export function DashboardLayout({
                 </section>
 
                 ${extra ? `
-                    <section id="audit-logs-section" class="reveal pb-6 sm:pb-8" data-dashboard-enter="content" data-domino-enter style="${hide}" aria-label="Recent activity">
+                    <section id="audit-logs-section" class="reveal pb-6 sm:pb-8" data-dashboard-enter="content" data-domino-enter style="${hide}" aria-label="${safeExtraLabel}">
+                        ${safeExtraHint ? `<p class="mb-4 text-xs sm:text-sm text-muted">${safeExtraHint}</p>` : ''}
                         ${extra}
                     </section>
                 ` : ''}
