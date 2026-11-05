@@ -103,7 +103,7 @@ if ($isLoop) {
     while (true) {
         try {
             runCleanup(true);
-        } catch (Exception $e) {
+        } catch (Throwable $e) {
             echo "[" . gmdate('Y-m-d H:i:s') . " UTC] Error in daemon loop: " . $e->getMessage() . "\n";
         }
         sleep($interval);
@@ -114,7 +114,7 @@ if ($isLoop) {
         if ($isCli) {
             exit(0);
         }
-    } catch (Exception $e) {
+    } catch (Throwable $e) {
         $error = [
             'success' => false,
             'message' => 'Cron execution failed: ' . $e->getMessage()

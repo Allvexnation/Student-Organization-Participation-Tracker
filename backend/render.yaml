@@ -9,17 +9,5 @@ services:
     envVars:
       - key: BAN_CRON_SECRET
         generateValue: true
-
-  - type: cron
-    name: ban-cleanup-cron
-    env: docker
-    region: oregon
-    dockerfilePath: ./Dockerfile
-    dockerContext: .
-    schedule: "*/5 * * * *"
-    startCommand: "php /var/www/html/config/cron.php"
-    envVars:
-      - fromService:
-          type: web
-          name: student-organization-tracker-backend
-          envVarKey: BAN_CRON_SECRET
+      - key: BAN_CRON_INTERVAL
+        value: "60"
