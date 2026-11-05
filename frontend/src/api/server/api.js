@@ -1,4 +1,4 @@
-export const API_BASE_URL = 'https://clicks-outer-constitution-asn.trycloudflare.com';
+export const API_BASE_URL = 'https://crtsopt-dev-server.onrender.com';
 
 export const API_ROUTES = {
     ADMIN: {
