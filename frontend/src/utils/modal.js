@@ -1,6 +1,6 @@
 import { animateModalOpen, animateModalClose, clearModalAnimations } from '../provider/ModalAnimation.js';
 import { playImmediateDomino } from '../provider/Animation/HomepageAnimation.js';
-import { pinManageModalActions } from '../components/Modal/modalUi.js';
+import { pinManageModalActions, modalDrawerHandle, bindMobileDrawerDismiss } from '../components/Modal/modalUi.js';
 
 export function openModal(title, content, size = 'medium', zIndex = 'z-50', animationType = 'scale') {
     closeModal();
@@ -19,8 +19,8 @@ export function openModal(title, content, size = 'medium', zIndex = 'z-50', anim
     modal.innerHTML = `
         <div class="absolute inset-0 bg-ink/50" data-modal-overlay></div>
         <div class="absolute inset-0 flex items-end md:items-center justify-center p-0 md:p-4 pointer-events-none">
-            <div id="modal-content" class="manage-modal-panel pointer-events-auto relative bg-white shadow-lift-lg w-full min-w-0 ${sizeClasses[size] || sizeClasses.medium} max-h-[92vh] overflow-hidden rounded-t-3xl md:rounded-2xl flex flex-col" data-modal-panel>
-                <div class="mx-auto mt-2.5 h-1.5 w-12 rounded-full bg-line md:hidden"></div>
+            <div id="modal-content" class="manage-modal-panel pointer-events-auto relative bg-white shadow-lift-lg w-full min-w-0 min-h-0 ${sizeClasses[size] || sizeClasses.medium} max-h-[92vh] overflow-hidden rounded-t-3xl md:rounded-2xl flex flex-col" data-modal-panel>
+                ${modalDrawerHandle()}
                 <div class="manage-modal-header sticky top-0 z-10 bg-white/95 backdrop-blur flex justify-between items-start gap-3 px-5 sm:px-6 pt-3 pb-4 border-b border-line shrink-0" data-domino-enter>
                     <div class="min-w-0">
                         <p class="text-[11px] uppercase tracking-[0.16em] text-muted">Manage</p>
@@ -46,6 +46,7 @@ export function openModal(title, content, size = 'medium', zIndex = 'z-50', anim
     if (modalContent) {
         pinManageModalActions(modalContent);
         animateModalOpen(modal, modalContent, animationType);
+        bindMobileDrawerDismiss(modal, modalContent, closeModal);
         requestAnimationFrame(() => playImmediateDomino(modalContent));
     }
 

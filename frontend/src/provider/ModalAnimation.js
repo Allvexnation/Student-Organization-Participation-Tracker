@@ -163,6 +163,14 @@ export function animateModalClose(modalOverlay, modalContent, animationType = 's
         );
 
         backdrop.classList.add('modal-overlay-fade-out');
+
+        if (modalContent.dataset.drawerDismissing === 'true') {
+            setTimeout(() => {
+                resolve();
+            }, 220);
+            return;
+        }
+
         modalContent.classList.add(modalCloseClass(animationType));
 
         setTimeout(() => {

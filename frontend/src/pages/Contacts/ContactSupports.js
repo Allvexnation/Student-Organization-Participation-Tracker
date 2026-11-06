@@ -4,6 +4,7 @@ import { Navbar, initNavbar } from '../../components/Layout/Navbar/Navbar.js';
 import { showContactSupportModal } from '../../components/Modal/Contacts/ContactSupportModal.js';
 import { initReveal } from '../../provider/Animation/HomepageAnimation.js';
 import { bindAuthRouteLinks } from '../../provider/Animation/auth/AuthAnimation.js';
+import { protectPageMedia } from '../../utils/protectMedia.js';
 
 export function ContactSupports() {
     return `
@@ -28,6 +29,7 @@ export function initContactSupports() {
 
     initNavbar('support');
     initFooter();
+    protectPageMedia();
     bindAuthRouteLinks();
     initReveal();
 

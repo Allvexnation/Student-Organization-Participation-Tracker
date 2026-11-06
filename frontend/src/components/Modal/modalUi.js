@@ -1,5 +1,197 @@
 import { playImmediateDomino } from '../../provider/Animation/HomepageAnimation.js';
 
+const DRAWER_BREAKPOINT = '(max-width: 767px)';
+const DRAWER_CLOSE_RATIO = 0.22;
+const DRAWER_VELOCITY = 0.65;
+
+export function modalDrawerHandle() {
+    return `
+                <div class="manage-modal-drawer-handle md:hidden" data-modal-drawer-handle>
+                    <span class="manage-modal-drawer-pill" aria-hidden="true"></span>
+                </div>`;
+}
+
+function isInteractive(target) {
+    return Boolean(target.closest?.('button, a, input, textarea, select, label, [contenteditable="true"]'));
+}
+
+function getDrawerScrollEl(panel) {
+    return panel.querySelector('.manage-modal-form-body')
+        || panel.querySelector('#modal-body')
+        || panel.querySelector('[data-modal-drawer-scroll]');
+}
+
+export function bindMobileDrawerDismiss(overlay, panel, onClose) {
+    if (!overlay || !panel || typeof onClose !== 'function') return;
+
+    const handle = panel.querySelector('[data-modal-drawer-handle]');
+    const header = panel.querySelector('.manage-modal-header');
+    const backdrop = overlay.querySelector('[data-modal-overlay]');
+
+    let pointerId = null;
+    let startY = 0;
+    let lastY = 0;
+    let lastTime = 0;
+    let offsetY = 0;
+    let velocity = 0;
+    let dragging = false;
+    let maybeDrag = false;
+    let startedOnChrome = false;
+
+    const isMobile = () => window.matchMedia(DRAWER_BREAKPOINT).matches;
+
+    const applyOffset = (y) => {
+        const dy = Math.max(0, y);
+        panel.style.transition = 'none';
+        panel.style.transform = `translate3d(0, ${dy}px, 0)`;
+        if (backdrop) {
+            const height = panel.offsetHeight || 1;
+            backdrop.style.transition = 'none';
+            backdrop.style.opacity = String(Math.max(0.2, 1 - (dy / height) * 0.75));
+        }
+    };
+
+    const clearInlineMotion = () => {
+        panel.style.transition = '';
+        panel.style.transform = '';
+        panel.style.willChange = '';
+        if (backdrop) {
+            backdrop.style.transition = '';
+            backdrop.style.opacity = '';
+        }
+    };
+
+    const snapBack = () => {
+        panel.style.transition = 'transform 0.32s cubic-bezier(0.16, 1, 0.3, 1)';
+        panel.style.transform = 'translate3d(0, 0, 0)';
+        if (backdrop) {
+            backdrop.style.transition = 'opacity 0.32s ease';
+            backdrop.style.opacity = '';
+        }
+        const done = (event) => {
+            if (event.propertyName && event.propertyName !== 'transform') return;
+            panel.removeEventListener('transitionend', done);
+            clearInlineMotion();
+        };
+        panel.addEventListener('transitionend', done);
+    };
+
+    const dismiss = () => {
+        const height = panel.offsetHeight || window.innerHeight;
+        panel.dataset.drawerDismissing = 'true';
+        panel.style.transition = 'transform 0.22s cubic-bezier(0.4, 0, 1, 1)';
+        panel.style.transform = `translate3d(0, ${height}px, 0)`;
+        if (backdrop) {
+            backdrop.style.transition = 'opacity 0.22s ease';
+            backdrop.style.opacity = '0';
+        }
+        onClose();
+    };
+
+    const canStartFromTarget = (target) => {
+        if (isInteractive(target)) return false;
+        if (handle?.contains(target) || header?.contains(target)) return true;
+        const scrollEl = getDrawerScrollEl(panel);
+        return !scrollEl || scrollEl.scrollTop <= 1;
+    };
+
+    const onPointerDown = (event) => {
+        if (!isMobile()) return;
+        if (event.pointerType === 'mouse' && event.button !== 0) return;
+        if (panel.dataset.drawerDismissing === 'true') return;
+        if (!canStartFromTarget(event.target)) return;
+
+        pointerId = event.pointerId;
+        startY = event.clientY;
+        lastY = event.clientY;
+        lastTime = event.timeStamp;
+        offsetY = 0;
+        velocity = 0;
+        dragging = false;
+        maybeDrag = true;
+        startedOnChrome = Boolean(handle?.contains(event.target) || header?.contains(event.target));
+        panel.style.willChange = 'transform';
+    };
+
+    const onPointerMove = (event) => {
+        if (!maybeDrag && !dragging) return;
+        if (event.pointerId !== pointerId) return;
+
+        const dy = event.clientY - startY;
+        const now = event.timeStamp;
+        const dt = Math.max(1, now - lastTime);
+        velocity = (event.clientY - lastY) / dt;
+        lastY = event.clientY;
+        lastTime = now;
+
+        if (!dragging) {
+            if (dy < -8) {
+                maybeDrag = false;
+                pointerId = null;
+                panel.style.willChange = '';
+                return;
+            }
+
+            if (dy > (startedOnChrome ? 2 : 8)) {
+                const scrollEl = getDrawerScrollEl(panel);
+                if (!startedOnChrome && scrollEl && scrollEl.scrollTop > 1) {
+                    maybeDrag = false;
+                    pointerId = null;
+                    panel.style.willChange = '';
+                    return;
+                }
+                dragging = true;
+                panel.style.touchAction = 'none';
+                panel.classList.remove(
+                    'modal-content-sheet-in',
+                    'modal-content-scale-in',
+                    'modal-content-slide-in'
+                );
+                try {
+                    panel.setPointerCapture(event.pointerId);
+                } catch {
+                    /* ignore */
+                }
+            } else {
+                return;
+            }
+        }
+
+        if (event.cancelable) event.preventDefault();
+        offsetY = Math.max(0, dy);
+        applyOffset(offsetY);
+    };
+
+    const onPointerEnd = (event) => {
+        if (event.pointerId !== pointerId) return;
+
+        const wasDragging = dragging;
+        dragging = false;
+        maybeDrag = false;
+        pointerId = null;
+        startedOnChrome = false;
+        panel.style.touchAction = '';
+
+        if (!wasDragging) {
+            panel.style.willChange = '';
+            return;
+        }
+
+        const height = panel.offsetHeight || 1;
+        if (offsetY > height * DRAWER_CLOSE_RATIO || velocity > DRAWER_VELOCITY) {
+            dismiss();
+            return;
+        }
+
+        snapBack();
+    };
+
+    panel.addEventListener('pointerdown', onPointerDown);
+    panel.addEventListener('pointermove', onPointerMove, { passive: false });
+    panel.addEventListener('pointerup', onPointerEnd);
+    panel.addEventListener('pointercancel', onPointerEnd);
+}
+
 export const FIELD_CLASS = 'w-full px-3 py-2.5 text-sm border border-line rounded-xl bg-white text-ink focus:outline-none focus:ring-2 focus:ring-navy/15 focus:border-navy transition';
 export const LABEL_CLASS = 'block text-sm font-medium text-ink mb-1.5';
 export const FILE_CLASS = 'w-full text-sm text-muted file:mr-3 file:py-2.5 file:px-3 file:rounded-lg file:border-0 file:text-sm file:font-medium file:bg-blue-50 file:text-navy hover:file:bg-blue-100 transition';

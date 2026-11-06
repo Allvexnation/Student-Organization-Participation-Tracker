@@ -62,6 +62,10 @@ function renderPhotoVisual({ imageSrc, imageAlt, chips, dash }) {
           alt="${escapeAttr(imageAlt)}"
           width="900"
           height="657"
+          draggable="false"
+          ondragstart="return false"
+          oncontextmenu="return false"
+          data-protect-media
         />
       </div>
       <div class="hero-floaters">

@@ -1,6 +1,7 @@
 import { setModalButtonLoading } from '../../utils/modal.js';
 import { animateModalOpen, animateModalClose, clearModalAnimations } from '../../provider/ModalAnimation.js';
 import { playImmediateDomino } from '../../provider/Animation/HomepageAnimation.js';
+import { modalDrawerHandle, bindMobileDrawerDismiss } from '../Modal/modalUi.js';
 
 const CONFIRM_OVERLAY_ID = 'confirm-dialog-overlay';
 const CONFIRM_PANEL_ID = 'confirm-dialog-panel';
@@ -16,10 +17,46 @@ function ensureConfirmStyles() {
         }
 
         @media (max-width: 767px) {
+            #confirm-dialog-overlay > .absolute.inset-0.flex {
+                overflow: hidden;
+                max-height: 100%;
+                align-items: flex-end;
+            }
+
             .confirm-dialog-panel {
                 transform-origin: 50% 100%;
+                touch-action: pan-y;
+                min-height: 0;
+                max-height: calc(100vh - 12px);
+                max-height: calc(100dvh - max(12px, env(safe-area-inset-top, 0px)));
+                max-height: calc(100svh - max(12px, env(safe-area-inset-top, 0px)));
                 background:
                     linear-gradient(180deg, rgba(248, 250, 252, 1) 0%, rgba(255, 255, 255, 1) 28%);
+            }
+
+            .confirm-dialog-panel .manage-modal-drawer-handle {
+                display: flex;
+                align-items: center;
+                justify-content: center;
+                flex: 0 0 auto;
+                width: 100%;
+                padding: 0.7rem 0 0.2rem;
+                cursor: grab;
+                touch-action: none;
+                user-select: none;
+                -webkit-user-select: none;
+            }
+
+            .confirm-dialog-panel .manage-modal-drawer-handle:active {
+                cursor: grabbing;
+            }
+
+            .confirm-dialog-panel .manage-modal-drawer-pill {
+                display: block;
+                width: 3rem;
+                height: 0.35rem;
+                border-radius: 999px;
+                background: #c5ced9;
             }
 
             .confirm-dialog-icon-wrap {
@@ -110,16 +147,16 @@ export function openConfirmDialog({
         <div class="absolute inset-0 bg-ink/50" data-modal-overlay data-confirm-backdrop></div>
         <div class="absolute inset-0 flex items-end md:items-center justify-center p-0 md:p-4 pointer-events-none">
             <div id="${CONFIRM_PANEL_ID}"
-                class="confirm-dialog-panel pointer-events-auto relative bg-white border border-line shadow-lift-lg w-full min-w-0 md:max-w-md max-h-[92vh] overflow-hidden rounded-t-[1.75rem] md:rounded-2xl flex flex-col"
+                class="confirm-dialog-panel pointer-events-auto relative bg-white border border-line shadow-lift-lg w-full min-w-0 min-h-0 md:max-w-md max-h-[92vh] overflow-hidden rounded-t-[1.75rem] md:rounded-2xl flex flex-col"
                 data-modal-panel
                 role="dialog"
                 aria-modal="true"
                 aria-labelledby="confirmDialogTitle"
                 aria-describedby="confirmDialogMessage">
 
-                <div class="mx-auto mt-2.5 h-1.5 w-12 rounded-full bg-line md:hidden" aria-hidden="true"></div>
+                ${modalDrawerHandle()}
 
-                <div class="flex-1 min-h-0 overflow-y-auto overscroll-contain px-5 pt-5 pb-4 md:px-7 md:pt-7 md:pb-5 space-y-4">
+                <div class="flex-1 min-h-0 overflow-y-auto overscroll-contain px-5 pt-5 pb-4 md:px-7 md:pt-7 md:pb-5 space-y-4" data-modal-drawer-scroll>
                     <div class="confirm-dialog-info reveal rounded-2xl border ${infoWrap} p-4 sm:p-5" data-domino-enter>
                         <div class="flex items-start gap-3 sm:gap-3.5 md:gap-4 text-left">
                             <div class="mt-0.5">
@@ -176,6 +213,7 @@ export function openConfirmDialog({
 
     const panel = document.getElementById(CONFIRM_PANEL_ID);
     animateModalOpen(overlay, panel, 'scale');
+    bindMobileDrawerDismiss(overlay, panel, closeConfirmDialog);
     requestAnimationFrame(() => playImmediateDomino(panel));
 
     if (typeof lucide !== 'undefined') {

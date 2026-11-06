@@ -13,6 +13,7 @@ import { FAQ } from '../components/Homepage/FAQ.js';
 import { CallToAction } from '../components/Homepage/CallToAction.js';
 import { Footer } from '../components/Homepage/Footer.js';
 import { initFooter } from '../components/Layout/Footer.js';
+import { protectPageMedia } from '../utils/protectMedia.js';
 
 export function HomePage() {
     return `
@@ -48,6 +49,7 @@ export async function initHomePage() {
 
     initNavigation();
     initFooter();
+    protectPageMedia();
     bindAuthRouteLinks();
     initReveal();
     initFaq();

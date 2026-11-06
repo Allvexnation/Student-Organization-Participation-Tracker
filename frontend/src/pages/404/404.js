@@ -3,6 +3,7 @@ import { SiteFooter, initFooter } from '../../components/Layout/Footer.js';
 import { Navbar, initNavbar } from '../../components/Layout/Navbar/Navbar.js';
 import { initReveal } from '../../provider/Animation/HomepageAnimation.js';
 import { bindAuthRouteLinks } from '../../provider/Animation/auth/AuthAnimation.js';
+import { protectPageMedia } from '../../utils/protectMedia.js';
 
 export function NotFoundPage() {
     return `
@@ -28,6 +29,7 @@ export function initNotFoundPage() {
 
     initNavbar('notfound');
     initFooter();
+    protectPageMedia();
     bindAuthRouteLinks();
     initReveal();
 }

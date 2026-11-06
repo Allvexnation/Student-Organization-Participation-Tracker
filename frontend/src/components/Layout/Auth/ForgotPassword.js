@@ -1,6 +1,7 @@
 import { showToast, updateToast } from '../../ToastMessage.js';
 import { PasswordValidator } from '../../../validator/PasswordValidator.js';
 import { initAuthRouteAnimation, playAuthDominoEnter } from '../../../provider/Animation/auth/AuthAnimation.js';
+import { PROTECT_MEDIA_ATTRS, protectPageMedia } from '../../../utils/protectMedia.js';
 
 const CODE_LENGTH = 6;
 const RESEND_SECONDS = 60;
@@ -242,7 +243,7 @@ export function AuthForgotPasswordLayout({ formId, loginHref }) {
 
           <a href="/" data-auth-route data-auth-enter data-auth-lane="aside" data-auth-depth="0" class="relative flex items-center gap-3" aria-label="CRT home">
             <span class="grid h-12 w-12 flex-none place-items-center rounded-full bg-white p-0.5">
-              <img src="/public/crtlogo.png" alt="CRT logo" width="44" height="44" class="h-11 w-11" />
+              <img src="/public/crtlogo.png" alt="CRT logo" width="44" height="44" class="h-11 w-11" ${PROTECT_MEDIA_ATTRS} />
             </span>
             <span class="flex flex-col leading-tight">
               <strong class="text-sm font-bold sm:text-lg">College for Research and Technology</strong>
@@ -255,14 +256,14 @@ export function AuthForgotPasswordLayout({ formId, loginHref }) {
               data-auth-bg
               data-auth-lane="bg"
               data-auth-depth="3"
-              class="absolute left-[10%] top-[10%] h-[58%] w-[40%] rounded-[2rem] ring-1 ring-white/10"
+              class="auth-shape-float-up absolute left-[10%] top-[10%] h-[58%] w-[40%] rounded-[2rem] ring-1 ring-white/10"
               style="background: linear-gradient(to bottom right, #2563eb, #0f2c4c);"
             ></div>
             <div
               data-auth-bg
               data-auth-lane="bg"
               data-auth-depth="4"
-              class="absolute right-[8%] top-[26%] h-[46%] w-[22%] rounded-[1.6rem]"
+              class="auth-shape-float-down absolute right-[8%] top-[26%] h-[46%] w-[22%] rounded-[1.6rem]"
               style="background: linear-gradient(to bottom, #ffd93a, #f5b900);"
             ></div>
             <div
@@ -287,6 +288,7 @@ export function AuthForgotPasswordLayout({ formId, loginHref }) {
                 height="876"
                 class="absolute bottom-0 left-1/2 h-full w-auto max-w-none -translate-x-1/2 object-contain object-bottom drop-shadow-2xl [mask-image:linear-gradient(to_bottom,#000_74%,transparent_99%)]"
                 style="max-width: none;"
+                ${PROTECT_MEDIA_ATTRS}
               />
             </div>
           </div>
@@ -669,6 +671,7 @@ export function initAuthForgotPassword({
     resetPassword,
     userIdKey,
 }) {
+    protectPageMedia();
     document.body.classList.remove('admin-page', 'adviser-page', 'student-page');
     if (bodyClass) document.body.classList.add(bodyClass);
 

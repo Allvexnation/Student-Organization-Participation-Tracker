@@ -854,6 +854,38 @@ h2 {
     border-radius: 34px;
 }
 
+@keyframes shape-float-up {
+    0%,
+    100% {
+        transform: translate3d(0, 12px, 0);
+    }
+    50% {
+        transform: translate3d(0, -12px, 0);
+    }
+}
+
+@keyframes shape-float-down {
+    0%,
+    100% {
+        transform: translate3d(0, -12px, 0);
+    }
+    50% {
+        transform: translate3d(0, 12px, 0);
+    }
+}
+
+.shape-float-up,
+.auth-shape-float-up,
+.shape-blue {
+    animation: shape-float-up 4.8s ease-in-out infinite;
+}
+
+.shape-float-down,
+.auth-shape-float-down,
+.shape-yellow {
+    animation: shape-float-down 4.8s ease-in-out infinite;
+}
+
 .shape-blue {
     width: 58%;
     height: 50%;
@@ -917,6 +949,14 @@ h2 {
     background: var(--yellow);
     right: 20%;
     top: 2%;
+}
+
+.hero-photo,
+img[data-protect-media] {
+    -webkit-user-drag: none;
+    user-select: none;
+    -webkit-user-select: none;
+    pointer-events: none;
 }
 
 .hero-photo {
@@ -1804,6 +1844,15 @@ h2 {
     .reveal {
         opacity: 1;
         transform: none;
+    }
+
+    .shape-blue,
+    .shape-yellow,
+    .shape-float-up,
+    .shape-float-down,
+    .auth-shape-float-up,
+    .auth-shape-float-down {
+        animation: none;
     }
 }
 
@@ -3445,15 +3494,59 @@ h2 {
 }
 
 @media (max-width: 767px) {
+    #modal-overlay > .absolute.inset-0.flex {
+        overflow: hidden;
+        max-height: 100%;
+        align-items: flex-end;
+    }
+
     #modal-overlay .manage-modal-panel {
         display: flex;
         flex-direction: column;
         border-radius: 1.5rem 1.5rem 0 0;
-        max-height: 94vh;
         width: 100%;
         min-width: 0;
+        min-height: 0;
+        max-height: calc(100vh - 12px);
+        max-height: calc(100dvh - max(12px, env(safe-area-inset-top, 0px)));
+        max-height: calc(100svh - max(12px, env(safe-area-inset-top, 0px)));
         overflow: hidden;
         overflow-x: hidden;
+        touch-action: pan-y;
+    }
+
+    #modal-overlay .manage-modal-header {
+        flex: 0 0 auto;
+        min-height: 0;
+    }
+
+    #modal-overlay .manage-modal-drawer-handle {
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        flex: 0 0 auto;
+        width: 100%;
+        padding: 0.7rem 0 0.2rem;
+        cursor: grab;
+        touch-action: none;
+        user-select: none;
+        -webkit-user-select: none;
+    }
+
+    #modal-overlay .manage-modal-drawer-handle:active {
+        cursor: grabbing;
+    }
+
+    #modal-overlay .manage-modal-drawer-pill {
+        display: block;
+        width: 3rem;
+        height: 0.35rem;
+        border-radius: 999px;
+        background: #c5ced9;
+    }
+
+    #modal-overlay .manage-modal-header {
+        touch-action: none;
     }
 
     #modal-overlay #modal-body {
